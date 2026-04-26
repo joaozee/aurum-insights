@@ -148,15 +148,13 @@ export default function HomeContent({ firstName, marketData }: HomeContentProps)
               style={{
                 display: "inline-flex",
                 alignItems: "center",
-                gap: "6px",
                 background: "rgba(201,168,76,0.08)",
                 border: "1px solid rgba(201,168,76,0.15)",
                 borderRadius: "20px",
-                padding: "5px 12px",
+                padding: "5px 14px",
                 marginBottom: "20px",
               }}
             >
-              <Sparkles size={11} style={{ color: "#C9A84C" }} />
               <span
                 style={{
                   fontSize: "11px",
@@ -166,7 +164,7 @@ export default function HomeContent({ firstName, marketData }: HomeContentProps)
                   fontWeight: 500,
                 }}
               >
-                Aurum Investimentos
+                Aurum
               </span>
             </div>
 
