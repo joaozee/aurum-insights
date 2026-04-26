@@ -1,0 +1,90 @@
+{
+  "name": "RankingAurum",
+  "type": "object",
+  "properties": {
+    "ticker": {
+      "type": "string",
+      "description": "Ticker da a\u00e7\u00e3o"
+    },
+    "company_name": {
+      "type": "string",
+      "description": "Nome da empresa"
+    },
+    "current_price": {
+      "type": "number",
+      "description": "Pre\u00e7o atual"
+    },
+    "pl": {
+      "type": "number",
+      "description": "P/L (Pre\u00e7o/Lucro)"
+    },
+    "pvp": {
+      "type": "number",
+      "description": "P/VP (Pre\u00e7o/Valor Patrimonial)"
+    },
+    "dy": {
+      "type": "number",
+      "description": "Dividend Yield (%)"
+    },
+    "roe": {
+      "type": "number",
+      "description": "ROE (%)"
+    },
+    "margem_liquida": {
+      "type": "number",
+      "description": "Margem L\u00edquida (%)"
+    },
+    "div_ebitda": {
+      "type": "number",
+      "description": "D\u00edvida/EBITDA"
+    },
+    "score_aurum": {
+      "type": "number",
+      "description": "Score Aurum (0-100)"
+    },
+    "score_dy": {
+      "type": "number",
+      "description": "Score DY normalizado"
+    },
+    "score_pvp": {
+      "type": "number",
+      "description": "Score P/VP normalizado"
+    },
+    "score_pl": {
+      "type": "number",
+      "description": "Score P/L normalizado"
+    },
+    "score_roe": {
+      "type": "number",
+      "description": "Score ROE normalizado"
+    },
+    "score_margem": {
+      "type": "number",
+      "description": "Score Margem normalizado"
+    },
+    "score_div_ebitda": {
+      "type": "number",
+      "description": "Score D\u00edv/EBITDA normalizado"
+    },
+    "rank_position": {
+      "type": "number",
+      "description": "Posi\u00e7\u00e3o no ranking"
+    },
+    "sector": {
+      "type": "string",
+      "description": "Setor da empresa"
+    },
+    "last_updated": {
+      "type": "string",
+      "format": "date-time",
+      "description": "\u00daltima atualiza\u00e7\u00e3o"
+    }
+  },
+  "required": [
+    "ticker",
+    "company_name"
+  ],
+  "rls": {
+    "read": {}
+  }
+}

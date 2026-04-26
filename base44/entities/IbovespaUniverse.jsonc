@@ -1,0 +1,26 @@
+{
+  "name": "IbovespaUniverse",
+  "type": "object",
+  "properties": {
+    "ticker": {
+      "type": "string",
+      "description": "Ticker da a\u00e7\u00e3o (ex: PETR4)"
+    },
+    "company_name": {
+      "type": "string",
+      "description": "Nome da empresa"
+    },
+    "is_active": {
+      "type": "boolean",
+      "default": true,
+      "description": "Se est\u00e1 ativa no universo"
+    }
+  },
+  "required": [
+    "ticker",
+    "company_name"
+  ],
+  "rls": {
+    "read": {}
+  }
+}
