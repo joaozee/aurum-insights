@@ -420,7 +420,7 @@ export default function HomeContent({ firstName, marketData }: HomeContentProps)
         {/* Conheça a Aurum */}
         <section style={{ marginBottom: "36px" }}>
           <button
-            onClick={() => router.push("/sobre")}
+            onClick={() => router.push("/dashboard/sobre")}
             style={{
               width: "100%",
               background: "linear-gradient(135deg, #130f09 0%, #1a1205 100%)",
