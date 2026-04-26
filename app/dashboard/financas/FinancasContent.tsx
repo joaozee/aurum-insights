@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import {
   Plus, FileText, TrendingUp, TrendingDown, Wallet, X,
   Trash2, Target, Calendar, BarChart2, LayoutDashboard,
@@ -56,18 +56,37 @@ interface FinancialEvent {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
+// Pessoal
 const CATEGORIES_EXPENSE = ["Alimentação","Transporte","Moradia","Saúde","Educação","Lazer","Vestuário","Serviços","Impostos","Outros"];
 const CATEGORIES_INCOME  = ["Salário","Freelance","Dividendos","Investimentos","Aluguel","Outros"];
-const GOAL_CATEGORIES    = ["Aposentadoria","Imóvel","Viagem","Educação","Emergência","Veículo","Outros"];
+
+// Empresa
+const CATEGORIES_EXPENSE_EMPRESA = ["Fornecedores","Folha de Pagamento","Aluguel Comercial","Marketing","Impostos e Taxas","Serviços / Terceiros","Infraestrutura","Equipamentos","Viagens Corporativas","Logística","Contabilidade / Jurídico","Outros"];
+const CATEGORIES_INCOME_EMPRESA  = ["Vendas","Serviços Prestados","Comissões","Contratos","Receitas Financeiras","Investimentos","Outros"];
+
+const GOAL_CATEGORIES    = ["Aposentadoria","Imóvel","Viagem","Educação","Emergência","Veículo","Expansão","Capital de Giro","Outros"];
 const EVENT_TYPES        = ["vencimento","meta","receita","despesa","outro"];
 const MONTHS_PT          = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
 
 const CATEGORY_COLORS: Record<string, string> = {
+  // Pessoal
   Alimentação: "#f59e0b", Transporte: "#3b82f6", Moradia: "#8b5cf6",
   Saúde: "#ec4899", Educação: "#06b6d4", Lazer: "#10b981",
   Vestuário: "#f97316", Serviços: "#a78bfa", Impostos: "#ef4444",
   Salário: "#22c55e", Freelance: "#a3e635", Dividendos: "#C9A84C",
-  Investimentos: "#34d399", Aluguel: "#60a5fa", Outros: "#6b7280",
+  Investimentos: "#34d399", Aluguel: "#60a5fa",
+  // Empresa
+  Fornecedores: "#f59e0b", "Folha de Pagamento": "#22c55e",
+  "Aluguel Comercial": "#60a5fa", Marketing: "#ec4899",
+  "Impostos e Taxas": "#ef4444", "Serviços / Terceiros": "#a78bfa",
+  Infraestrutura: "#8b5cf6", Equipamentos: "#06b6d4",
+  "Viagens Corporativas": "#f97316", Logística: "#3b82f6",
+  "Contabilidade / Jurídico": "#10b981",
+  Vendas: "#22c55e", "Serviços Prestados": "#34d399",
+  Comissões: "#C9A84C", Contratos: "#a3e635",
+  "Receitas Financeiras": "#60a5fa",
+  Expansão: "#8b5cf6", "Capital de Giro": "#06b6d4",
+  Outros: "#6b7280",
 };
 
 const EVENT_TYPE_COLORS: Record<string, string> = {
@@ -212,14 +231,34 @@ function smoothPath(pts: { x: number; y: number }[]) {
   }, "");
 }
 
+// ── Shared tooltip style ──────────────────────────────────────────────────────
+
+function Tooltip({ x, y, children }: { x: number; y: number; children: React.ReactNode }) {
+  return (
+    <div style={{
+      position: "absolute", left: x, top: y, pointerEvents: "none", zIndex: 60,
+      background: "#16120a", border: "1px solid rgba(201,168,76,0.35)",
+      borderRadius: "8px", padding: "10px 14px",
+      boxShadow: "0 8px 28px rgba(0,0,0,0.7)", minWidth: "140px",
+    }}>
+      {children}
+    </div>
+  );
+}
+
 // ── Bar chart (category expenses) ────────────────────────────────────────────
 
 function BarChartSVG({ data }: { data: [string, number][] }) {
+  const [hovered, setHovered] = useState<{ cat: string; val: number } | null>(null);
+  const [pos, setPos] = useState({ x: 0, y: 0 });
+  const wrapRef = useRef<HTMLDivElement>(null);
+
   if (data.length === 0) return (
     <div style={{ height: "180px", display: "flex", alignItems: "center", justifyContent: "center" }}>
       <span style={{ fontSize: "13px", color: "#3a2a10", fontFamily: "var(--font-sans)" }}>Sem despesas</span>
     </div>
   );
+
   const W = 360, H = 180, PT = 12, PB = 32, PL = 8, PR = 8;
   const cW = W - PL - PR;
   const cH = H - PT - PB;
@@ -227,43 +266,67 @@ function BarChartSVG({ data }: { data: [string, number][] }) {
   const bW = Math.min(32, cW / data.length - 6);
   const gap = (cW - bW * data.length) / (data.length + 1);
 
+  const onMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!wrapRef.current) return;
+    const r = wrapRef.current.getBoundingClientRect();
+    setPos({ x: Math.min(e.clientX - r.left + 12, r.width - 155), y: e.clientY - r.top - 70 });
+  };
+
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} width="100%" style={{ overflow: "visible" }}>
-      {[0, 0.25, 0.5, 0.75, 1].map(p => {
-        const y = PT + cH - p * cH;
-        return (
-          <line key={p} x1={PL} y1={y} x2={W - PR} y2={y}
-            stroke="rgba(255,255,255,0.04)" strokeWidth={1} />
-        );
-      })}
-      {data.map(([cat, val], i) => {
-        const bH = Math.max((val / maxVal) * cH, 2);
-        const x = PL + gap + i * (bW + gap);
-        const y = PT + cH - bH;
-        const color = CATEGORY_COLORS[cat] ?? "#C9A84C";
-        return (
-          <g key={cat}>
-            <defs>
-              <linearGradient id={`bg${i}`} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor={color} stopOpacity={0.9} />
-                <stop offset="100%" stopColor={color} stopOpacity={0.5} />
-              </linearGradient>
-            </defs>
-            <rect x={x} y={y} width={bW} height={bH} fill={`url(#bg${i})`} rx={3} />
-            <text x={x + bW / 2} y={H - 4} textAnchor="middle" fontSize={7.5}
-              fill="#5a4a2a" fontFamily="var(--font-sans)">
-              {cat.length > 6 ? cat.slice(0, 5) + "." : cat}
-            </text>
-          </g>
-        );
-      })}
-    </svg>
+    <div ref={wrapRef} style={{ position: "relative" }} onMouseMove={onMove}>
+      <svg viewBox={`0 0 ${W} ${H}`} width="100%" style={{ overflow: "visible" }}>
+        {[0, 0.25, 0.5, 0.75, 1].map(p => {
+          const y = PT + cH - p * cH;
+          return <line key={p} x1={PL} y1={y} x2={W - PR} y2={y} stroke="rgba(255,255,255,0.04)" strokeWidth={1} />;
+        })}
+        {data.map(([cat, val], i) => {
+          const bH = Math.max((val / maxVal) * cH, 2);
+          const x = PL + gap + i * (bW + gap);
+          const isHov = hovered?.cat === cat;
+          const y = PT + cH - bH - (isHov ? 3 : 0);
+          const color = CATEGORY_COLORS[cat] ?? "#C9A84C";
+          return (
+            <g key={cat} style={{ cursor: "pointer" }}
+              onMouseEnter={() => setHovered({ cat, val })}
+              onMouseLeave={() => setHovered(null)}>
+              <defs>
+                <linearGradient id={`bg${i}`} x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={color} stopOpacity={isHov ? 1 : 0.85} />
+                  <stop offset="100%" stopColor={color} stopOpacity={isHov ? 0.7 : 0.45} />
+                </linearGradient>
+              </defs>
+              <rect x={x} y={y} width={bW} height={bH + (isHov ? 3 : 0)} fill={`url(#bg${i})`} rx={3} />
+              <text x={x + bW / 2} y={H - 4} textAnchor="middle" fontSize={7.5}
+                fill={isHov ? "#C9A84C" : "#5a4a2a"} fontFamily="var(--font-sans)">
+                {cat.length > 6 ? cat.slice(0, 5) + "." : cat}
+              </text>
+            </g>
+          );
+        })}
+      </svg>
+      {hovered && (
+        <Tooltip x={pos.x} y={Math.max(pos.y, 4)}>
+          <div style={{ display: "flex", alignItems: "center", gap: "7px", marginBottom: "6px" }}>
+            <div style={{ width: "8px", height: "8px", borderRadius: "2px", background: CATEGORY_COLORS[hovered.cat] ?? "#C9A84C" }} />
+            <span style={{ fontSize: "12px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-sans)" }}>{hovered.cat}</span>
+          </div>
+          <p style={{ fontSize: "14px", fontWeight: 700, color: "#f87171", fontFamily: "var(--font-sans)", margin: 0 }}>{fmt(hovered.val)}</p>
+          <p style={{ fontSize: "10px", color: "#5a4a2a", fontFamily: "var(--font-sans)", marginTop: "3px" }}>
+            {maxVal > 0 ? `${((hovered.val / maxVal) * 100).toFixed(0)}% do maior gasto` : ""}
+          </p>
+        </Tooltip>
+      )}
+    </div>
   );
 }
 
 // ── Line chart (monthly trend) ────────────────────────────────────────────────
 
 function LineChartSVG({ data }: { data: { month: string; income: number; expense: number }[] }) {
+  const [hovered, setHovered] = useState<{ idx: number } | null>(null);
+  const [pos, setPos] = useState({ x: 0, y: 0 });
+  const wrapRef = useRef<HTMLDivElement>(null);
+
   const W = 360, H = 180, PT = 16, PB = 28, PL = 38, PR = 12;
   const cW = W - PL - PR;
   const cH = H - PT - PB;
@@ -277,82 +340,127 @@ function LineChartSVG({ data }: { data: { month: string; income: number; expense
 
   const expPts = data.map((d, i) => toPoint(d.expense, i));
   const incPts = data.map((d, i) => toPoint(d.income, i));
-
   const expPath = smoothPath(expPts);
   const incPath = smoothPath(incPts);
+  const expArea = expPts.length > 0 ? `${expPath} L ${expPts[expPts.length - 1].x} ${PT + cH} L ${expPts[0].x} ${PT + cH} Z` : "";
+  const incArea = incPts.length > 0 ? `${incPath} L ${incPts[incPts.length - 1].x} ${PT + cH} L ${incPts[0].x} ${PT + cH} Z` : "";
 
-  const expArea = expPts.length > 0
-    ? `${expPath} L ${expPts[expPts.length - 1].x} ${PT + cH} L ${expPts[0].x} ${PT + cH} Z`
-    : "";
-  const incArea = incPts.length > 0
-    ? `${incPath} L ${incPts[incPts.length - 1].x} ${PT + cH} L ${incPts[0].x} ${PT + cH} Z`
-    : "";
-
-  const yLabels = [0, 0.25, 0.5, 0.75, 1];
+  const onMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!wrapRef.current) return;
+    const r = wrapRef.current.getBoundingClientRect();
+    setPos({ x: Math.min(e.clientX - r.left + 12, r.width - 175), y: e.clientY - r.top - 85 });
+  };
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} width="100%">
-      <defs>
-        <linearGradient id="expGrad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#C9A84C" stopOpacity={0.25} />
-          <stop offset="100%" stopColor="#C9A84C" stopOpacity={0} />
-        </linearGradient>
-        <linearGradient id="incGrad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#22c55e" stopOpacity={0.15} />
-          <stop offset="100%" stopColor="#22c55e" stopOpacity={0} />
-        </linearGradient>
-      </defs>
+    <div ref={wrapRef} style={{ position: "relative" }} onMouseMove={onMove}>
+      <svg viewBox={`0 0 ${W} ${H}`} width="100%">
+        <defs>
+          <linearGradient id="expGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#C9A84C" stopOpacity={0.25} />
+            <stop offset="100%" stopColor="#C9A84C" stopOpacity={0} />
+          </linearGradient>
+          <linearGradient id="incGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#22c55e" stopOpacity={0.15} />
+            <stop offset="100%" stopColor="#22c55e" stopOpacity={0} />
+          </linearGradient>
+        </defs>
 
-      {yLabels.map(p => {
-        const y = PT + cH - p * cH;
-        const v = p * maxVal;
-        return (
-          <g key={p}>
-            <line x1={PL} y1={y} x2={W - PR} y2={y} stroke="rgba(255,255,255,0.05)" strokeWidth={1} />
-            <text x={PL - 4} y={y + 3} textAnchor="end" fontSize={7} fill="#4a3a1a" fontFamily="var(--font-sans)">
-              {v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v.toFixed(0)}
-            </text>
-          </g>
-        );
-      })}
+        {[0, 0.25, 0.5, 0.75, 1].map(p => {
+          const y = PT + cH - p * cH;
+          const v = p * maxVal;
+          return (
+            <g key={p}>
+              <line x1={PL} y1={y} x2={W - PR} y2={y} stroke="rgba(255,255,255,0.05)" strokeWidth={1} />
+              <text x={PL - 4} y={y + 3} textAnchor="end" fontSize={7} fill="#4a3a1a" fontFamily="var(--font-sans)">
+                {v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v.toFixed(0)}
+              </text>
+            </g>
+          );
+        })}
 
-      {/* Income area + line */}
-      {incArea && <path d={incArea} fill="url(#incGrad)" />}
-      {incPath && <path d={incPath} fill="none" stroke="#22c55e" strokeWidth={1.5} strokeOpacity={0.6} />}
+        {incArea && <path d={incArea} fill="url(#incGrad)" />}
+        {incPath && <path d={incPath} fill="none" stroke="#22c55e" strokeWidth={1.5} strokeOpacity={0.6} />}
+        {expArea && <path d={expArea} fill="url(#expGrad)" />}
+        {expPath && <path d={expPath} fill="none" stroke="#C9A84C" strokeWidth={2} />}
 
-      {/* Expense area + line */}
-      {expArea && <path d={expArea} fill="url(#expGrad)" />}
-      {expPath && <path d={expPath} fill="none" stroke="#C9A84C" strokeWidth={2} />}
+        {/* Vertical guide on hover */}
+        {hovered !== null && (
+          <line
+            x1={expPts[hovered.idx].x} y1={PT}
+            x2={expPts[hovered.idx].x} y2={PT + cH}
+            stroke="rgba(201,168,76,0.2)" strokeWidth={1} strokeDasharray="3,3"
+          />
+        )}
 
-      {/* Dots */}
-      {expPts.map((p, i) => (
-        <circle key={`e${i}`} cx={p.x} cy={p.y} r={3} fill="#C9A84C" />
-      ))}
-      {incPts.map((p, i) => (
-        <circle key={`i${i}`} cx={p.x} cy={p.y} r={2.5} fill="#22c55e" opacity={0.7} />
-      ))}
+        {/* Dots with hover zones */}
+        {expPts.map((p, i) => {
+          const isHov = hovered?.idx === i;
+          return (
+            <g key={`e${i}`} style={{ cursor: "crosshair" }}
+              onMouseEnter={() => setHovered({ idx: i })}
+              onMouseLeave={() => setHovered(null)}>
+              <circle cx={p.x} cy={p.y} r={14} fill="transparent" />
+              <circle cx={p.x} cy={p.y} r={isHov ? 5 : 3} fill="#C9A84C" />
+              {isHov && <circle cx={p.x} cy={p.y} r={8} fill="rgba(201,168,76,0.15)" />}
+            </g>
+          );
+        })}
+        {incPts.map((p, i) => (
+          <circle key={`i${i}`} cx={p.x} cy={p.y} r={hovered?.idx === i ? 4 : 2.5} fill="#22c55e" opacity={0.75} />
+        ))}
 
-      {/* X labels */}
-      {data.map((d, i) => (
-        <text key={i} x={PL + (n > 1 ? (i / (n - 1)) * cW : cW / 2)} y={H - 4}
-          textAnchor="middle" fontSize={7.5} fill="#5a4a2a" fontFamily="var(--font-sans)">
-          {d.month}
-        </text>
-      ))}
-    </svg>
+        {data.map((d, i) => (
+          <text key={i} x={PL + (n > 1 ? (i / (n - 1)) * cW : cW / 2)} y={H - 4}
+            textAnchor="middle" fontSize={7.5}
+            fill={hovered?.idx === i ? "#C9A84C" : "#5a4a2a"} fontFamily="var(--font-sans)">
+            {d.month}
+          </text>
+        ))}
+      </svg>
+
+      {hovered !== null && (
+        <Tooltip x={pos.x} y={Math.max(pos.y, 4)}>
+          <p style={{ fontSize: "11px", fontWeight: 700, color: "#C9A84C", fontFamily: "var(--font-sans)", marginBottom: "8px" }}>
+            {data[hovered.idx].month}
+          </p>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: "20px", marginBottom: "5px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+              <div style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#22c55e" }} />
+              <span style={{ fontSize: "11px", color: "#5a4a2a", fontFamily: "var(--font-sans)" }}>Entradas</span>
+            </div>
+            <span style={{ fontSize: "12px", fontWeight: 700, color: "#22c55e", fontFamily: "var(--font-sans)" }}>
+              {fmt(data[hovered.idx].income)}
+            </span>
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: "20px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+              <div style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#C9A84C" }} />
+              <span style={{ fontSize: "11px", color: "#5a4a2a", fontFamily: "var(--font-sans)" }}>Saídas</span>
+            </div>
+            <span style={{ fontSize: "12px", fontWeight: 700, color: "#f87171", fontFamily: "var(--font-sans)" }}>
+              {fmt(data[hovered.idx].expense)}
+            </span>
+          </div>
+        </Tooltip>
+      )}
+    </div>
   );
 }
 
 // ── Donut / Pie chart ─────────────────────────────────────────────────────────
 
 function DonutChartSVG({ data, total }: { data: [string, number][]; total: number }) {
+  const [hovered, setHovered] = useState<string | null>(null);
+  const [pos, setPos] = useState({ x: 0, y: 0 });
+  const wrapRef = useRef<HTMLDivElement>(null);
+
   if (data.length === 0 || total === 0) return (
     <div style={{ height: "160px", display: "flex", alignItems: "center", justifyContent: "center" }}>
       <span style={{ fontSize: "13px", color: "#3a2a10", fontFamily: "var(--font-sans)" }}>Sem dados</span>
     </div>
   );
 
-  const CX = 80, CY = 80, R = 68, IR = 42, W = 260, H = 160;
+  const CX = 80, CY = 80, R = 68, IR = 42;
   let angle = -90;
   const slices = data.map(([cat, val]) => {
     const sweep = (val / total) * 360;
@@ -361,32 +469,75 @@ function DonutChartSVG({ data, total }: { data: [string, number][]; total: numbe
     return s;
   });
 
+  const hovSlice = slices.find(s => s.cat === hovered);
+
+  const onMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!wrapRef.current) return;
+    const r = wrapRef.current.getBoundingClientRect();
+    setPos({ x: Math.min(e.clientX - r.left + 12, r.width - 165), y: e.clientY - r.top - 75 });
+  };
+
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: "24px" }}>
+    <div ref={wrapRef} style={{ display: "flex", alignItems: "center", gap: "24px", position: "relative" }} onMouseMove={onMove}>
       <svg viewBox={`0 0 ${CX * 2} ${CY * 2}`} width={CX * 2} height={CY * 2} style={{ flexShrink: 0 }}>
-        {slices.map(({ cat, start, end }) => (
-          <path key={cat} d={pieSlicePath(CX, CY, R, start, end)}
-            fill={CATEGORY_COLORS[cat] ?? "#C9A84C"} opacity={0.85} />
-        ))}
+        {slices.map(({ cat, start, end }) => {
+          const isHov = hovered === cat;
+          return (
+            <path key={cat}
+              d={pieSlicePath(CX, CY, isHov ? R + 5 : R, start, end)}
+              fill={CATEGORY_COLORS[cat] ?? "#C9A84C"}
+              opacity={!hovered || isHov ? 0.9 : 0.35}
+              style={{ cursor: "pointer", transition: "opacity 0.15s, d 0.15s" }}
+              onMouseEnter={() => setHovered(cat)}
+              onMouseLeave={() => setHovered(null)}
+            />
+          );
+        })}
         <circle cx={CX} cy={CY} r={IR} fill="#130f09" />
-        <text x={CX} y={CY - 5} textAnchor="middle" fontSize={11} fontWeight={700} fill="#e8dcc0" fontFamily="var(--font-sans)">
-          {data.length}
+        <text x={CX} y={CY - 6} textAnchor="middle" fontSize={hovSlice ? 13 : 11}
+          fontWeight={700} fill="#e8dcc0" fontFamily="var(--font-sans)">
+          {hovSlice ? `${((hovSlice.val / total) * 100).toFixed(0)}%` : data.length}
         </text>
         <text x={CX} y={CY + 9} textAnchor="middle" fontSize={7.5} fill="#5a4a2a" fontFamily="var(--font-sans)">
-          categorias
+          {hovSlice ? hovSlice.cat.slice(0, 8) : "categorias"}
         </text>
       </svg>
+
       <div style={{ display: "flex", flexDirection: "column", gap: "8px", flex: 1 }}>
         {slices.map(({ cat, val }) => (
-          <div key={cat} style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <div key={cat}
+            style={{ display: "flex", alignItems: "center", gap: "8px", opacity: !hovered || hovered === cat ? 1 : 0.35, transition: "opacity 0.15s", cursor: "default" }}
+            onMouseEnter={() => setHovered(cat)}
+            onMouseLeave={() => setHovered(null)}
+          >
             <div style={{ width: "8px", height: "8px", borderRadius: "2px", background: CATEGORY_COLORS[cat] ?? "#C9A84C", flexShrink: 0 }} />
-            <span style={{ fontSize: "12px", color: "#9a8a6a", fontFamily: "var(--font-sans)", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{cat}</span>
+            <span style={{ fontSize: "12px", color: "#9a8a6a", fontFamily: "var(--font-sans)", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{cat}</span>
             <span style={{ fontSize: "11px", color: "#5a4a2a", fontFamily: "var(--font-sans)", flexShrink: 0 }}>
-              {total > 0 ? `${((val / total) * 100).toFixed(1)}%` : "—"}
+              {`${((val / total) * 100).toFixed(1)}%`}
             </span>
+            <span style={{ fontSize: "12px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-sans)", flexShrink: 0 }}>{fmt(val)}</span>
           </div>
         ))}
       </div>
+
+      {hovSlice && (
+        <Tooltip x={pos.x} y={Math.max(pos.y, 4)}>
+          <div style={{ display: "flex", alignItems: "center", gap: "7px", marginBottom: "8px" }}>
+            <div style={{ width: "8px", height: "8px", borderRadius: "2px", background: CATEGORY_COLORS[hovSlice.cat] ?? "#C9A84C" }} />
+            <span style={{ fontSize: "12px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-sans)" }}>{hovSlice.cat}</span>
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: "16px", marginBottom: "4px" }}>
+            <span style={{ fontSize: "11px", color: "#5a4a2a", fontFamily: "var(--font-sans)" }}>Valor</span>
+            <span style={{ fontSize: "13px", fontWeight: 700, color: "#f87171", fontFamily: "var(--font-sans)" }}>{fmt(hovSlice.val)}</span>
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: "16px" }}>
+            <span style={{ fontSize: "11px", color: "#5a4a2a", fontFamily: "var(--font-sans)" }}>Participação</span>
+            <span style={{ fontSize: "13px", fontWeight: 700, color: "#C9A84C", fontFamily: "var(--font-sans)" }}>
+              {`${((hovSlice.val / total) * 100).toFixed(1)}%`}
+            </span>
+          </div>
+        </Tooltip>
+      )}
     </div>
   );
 }
@@ -1176,7 +1327,10 @@ export default function FinancasContent({ userEmail }: Props) {
                   <FormField label="Categoria">
                     <select value={txForm.category} onChange={e => setTxForm(f => ({ ...f, category: e.target.value }))} style={selectStyle}>
                       <option value="">Selecione...</option>
-                      {(modalTxType === "entrada" ? CATEGORIES_INCOME : CATEGORIES_EXPENSE).map(c => <option key={c} value={c}>{c}</option>)}
+                      {(accountType === "empresa"
+                        ? (modalTxType === "entrada" ? CATEGORIES_INCOME_EMPRESA : CATEGORIES_EXPENSE_EMPRESA)
+                        : (modalTxType === "entrada" ? CATEGORIES_INCOME : CATEGORIES_EXPENSE)
+                      ).map(c => <option key={c} value={c}>{c}</option>)}
                     </select>
                   </FormField>
                   <FormField label="Descrição">
