@@ -172,13 +172,21 @@ export default function SobreContent() {
             }}
           >
             <p style={{ fontSize: "14px", color: "#8a7a5a", fontFamily: "var(--font-sans)", lineHeight: 1.8, marginBottom: "16px" }}>
-              A Aurum nasceu com o propósito de democratizar o acesso à educação financeira de qualidade no Brasil.
-              Fundada por investidores apaixonados, nossa missão é capacitar pessoas a tomarem decisões financeiras mais
-              inteligentes e construírem patrimônio de forma sustentável.
+              O Grupo Aurum nasceu da crença de que dinheiro é uma ferramenta, não um destino.
             </p>
-            <p style={{ fontSize: "14px", color: "#8a7a5a", fontFamily: "var(--font-sans)", lineHeight: 1.8, margin: 0 }}>
-              Combinamos análises profundas de mercado, cursos práticos e uma comunidade ativa para criar o ecossistema
-              completo que o investidor brasileiro precisa para prosperar no mercado financeiro.
+            <p style={{ fontSize: "14px", color: "#8a7a5a", fontFamily: "var(--font-sans)", lineHeight: 1.8, marginBottom: "16px" }}>
+              Somos uma empresa brasileira de educação financeira focada em construção de patrimônio real, com ênfase em
+              investimentos em dividendos, mentalidade de longo prazo e disciplina financeira.
+            </p>
+            <p style={{ fontSize: "14px", color: "#8a7a5a", fontFamily: "var(--font-sans)", lineHeight: 1.8, marginBottom: "16px" }}>
+              Aqui você não encontra promessas de enriquecimento rápido. Encontra método, profundidade e uma comunidade
+              que pensa diferente sobre o futuro.
+            </p>
+            <p style={{ fontSize: "14px", color: "#8a7a5a", fontFamily: "var(--font-sans)", lineHeight: 1.8, marginBottom: "20px" }}>
+              Valor não se cria da noite para o dia. Se cria com consistência, conhecimento e as escolhas certas ao longo do tempo.
+            </p>
+            <p style={{ fontSize: "14px", color: "#C9A84C", fontFamily: "var(--font-display)", fontWeight: 600, letterSpacing: "0.04em", margin: 0 }}>
+              Fundado em Valor. Construído para durar.
             </p>
           </div>
         </section>
