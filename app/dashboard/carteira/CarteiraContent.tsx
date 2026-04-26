@@ -530,27 +530,35 @@ export default function CarteiraContent({ userEmail }: Props) {
 
   // ── Computed ───────────────────────────────────────────────────────────────
 
-  const totalInvested = useMemo(() => assets.reduce((s, a) => s + Number(a.quantity) * Number(a.purchase_price), 0), [assets]);
-  const currentValue  = useMemo(() => assets.reduce((s, a) => s + Number(a.quantity) * Number(a.current_price), 0), [assets]);
+  // Merge assets with real-time brapi prices — this is the source of truth
+  const effectiveAssets = useMemo(() => assets.map(a => {
+    const bq = brapiData[a.name];
+    const livePrice = bq?.regularMarketPrice ?? Number(a.current_price);
+    const liveDY    = bq?.dividendsData?.yield ?? null;   // decimal, e.g. 0.1416
+    const livePE    = bq?.priceEarnings ?? null;
+    return { ...a, live_price: livePrice, live_dy: liveDY, live_pe: livePE };
+  }), [assets, brapiData]);
+
+  const totalInvested = useMemo(() => effectiveAssets.reduce((s, a) => s + Number(a.quantity) * Number(a.purchase_price), 0), [effectiveAssets]);
+  const currentValue  = useMemo(() => effectiveAssets.reduce((s, a) => s + Number(a.quantity) * a.live_price, 0), [effectiveAssets]);
   const totalGain     = currentValue - totalInvested;
   const totalGainPct  = totalInvested > 0 ? (totalGain / totalInvested) * 100 : 0;
 
-  const annualDividends = useMemo(() => assets.reduce((s, a) => {
-    const sd = stockMap[a.name];
-    const dy = sd?.dividend_yield ?? 0;
-    return s + Number(a.quantity) * Number(a.current_price) * (dy / 100);
-  }, 0), [assets, stockMap]);
+  const annualDividends = useMemo(() => effectiveAssets.reduce((s, a) => {
+    const dy = a.live_dy ?? (stockMap[a.name]?.dividend_yield ? Number(stockMap[a.name].dividend_yield) / 100 : 0);
+    return s + Number(a.quantity) * a.live_price * dy;
+  }, 0), [effectiveAssets, stockMap]);
 
   const avgDY = currentValue > 0 ? (annualDividends / currentValue) * 100 : 0;
 
   const distribution = useMemo(() => {
     const total = currentValue || 1;
-    return assets.map(a => ({
+    return effectiveAssets.map(a => ({
       ticker: a.name,
-      value: Number(a.quantity) * Number(a.current_price),
-      pct: (Number(a.quantity) * Number(a.current_price) / total) * 100,
+      value: Number(a.quantity) * a.live_price,
+      pct: (Number(a.quantity) * a.live_price / total) * 100,
     })).sort((a, b) => b.value - a.value);
-  }, [assets, currentValue]);
+  }, [effectiveAssets, currentValue]);
 
   const gainRatio = totalInvested > 0 ? currentValue / totalInvested : 1;
 
@@ -574,45 +582,83 @@ export default function CarteiraContent({ userEmail }: Props) {
   }, [transactions, gainRatio, chartFilter, now]);
 
   const kpis = useMemo(() => [
-    { label: "Renda Anual (Dividendos)", value: fmtK(annualDividends), sub: "estimado", color: "#22c55e", col: 1 },
-    { label: "Dividend Yield Médio", value: `${avgDY.toFixed(2)}%`, sub: "ponderado pelo valor", color: "#C9A84C", col: 1 },
-    { label: "Renda Mensal Est.", value: fmtK(annualDividends / 12), sub: "dividendos/mês", color: "#22c55e", col: 1 },
-    { label: "Valor Total Investido", value: fmtK(totalInvested), sub: "custo médio ponderado", color: "#8b5cf6", col: 2 },
-    { label: "Valor da Carteira", value: fmtK(currentValue), sub: "preço atual × qtd", color: "#3b82f6", col: 2 },
-    { label: "Retorno Total", value: `${totalGainPct.toFixed(2)}%`, sub: fmt(totalGain), color: totalGain >= 0 ? "#22c55e" : "#f87171", col: 2 },
-    { label: "Número de Ativos", value: String(assets.length), sub: "posições abertas", color: "#06b6d4", col: 3 },
-    { label: "Maior Posição", value: distribution[0]?.ticker ?? "—", sub: distribution[0] ? `${distribution[0].pct.toFixed(1)}% da carteira` : "", color: "#f59e0b", col: 3 },
-    { label: "Lucro / Prejuízo", value: fmt(totalGain), sub: totalGain >= 0 ? "em lucro" : "em prejuízo", color: totalGain >= 0 ? "#22c55e" : "#f87171", col: 3 },
-  ], [annualDividends, avgDY, totalInvested, currentValue, totalGainPct, totalGain, assets.length, distribution]);
+    { label: "Renda Anual (Dividendos)", value: fmtK(annualDividends), sub: "estimado", color: "#22c55e" },
+    { label: "Dividend Yield Médio", value: `${avgDY.toFixed(2)}%`, sub: "ponderado pelo valor", color: "#C9A84C" },
+    { label: "Renda Mensal Est.", value: fmtK(annualDividends / 12), sub: "dividendos/mês", color: "#22c55e" },
+    { label: "Valor Total Investido", value: fmtK(totalInvested), sub: "custo médio ponderado", color: "#8b5cf6" },
+    { label: "Valor da Carteira", value: fmtK(currentValue), sub: "preço brapi em tempo real", color: "#3b82f6" },
+    { label: "Retorno Total", value: `${totalGainPct >= 0 ? "+" : ""}${totalGainPct.toFixed(2)}%`, sub: fmt(totalGain), color: totalGain >= 0 ? "#22c55e" : "#f87171" },
+    { label: "Número de Ativos", value: String(effectiveAssets.length), sub: "posições abertas", color: "#06b6d4" },
+    { label: "Maior Posição", value: distribution[0]?.ticker ?? "—", sub: distribution[0] ? `${distribution[0].pct.toFixed(1)}% da carteira` : "", color: "#f59e0b" },
+    { label: "Lucro / Prejuízo", value: fmt(totalGain), sub: totalGain >= 0 ? "em lucro" : "em prejuízo", color: totalGain >= 0 ? "#22c55e" : "#f87171" },
+  ], [annualDividends, avgDY, totalInvested, currentValue, totalGainPct, totalGain, effectiveAssets.length, distribution]);
 
   // ── Save handlers ──────────────────────────────────────────────────────────
+
+  // Fetch real-time price from brapi for a single ticker
+  async function fetchLivePrice(ticker: string): Promise<number | null> {
+    try {
+      const res = await fetch(`https://brapi.dev/api/quote/${encodeURIComponent(ticker)}`);
+      const json = await res.json();
+      return json.results?.[0]?.regularMarketPrice ?? null;
+    } catch {
+      return null;
+    }
+  }
+
+  // Update all assets' current_price in Supabase with live brapi prices
+  async function refreshPrices() {
+    if (assets.length === 0) { fetchData(); return; }
+    setLoading(true);
+    try {
+      const tickerStr = Array.from(new Set(assets.map(a => a.name))).join(",");
+      const res = await fetch(`https://brapi.dev/api/quote/${tickerStr}?modules=summaryProfile`);
+      const json = await res.json();
+      const supabase = createClient();
+      for (const q of json.results ?? []) {
+        if (q.regularMarketPrice) {
+          await supabase.from("asset")
+            .update({ current_price: q.regularMarketPrice, updated_at: new Date().toISOString() })
+            .eq("user_email", userEmail)
+            .eq("name", q.symbol);
+        }
+      }
+    } catch { /* silently continue */ }
+    fetchData();
+  }
 
   async function saveAsset() {
     if (!assetForm.name || !assetForm.quantity || !assetForm.purchase_price) {
       setFormError("Preencha ticker, quantidade e preço médio."); return;
     }
     setSaving(true);
+    const ticker = assetForm.name.toUpperCase().trim();
+    const purchasePrice = parseFloat(assetForm.purchase_price.replace(",", "."));
+
+    // Try to get real current price from brapi
+    const livePrice = await fetchLivePrice(ticker);
+    const currentPrice = livePrice
+      ?? (assetForm.current_price ? parseFloat(assetForm.current_price.replace(",", ".")) : purchasePrice);
+
     const supabase = createClient();
     const { error } = await supabase.from("asset").insert({
       user_email: userEmail,
-      name: assetForm.name.toUpperCase().trim(),
+      name: ticker,
       type: assetForm.type,
       quantity: parseFloat(assetForm.quantity),
-      purchase_price: parseFloat(assetForm.purchase_price.replace(",", ".")),
-      current_price: assetForm.current_price
-        ? parseFloat(assetForm.current_price.replace(",", "."))
-        : parseFloat(assetForm.purchase_price.replace(",", ".")),
+      purchase_price: purchasePrice,
+      current_price: currentPrice,
     });
     if (error) { setFormError("Erro ao salvar ativo."); setSaving(false); return; }
 
     // Also log as transaction
     await supabase.from("transaction").insert({
       user_email: userEmail,
-      ticker: assetForm.name.toUpperCase().trim(),
+      ticker,
       type: "compra",
       quantity: parseFloat(assetForm.quantity),
-      price: parseFloat(assetForm.purchase_price.replace(",", ".")),
-      total_value: parseFloat(assetForm.quantity) * parseFloat(assetForm.purchase_price.replace(",", ".")),
+      price: purchasePrice,
+      total_value: parseFloat(assetForm.quantity) * purchasePrice,
       transaction_date: now.toISOString().split("T")[0],
     });
 
@@ -671,7 +717,7 @@ export default function CarteiraContent({ userEmail }: Props) {
           <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
             {[
               { icon: Download, label: "Exportar", onClick: () => {} },
-              { icon: RefreshCw, label: "Atualizar", onClick: fetchData },
+              { icon: RefreshCw, label: "Atualizar", onClick: refreshPrices },
               { icon: Upload, label: "Importar", onClick: () => {} },
             ].map(({ icon: Icon, label, onClick }) => (
               <button key={label} onClick={onClick} style={{
@@ -707,7 +753,7 @@ export default function CarteiraContent({ userEmail }: Props) {
             {/* ── Summary Cards ── */}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "12px", marginBottom: "24px" }}>
               {[
-                { label: "Valor Investido", value: fmt(totalInvested), sub: `${assets.length} ativos`, color: "#8b5cf6", icon: Wallet },
+                { label: "Valor Investido", value: fmt(totalInvested), sub: `${effectiveAssets.length} ativos`, color: "#8b5cf6", icon: Wallet },
                 { label: "Valor Atual", value: fmt(currentValue), sub: "preço de mercado", color: "#3b82f6", icon: TrendingUp },
                 { label: "Ganho / Perda", value: fmt(totalGain), sub: `${totalGain >= 0 ? "+" : ""}${totalGainPct.toFixed(2)}%`, color: totalGain >= 0 ? "#22c55e" : "#f87171", icon: totalGain >= 0 ? TrendingUp : TrendingDown },
                 { label: "Renda Anual (DY)", value: fmtK(annualDividends), sub: `${avgDY.toFixed(2)}% DY médio`, color: "#C9A84C", icon: TrendingUp },
@@ -782,10 +828,10 @@ export default function CarteiraContent({ userEmail }: Props) {
             <div style={{ marginBottom: "24px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
                 <p style={{ fontSize: "16px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-display)" }}>Meus Ativos</p>
-                <span style={{ fontSize: "12px", color: "#7a6a4a", fontFamily: "var(--font-sans)" }}>{assets.length} posições</span>
+                <span style={{ fontSize: "12px", color: "#7a6a4a", fontFamily: "var(--font-sans)" }}>{effectiveAssets.length} posições</span>
               </div>
 
-              {assets.length === 0 ? (
+              {effectiveAssets.length === 0 ? (
                 <div style={{ ...card, textAlign: "center", padding: "48px" }}>
                   <p style={{ fontSize: "13px", color: "#7a6a4a", fontFamily: "var(--font-sans)", marginBottom: "12px" }}>Nenhum ativo cadastrado</p>
                   <button onClick={() => { setAssetForm({ name: "", type: "acoes", quantity: "", purchase_price: "", current_price: "" }); setFormError(""); setModal("asset"); }}
@@ -795,12 +841,11 @@ export default function CarteiraContent({ userEmail }: Props) {
                 </div>
               ) : (
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
-                  {assets.map(a => {
+                  {effectiveAssets.map(a => {
                     const invested = Number(a.quantity) * Number(a.purchase_price);
-                    const current  = Number(a.quantity) * Number(a.current_price);
+                    const current  = Number(a.quantity) * a.live_price;
                     const gain     = current - invested;
                     const gainPct  = invested > 0 ? (gain / invested) * 100 : 0;
-                    const sd       = stockMap[a.name];
                     const bq       = brapiData[a.name];
                     const color    = tickerColor(a.name);
                     const isMenu   = activeMenu === a.id;
@@ -851,11 +896,11 @@ export default function CarteiraContent({ userEmail }: Props) {
                         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "14px" }}>
                           {[
                             { label: "Preço Médio", value: fmt(Number(a.purchase_price)) },
-                            { label: "Preço Atual", value: fmt(Number(a.current_price)) },
-                          ].map(({ label, value }) => (
+                            { label: "Preço Atual", value: fmt(a.live_price), highlight: gain >= 0 },
+                          ].map(({ label, value, highlight }) => (
                             <div key={label} style={{ background: "#0d0a06", borderRadius: "8px", padding: "10px 12px" }}>
                               <p style={{ fontSize: "10px", color: "#7a6a4a", fontFamily: "var(--font-sans)", marginBottom: "4px" }}>{label}</p>
-                              <p style={{ fontSize: "14px", fontWeight: 700, color: "#e8dcc0", fontFamily: "var(--font-sans)" }}>{value}</p>
+                              <p style={{ fontSize: "14px", fontWeight: 700, color: highlight === true ? "#22c55e" : highlight === false ? "#f87171" : "#e8dcc0", fontFamily: "var(--font-sans)" }}>{value}</p>
                             </div>
                           ))}
                         </div>
@@ -880,16 +925,16 @@ export default function CarteiraContent({ userEmail }: Props) {
                             { label: "Rentabilidade", value: `${gainPct >= 0 ? "+" : ""}${gainPct.toFixed(2)}%`, color: gain >= 0 ? "#22c55e" : "#f87171" },
                             {
                               label: "DY",
-                              value: bq?.dividendsData?.yield != null
-                                ? `${(Number(bq.dividendsData.yield) * 100).toFixed(1)}%`
-                                : sd?.dividend_yield ? `${Number(sd.dividend_yield).toFixed(1)}%` : "—",
+                              value: a.live_dy != null
+                                ? `${(Number(a.live_dy) * 100).toFixed(1)}%`
+                                : "—",
                               color: "#C9A84C",
                             },
                             {
                               label: "P/L",
-                              value: bq?.priceEarnings != null
-                                ? Number(bq.priceEarnings).toFixed(1)
-                                : sd?.pe_ratio ? Number(sd.pe_ratio).toFixed(1) : "—",
+                              value: a.live_pe != null
+                                ? Number(a.live_pe).toFixed(1)
+                                : "—",
                               color: "#a09068",
                             },
                           ].map(({ label, value, color: c }, i) => (
