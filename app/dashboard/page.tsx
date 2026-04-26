@@ -20,7 +20,8 @@ export default async function DashboardPage() {
     user.email?.split("@")[0] ||
     "Usuário";
 
-  const firstName = fullName.split(" ")[0];
+  const rawFirst = fullName.split(" ")[0];
+  const firstName = rawFirst.charAt(0).toUpperCase() + rawFirst.slice(1).toLowerCase();
 
   return <HomeContent firstName={firstName} />;
 }

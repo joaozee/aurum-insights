@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Home,
   BarChart2,
@@ -32,6 +32,17 @@ export default function Navbar({ userName, userInitial }: NavbarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    }
+    if (menuOpen) document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [menuOpen]);
 
   async function handleSignOut() {
     const supabase = createClient();
@@ -46,9 +57,10 @@ export default function Navbar({ userName, userInitial }: NavbarProps) {
         position: "sticky",
         top: 0,
         zIndex: 50,
-        background: "#0a0806",
-        borderBottom: "1px solid rgba(201,168,76,0.12)",
-        backdropFilter: "blur(12px)",
+        background: "rgba(10,8,6,0.92)",
+        borderBottom: "1px solid rgba(201,168,76,0.1)",
+        backdropFilter: "blur(16px)",
+        WebkitBackdropFilter: "blur(16px)",
       }}
     >
       <div
@@ -56,52 +68,48 @@ export default function Navbar({ userName, userInitial }: NavbarProps) {
           maxWidth: "1280px",
           margin: "0 auto",
           padding: "0 24px",
-          height: "56px",
+          height: "58px",
           display: "flex",
           alignItems: "center",
-          gap: "32px",
+          gap: "24px",
         }}
       >
         {/* Logo */}
-        <div
+        <button
+          onClick={() => router.push("/dashboard")}
           style={{
             display: "flex",
             alignItems: "center",
-            gap: "8px",
-            flexShrink: 0,
+            gap: "10px",
+            background: "none",
+            border: "none",
             cursor: "pointer",
+            flexShrink: 0,
+            padding: 0,
           }}
-          onClick={() => router.push("/dashboard")}
         >
-          <div
+          <img
+            src="/selo.png"
+            alt="Aurum"
             style={{
-              width: "28px",
-              height: "28px",
+              height: "36px",
+              width: "36px",
+              objectFit: "contain",
               borderRadius: "50%",
-              border: "1.5px solid #C9A84C",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: "#C9A84C",
-              fontSize: "13px",
-              fontWeight: 700,
-              fontFamily: "var(--font-display)",
             }}
-          >
-            A
-          </div>
+          />
           <span
             style={{
               color: "#e8dcc0",
-              fontSize: "15px",
+              fontSize: "16px",
               fontWeight: 600,
               fontFamily: "var(--font-display)",
-              letterSpacing: "0.04em",
+              letterSpacing: "0.06em",
             }}
           >
             Aurum
           </span>
-        </div>
+        </button>
 
         {/* Nav items — center */}
         <div
@@ -123,20 +131,20 @@ export default function Navbar({ userName, userInitial }: NavbarProps) {
                   display: "flex",
                   alignItems: "center",
                   gap: "6px",
-                  padding: "6px 14px",
+                  padding: "7px 15px",
                   borderRadius: "20px",
                   border: "none",
                   cursor: "pointer",
                   fontSize: "13px",
                   fontFamily: "var(--font-sans)",
                   fontWeight: isActive ? 600 : 400,
-                  transition: "all 0.15s",
+                  transition: "all 0.2s",
                   background: isActive
                     ? "linear-gradient(135deg, #C9A84C 0%, #A07820 100%)"
                     : "transparent",
                   color: isActive ? "#0d0b07" : "#9a8a6a",
                   boxShadow: isActive
-                    ? "0 2px 10px rgba(201,168,76,0.25)"
+                    ? "0 2px 12px rgba(201,168,76,0.3)"
                     : "none",
                 }}
                 onMouseEnter={(e) => {
@@ -160,32 +168,21 @@ export default function Navbar({ userName, userInitial }: NavbarProps) {
         </div>
 
         {/* Right icons */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "8px",
-            flexShrink: 0,
-          }}
-        >
-          <IconBtn aria-label="Configurações">
-            <Settings size={16} />
-          </IconBtn>
-          <IconBtn aria-label="Notificações">
-            <Bell size={16} />
-          </IconBtn>
+        <div style={{ display: "flex", alignItems: "center", gap: "6px", flexShrink: 0 }}>
+          <NavIconBtn label="Configurações"><Settings size={16} /></NavIconBtn>
+          <NavIconBtn label="Notificações"><Bell size={16} /></NavIconBtn>
 
-          {/* Avatar */}
-          <div style={{ position: "relative" }}>
+          {/* Avatar + Dropdown */}
+          <div style={{ position: "relative" }} ref={menuRef}>
             <button
               onClick={() => setMenuOpen((v) => !v)}
               aria-label="Menu do usuário"
               style={{
-                width: "32px",
-                height: "32px",
+                width: "34px",
+                height: "34px",
                 borderRadius: "50%",
                 background: "linear-gradient(135deg, #C9A84C, #8B6914)",
-                border: "none",
+                border: "2px solid rgba(201,168,76,0.3)",
                 cursor: "pointer",
                 display: "flex",
                 alignItems: "center",
@@ -194,6 +191,13 @@ export default function Navbar({ userName, userInitial }: NavbarProps) {
                 fontSize: "13px",
                 fontWeight: 700,
                 fontFamily: "var(--font-sans)",
+                transition: "border-color 0.2s",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = "rgba(201,168,76,0.7)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = "rgba(201,168,76,0.3)";
               }}
             >
               {userInitial}
@@ -203,48 +207,41 @@ export default function Navbar({ userName, userInitial }: NavbarProps) {
               <div
                 style={{
                   position: "absolute",
-                  top: "40px",
+                  top: "44px",
                   right: 0,
                   background: "#130f09",
-                  border: "1px solid #2a2010",
-                  borderRadius: "6px",
+                  border: "1px solid rgba(201,168,76,0.15)",
+                  borderRadius: "8px",
                   padding: "8px",
-                  minWidth: "160px",
-                  boxShadow: "0 8px 32px rgba(0,0,0,0.6)",
-                  zIndex: 100,
+                  minWidth: "180px",
+                  boxShadow: "0 12px 40px rgba(0,0,0,0.7)",
                 }}
               >
-                <p
-                  style={{
-                    fontSize: "11px",
-                    color: "#7a6a4a",
-                    padding: "4px 8px 8px",
-                    borderBottom: "1px solid #2a2010",
-                    marginBottom: "8px",
-                  }}
-                >
-                  {userName}
-                </p>
+                <div style={{ padding: "8px 10px 10px", borderBottom: "1px solid #2a2010", marginBottom: "6px" }}>
+                  <p style={{ fontSize: "12px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-sans)", marginBottom: "2px" }}>
+                    {userName}
+                  </p>
+                  <p style={{ fontSize: "11px", color: "#5a4a2a", fontFamily: "var(--font-sans)" }}>
+                    Membro Aurum
+                  </p>
+                </div>
                 <button
                   onClick={handleSignOut}
                   style={{
                     width: "100%",
                     background: "transparent",
                     border: "none",
-                    color: "rgba(248,113,113,0.8)",
+                    color: "rgba(248,113,113,0.75)",
                     fontSize: "13px",
                     fontFamily: "var(--font-sans)",
-                    padding: "6px 8px",
+                    padding: "7px 10px",
                     textAlign: "left",
                     cursor: "pointer",
-                    borderRadius: "4px",
+                    borderRadius: "5px",
+                    transition: "background 0.15s",
                   }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = "rgba(248,113,113,0.08)";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = "transparent";
-                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(248,113,113,0.08)"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
                 >
                   Sair
                 </button>
@@ -257,19 +254,13 @@ export default function Navbar({ userName, userInitial }: NavbarProps) {
   );
 }
 
-function IconBtn({
-  children,
-  "aria-label": label,
-}: {
-  children: React.ReactNode;
-  "aria-label": string;
-}) {
+function NavIconBtn({ children, label }: { children: React.ReactNode; label: string }) {
   return (
     <button
       aria-label={label}
       style={{
-        width: "32px",
-        height: "32px",
+        width: "34px",
+        height: "34px",
         borderRadius: "8px",
         background: "transparent",
         border: "none",

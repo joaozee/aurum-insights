@@ -10,6 +10,9 @@ import {
   Users,
   ChevronRight,
   Sparkles,
+  Heart,
+  MessageCircle,
+  Share2,
 } from "lucide-react";
 
 const MARKET_DATA = [
@@ -24,32 +27,32 @@ const QUICK_ACCESS = [
     sub: "Controle completo",
     href: "/dashboard/financas",
     icon: Wallet,
-    color: "#2563eb",
     gradient: "linear-gradient(135deg, #1d4ed8 0%, #3b82f6 100%)",
+    glow: "rgba(59,130,246,0.25)",
   },
   {
     label: "Minha Carteira",
     sub: "Acompanhe ativos",
     href: "/dashboard/carteira",
     icon: BarChart2,
-    color: "#0891b2",
-    gradient: "linear-gradient(135deg, #0e7490 0%, #22d3ee 100%)",
+    gradient: "linear-gradient(135deg, #0e7490 0%, #06b6d4 100%)",
+    glow: "rgba(6,182,212,0.25)",
   },
   {
     label: "Aprender",
     sub: "Cursos e conteúdos",
     href: "/dashboard/cursos",
     icon: BookOpen,
-    color: "#7c3aed",
-    gradient: "linear-gradient(135deg, #6d28d9 0%, #a78bfa 100%)",
+    gradient: "linear-gradient(135deg, #6d28d9 0%, #8b5cf6 100%)",
+    glow: "rgba(139,92,246,0.25)",
   },
   {
     label: "Comunidade",
     sub: "Conecte-se",
     href: "/dashboard/comunidade",
     icon: Users,
-    color: "#059669",
-    gradient: "linear-gradient(135deg, #047857 0%, #34d399 100%)",
+    gradient: "linear-gradient(135deg, #047857 0%, #10b981 100%)",
+    glow: "rgba(16,185,129,0.25)",
   },
 ];
 
@@ -58,17 +61,21 @@ const NEWS_MOCK = [
     id: 1,
     author: "Aurum Investimentos",
     time: "2h",
-    content: "IBOV fecha em alta de 1.24% impulsionado pelo setor financeiro. Analistas apontam continuidade para a semana.",
+    content:
+      "IBOV fecha em alta de 1.24% impulsionado pelo setor financeiro. Analistas apontam continuidade para a semana.",
     likes: 14,
     comments: 3,
+    shares: 2,
   },
   {
     id: 2,
     author: "Aurum Investimentos",
     time: "5h",
-    content: "Dólar recua ante o real com dados positivos da balança comercial. Câmbio opera abaixo dos R$5,10.",
+    content:
+      "Dólar recua ante o real com dados positivos da balança comercial. Câmbio opera abaixo dos R$5,10.",
     likes: 8,
     comments: 1,
+    shares: 0,
   },
 ];
 
@@ -83,475 +90,615 @@ function getGreeting() {
   return "Boa noite";
 }
 
+function capitalize(str: string) {
+  return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+}
+
 export default function HomeContent({ firstName }: HomeContentProps) {
   const router = useRouter();
 
   return (
-    <div
-      style={{
-        maxWidth: "1280px",
-        margin: "0 auto",
-        padding: "0 24px 48px",
-      }}
-    >
+    <div style={{ minHeight: "calc(100vh - 58px)", background: "#0a0806" }}>
       {/* Hero */}
       <div
         style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 320px",
-          gap: "24px",
-          padding: "40px 0 32px",
-          alignItems: "start",
+          position: "relative",
+          overflow: "hidden",
+          borderBottom: "1px solid rgba(201,168,76,0.08)",
         }}
       >
-        {/* Left */}
-        <div>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "6px",
-              marginBottom: "16px",
-            }}
-          >
-            <Sparkles size={13} style={{ color: "#C9A84C" }} />
-            <span
-              style={{
-                fontSize: "12px",
-                color: "#C9A84C",
-                fontFamily: "var(--font-sans)",
-                letterSpacing: "0.08em",
-              }}
-            >
-              Aurum Investimentos
-            </span>
-          </div>
-          <h1
-            style={{
-              fontSize: "clamp(32px, 4vw, 48px)",
-              fontWeight: 700,
-              color: "#e8e0d0",
-              fontFamily: "var(--font-display)",
-              lineHeight: 1.15,
-              marginBottom: "14px",
-            }}
-          >
-            {getGreeting()}, {firstName}
-          </h1>
-          <p
-            style={{
-              fontSize: "15px",
-              color: "#7a6a4a",
-              fontFamily: "var(--font-sans)",
-              lineHeight: 1.7,
-              maxWidth: "480px",
-            }}
-          >
-            Transforme conhecimento em patrimônio. Análises exclusivas, cursos
-            completos e uma comunidade de investidores.
-          </p>
-        </div>
-
-        {/* Market card */}
+        {/* Subtle radial glow behind hero */}
         <div
           style={{
-            background: "#130f09",
-            border: "1px solid #2a2010",
-            borderRadius: "8px",
-            padding: "20px 24px",
-            boxShadow: "0 4px 24px rgba(0,0,0,0.4)",
+            position: "absolute",
+            top: "-80px",
+            left: "-100px",
+            width: "600px",
+            height: "400px",
+            borderRadius: "50%",
+            background:
+              "radial-gradient(ellipse, rgba(201,168,76,0.06) 0%, transparent 70%)",
+            pointerEvents: "none",
           }}
-        >
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "7px",
-              marginBottom: "16px",
-            }}
-          >
-            <TrendingUp size={14} style={{ color: "#C9A84C" }} />
-            <span
-              style={{
-                fontSize: "13px",
-                fontWeight: 600,
-                color: "#e8dcc0",
-                fontFamily: "var(--font-sans)",
-              }}
-            >
-              Mercado Hoje
-            </span>
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-            {MARKET_DATA.map(({ label, value, positive }) => (
-              <div
-                key={label}
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                }}
-              >
-                <span
-                  style={{
-                    fontSize: "13px",
-                    color: "#9a8a6a",
-                    fontFamily: "var(--font-sans)",
-                  }}
-                >
-                  {label}
-                </span>
-                <span
-                  style={{
-                    fontSize: "13px",
-                    fontWeight: 600,
-                    fontFamily: "var(--font-sans)",
-                    color: positive ? "#34d399" : "#f87171",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "4px",
-                  }}
-                >
-                  {positive ? (
-                    <TrendingUp size={11} />
-                  ) : (
-                    <TrendingDown size={11} />
-                  )}
-                  {value}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Acesso Rápido */}
-      <section style={{ marginBottom: "32px" }}>
-        <h2
-          style={{
-            fontSize: "18px",
-            fontWeight: 600,
-            color: "#e8dcc0",
-            fontFamily: "var(--font-display)",
-            marginBottom: "16px",
-          }}
-        >
-          Acesso Rápido
-        </h2>
+        />
         <div
           style={{
+            position: "absolute",
+            top: 0,
+            right: "10%",
+            width: "400px",
+            height: "300px",
+            borderRadius: "50%",
+            background:
+              "radial-gradient(ellipse, rgba(201,168,76,0.04) 0%, transparent 70%)",
+            pointerEvents: "none",
+          }}
+        />
+
+        <div
+          style={{
+            maxWidth: "1280px",
+            margin: "0 auto",
+            padding: "48px 24px 44px",
             display: "grid",
-            gridTemplateColumns: "repeat(4, 1fr)",
-            gap: "16px",
+            gridTemplateColumns: "1fr 300px",
+            gap: "32px",
+            alignItems: "start",
           }}
         >
-          {QUICK_ACCESS.map(({ label, sub, href, icon: Icon, gradient }) => (
-            <button
-              key={href}
-              onClick={() => router.push(href)}
+          {/* Left */}
+          <div>
+            <div
               style={{
-                background: gradient,
-                border: "none",
-                borderRadius: "10px",
-                padding: "22px 20px",
-                cursor: "pointer",
-                textAlign: "left",
-                position: "relative",
-                overflow: "hidden",
-                transition: "transform 0.15s, box-shadow 0.15s",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = "translateY(-2px)";
-                e.currentTarget.style.boxShadow =
-                  "0 8px 28px rgba(0,0,0,0.4)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = "translateY(0)";
-                e.currentTarget.style.boxShadow = "none";
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+                background: "rgba(201,168,76,0.08)",
+                border: "1px solid rgba(201,168,76,0.15)",
+                borderRadius: "20px",
+                padding: "5px 12px",
+                marginBottom: "20px",
               }}
             >
-              {/* Decorative circle */}
-              <div
-                style={{
-                  position: "absolute",
-                  bottom: "-20px",
-                  right: "-20px",
-                  width: "90px",
-                  height: "90px",
-                  borderRadius: "50%",
-                  background: "rgba(255,255,255,0.1)",
-                }}
-              />
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "flex-start",
-                  marginBottom: "28px",
-                }}
-              >
-                <div
-                  style={{
-                    width: "34px",
-                    height: "34px",
-                    borderRadius: "8px",
-                    background: "rgba(255,255,255,0.18)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    color: "#fff",
-                  }}
-                >
-                  <Icon size={17} />
-                </div>
-                <ChevronRight size={15} style={{ color: "rgba(255,255,255,0.6)" }} />
-              </div>
-              <p
-                style={{
-                  fontSize: "14px",
-                  fontWeight: 600,
-                  color: "#fff",
-                  fontFamily: "var(--font-sans)",
-                  marginBottom: "3px",
-                }}
-              >
-                {label}
-              </p>
-              <p
+              <Sparkles size={11} style={{ color: "#C9A84C" }} />
+              <span
                 style={{
                   fontSize: "11px",
-                  color: "rgba(255,255,255,0.65)",
+                  color: "#C9A84C",
                   fontFamily: "var(--font-sans)",
+                  letterSpacing: "0.1em",
+                  fontWeight: 500,
                 }}
               >
-                {sub}
-              </p>
-            </button>
-          ))}
-        </div>
-      </section>
+                Aurum Investimentos
+              </span>
+            </div>
 
-      {/* Conheça a Aurum */}
-      <section style={{ marginBottom: "32px" }}>
-        <button
-          onClick={() => router.push("/sobre")}
-          style={{
-            width: "100%",
-            background: "#130f09",
-            border: "1px solid #2a2010",
-            borderRadius: "10px",
-            padding: "28px 32px",
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            gap: "20px",
-            textAlign: "left",
-            transition: "border-color 0.2s",
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.borderColor = "rgba(201,168,76,0.35)";
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.borderColor = "#2a2010";
-          }}
-        >
-          <div
-            style={{
-              width: "44px",
-              height: "44px",
-              borderRadius: "50%",
-              border: "1.5px solid rgba(201,168,76,0.4)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: "#C9A84C",
-              flexShrink: 0,
-              fontSize: "18px",
-              fontFamily: "var(--font-display)",
-              fontWeight: 700,
-            }}
-          >
-            A
-          </div>
-          <div style={{ flex: 1 }}>
+            <h1
+              style={{
+                fontSize: "clamp(36px, 4vw, 52px)",
+                fontWeight: 700,
+                color: "#f0e8d0",
+                fontFamily: "var(--font-display)",
+                lineHeight: 1.1,
+                marginBottom: "16px",
+                letterSpacing: "-0.01em",
+              }}
+            >
+              {getGreeting()},{" "}
+              <span
+                style={{
+                  background:
+                    "linear-gradient(135deg, #E8C96A 0%, #C9A84C 50%, #A07820 100%)",
+                  WebkitBackgroundClip: "text",
+                  WebkitTextFillColor: "transparent",
+                  backgroundClip: "text",
+                }}
+              >
+                {capitalize(firstName)}
+              </span>
+            </h1>
+
             <p
               style={{
                 fontSize: "15px",
-                fontWeight: 600,
-                color: "#e8dcc0",
+                color: "#6a5a3a",
                 fontFamily: "var(--font-sans)",
-                marginBottom: "4px",
+                lineHeight: 1.75,
+                maxWidth: "460px",
               }}
             >
-              Conheça a Aurum
-            </p>
-            <p
-              style={{
-                fontSize: "13px",
-                color: "#7a6a4a",
-                fontFamily: "var(--font-sans)",
-              }}
-            >
-              Descubra nossa história, missão e valores. Saiba por que somos a
-              melhor escolha para sua jornada de investimentos.
+              Transforme conhecimento em patrimônio. Análises exclusivas, cursos
+              completos e uma comunidade de investidores.
             </p>
           </div>
-          <ChevronRight size={18} style={{ color: "#C9A84C", flexShrink: 0 }} />
-        </button>
-      </section>
 
-      {/* Notícias */}
-      <section>
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginBottom: "16px",
-          }}
-        >
-          <h2
+          {/* Market card */}
+          <div
             style={{
-              fontSize: "18px",
-              fontWeight: 600,
-              color: "#e8dcc0",
-              fontFamily: "var(--font-display)",
+              background: "#130f09",
+              border: "1px solid rgba(201,168,76,0.12)",
+              borderRadius: "12px",
+              padding: "22px 24px",
+              boxShadow: "0 4px 32px rgba(0,0,0,0.5)",
+              backdropFilter: "blur(8px)",
             }}
           >
-            Notícias
-          </h2>
-          <button
-            onClick={() => router.push("/dashboard/comunidade")}
-            style={{
-              background: "transparent",
-              border: "none",
-              cursor: "pointer",
-              fontSize: "13px",
-              color: "#C9A84C",
-              fontFamily: "var(--font-sans)",
-              display: "flex",
-              alignItems: "center",
-              gap: "4px",
-            }}
-          >
-            Ver todos <ChevronRight size={13} />
-          </button>
-        </div>
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr",
-            gap: "16px",
-          }}
-        >
-          {NEWS_MOCK.map(({ id, author, time, content, likes, comments }) => (
             <div
-              key={id}
               style={{
-                background: "#130f09",
-                border: "1px solid #2a2010",
-                borderRadius: "8px",
-                padding: "20px",
-                transition: "border-color 0.2s",
-                cursor: "pointer",
-              }}
-              onMouseEnter={(e) => {
-                (e.currentTarget as HTMLDivElement).style.borderColor =
-                  "rgba(201,168,76,0.25)";
-              }}
-              onMouseLeave={(e) => {
-                (e.currentTarget as HTMLDivElement).style.borderColor =
-                  "#2a2010";
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                marginBottom: "18px",
+                paddingBottom: "14px",
+                borderBottom: "1px solid rgba(201,168,76,0.08)",
               }}
             >
-              {/* Author row */}
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "10px",
-                  marginBottom: "12px",
-                }}
-              >
-                <div
-                  style={{
-                    width: "30px",
-                    height: "30px",
-                    borderRadius: "50%",
-                    background: "linear-gradient(135deg, #C9A84C, #8B6914)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    color: "#0d0b07",
-                    fontSize: "12px",
-                    fontWeight: 700,
-                    fontFamily: "var(--font-sans)",
-                    flexShrink: 0,
-                  }}
-                >
-                  A
-                </div>
-                <div>
-                  <p
-                    style={{
-                      fontSize: "12px",
-                      fontWeight: 600,
-                      color: "#e8dcc0",
-                      fontFamily: "var(--font-sans)",
-                    }}
-                  >
-                    {author}
-                  </p>
-                  <p
-                    style={{
-                      fontSize: "11px",
-                      color: "#5a4a2a",
-                      fontFamily: "var(--font-sans)",
-                    }}
-                  >
-                    {time}
-                  </p>
-                </div>
-              </div>
-              <p
+              <TrendingUp size={14} style={{ color: "#C9A84C" }} />
+              <span
                 style={{
                   fontSize: "13px",
-                  color: "#9a8a6a",
+                  fontWeight: 600,
+                  color: "#e8dcc0",
                   fontFamily: "var(--font-sans)",
-                  lineHeight: 1.6,
-                  marginBottom: "14px",
+                  letterSpacing: "0.04em",
                 }}
               >
-                {content}
-              </p>
-              {/* Interactions */}
-              <div
-                style={{
-                  display: "flex",
-                  gap: "16px",
-                }}
-              >
-                {[
-                  { label: `♡ ${likes}` },
-                  { label: `◇ ${comments}` },
-                  { label: "↗ 0" },
-                ].map(({ label }, i) => (
+                Mercado Hoje
+              </span>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: "13px" }}>
+              {MARKET_DATA.map(({ label, value, positive }) => (
+                <div
+                  key={label}
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                  }}
+                >
                   <span
-                    key={i}
                     style={{
-                      fontSize: "11px",
-                      color: "#5a4a2a",
+                      fontSize: "13px",
+                      color: "#7a6a4a",
                       fontFamily: "var(--font-sans)",
                     }}
                   >
                     {label}
                   </span>
-                ))}
-              </div>
+                  <span
+                    style={{
+                      fontSize: "13px",
+                      fontWeight: 700,
+                      fontFamily: "var(--font-sans)",
+                      color: positive ? "#34d399" : "#f87171",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "4px",
+                      background: positive
+                        ? "rgba(52,211,153,0.08)"
+                        : "rgba(248,113,113,0.08)",
+                      padding: "3px 8px",
+                      borderRadius: "6px",
+                    }}
+                  >
+                    {positive ? <TrendingUp size={11} /> : <TrendingDown size={11} />}
+                    {value}
+                  </span>
+                </div>
+              ))}
             </div>
-          ))}
+          </div>
         </div>
-      </section>
+      </div>
+
+      {/* Main content */}
+      <div
+        style={{
+          maxWidth: "1280px",
+          margin: "0 auto",
+          padding: "36px 24px 56px",
+        }}
+      >
+        {/* Acesso Rápido */}
+        <section style={{ marginBottom: "36px" }}>
+          <SectionTitle>Acesso Rápido</SectionTitle>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(4, 1fr)",
+              gap: "14px",
+            }}
+          >
+            {QUICK_ACCESS.map(({ label, sub, href, icon: Icon, gradient, glow }) => (
+              <button
+                key={href}
+                onClick={() => router.push(href)}
+                style={{
+                  background: gradient,
+                  border: "none",
+                  borderRadius: "12px",
+                  padding: "22px 20px 20px",
+                  cursor: "pointer",
+                  textAlign: "left",
+                  position: "relative",
+                  overflow: "hidden",
+                  transition: "transform 0.18s ease, box-shadow 0.18s ease",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = "translateY(-3px)";
+                  e.currentTarget.style.boxShadow = `0 12px 32px ${glow}`;
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = "translateY(0)";
+                  e.currentTarget.style.boxShadow = "none";
+                }}
+              >
+                {/* Decorative circles */}
+                <div
+                  style={{
+                    position: "absolute",
+                    bottom: "-24px",
+                    right: "-24px",
+                    width: "100px",
+                    height: "100px",
+                    borderRadius: "50%",
+                    background: "rgba(255,255,255,0.08)",
+                    pointerEvents: "none",
+                  }}
+                />
+                <div
+                  style={{
+                    position: "absolute",
+                    bottom: "-10px",
+                    right: "30px",
+                    width: "60px",
+                    height: "60px",
+                    borderRadius: "50%",
+                    background: "rgba(255,255,255,0.05)",
+                    pointerEvents: "none",
+                  }}
+                />
+
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "flex-start",
+                    marginBottom: "30px",
+                  }}
+                >
+                  <div
+                    style={{
+                      width: "36px",
+                      height: "36px",
+                      borderRadius: "10px",
+                      background: "rgba(255,255,255,0.2)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      color: "#fff",
+                    }}
+                  >
+                    <Icon size={18} />
+                  </div>
+                  <div
+                    style={{
+                      width: "24px",
+                      height: "24px",
+                      borderRadius: "50%",
+                      background: "rgba(255,255,255,0.15)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <ChevronRight size={12} style={{ color: "#fff" }} />
+                  </div>
+                </div>
+
+                <p
+                  style={{
+                    fontSize: "15px",
+                    fontWeight: 700,
+                    color: "#fff",
+                    fontFamily: "var(--font-sans)",
+                    marginBottom: "4px",
+                    letterSpacing: "-0.01em",
+                  }}
+                >
+                  {label}
+                </p>
+                <p
+                  style={{
+                    fontSize: "12px",
+                    color: "rgba(255,255,255,0.6)",
+                    fontFamily: "var(--font-sans)",
+                  }}
+                >
+                  {sub}
+                </p>
+              </button>
+            ))}
+          </div>
+        </section>
+
+        {/* Conheça a Aurum */}
+        <section style={{ marginBottom: "36px" }}>
+          <button
+            onClick={() => router.push("/sobre")}
+            style={{
+              width: "100%",
+              background: "linear-gradient(135deg, #130f09 0%, #1a1205 100%)",
+              border: "1px solid rgba(201,168,76,0.12)",
+              borderRadius: "12px",
+              padding: "26px 32px",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: "20px",
+              textAlign: "left",
+              transition: "border-color 0.2s, box-shadow 0.2s",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = "rgba(201,168,76,0.3)";
+              e.currentTarget.style.boxShadow = "0 4px 24px rgba(201,168,76,0.06)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = "rgba(201,168,76,0.12)";
+              e.currentTarget.style.boxShadow = "none";
+            }}
+          >
+            <div
+              style={{
+                width: "46px",
+                height: "46px",
+                flexShrink: 0,
+                overflow: "hidden",
+                borderRadius: "50%",
+              }}
+            >
+              <img
+                src="/selo.png"
+                alt="Aurum"
+                style={{ width: "100%", height: "100%", objectFit: "cover" }}
+              />
+            </div>
+            <div style={{ flex: 1 }}>
+              <p
+                style={{
+                  fontSize: "15px",
+                  fontWeight: 600,
+                  color: "#e8dcc0",
+                  fontFamily: "var(--font-sans)",
+                  marginBottom: "5px",
+                  letterSpacing: "-0.01em",
+                }}
+              >
+                Conheça a Aurum
+              </p>
+              <p
+                style={{
+                  fontSize: "13px",
+                  color: "#6a5a3a",
+                  fontFamily: "var(--font-sans)",
+                  lineHeight: 1.5,
+                }}
+              >
+                Descubra nossa história, missão e valores. Saiba por que somos a
+                melhor escolha para sua jornada de investimentos.
+              </p>
+            </div>
+            <div
+              style={{
+                width: "32px",
+                height: "32px",
+                borderRadius: "50%",
+                border: "1px solid rgba(201,168,76,0.2)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0,
+              }}
+            >
+              <ChevronRight size={15} style={{ color: "#C9A84C" }} />
+            </div>
+          </button>
+        </section>
+
+        {/* Notícias */}
+        <section>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: "16px",
+            }}
+          >
+            <SectionTitle>Notícias</SectionTitle>
+            <button
+              onClick={() => router.push("/dashboard/comunidade")}
+              style={{
+                background: "transparent",
+                border: "none",
+                cursor: "pointer",
+                fontSize: "13px",
+                color: "#C9A84C",
+                fontFamily: "var(--font-sans)",
+                display: "flex",
+                alignItems: "center",
+                gap: "4px",
+                padding: 0,
+                transition: "color 0.15s",
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.color = "#E8C96A"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = "#C9A84C"; }}
+            >
+              Ver todos <ChevronRight size={13} />
+            </button>
+          </div>
+
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gap: "14px",
+            }}
+          >
+            {NEWS_MOCK.map(({ id, author, time, content, likes, comments, shares }) => (
+              <div
+                key={id}
+                style={{
+                  background: "#130f09",
+                  border: "1px solid rgba(201,168,76,0.08)",
+                  borderRadius: "12px",
+                  padding: "20px",
+                  cursor: "pointer",
+                  transition: "border-color 0.2s, box-shadow 0.2s",
+                }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLDivElement).style.borderColor =
+                    "rgba(201,168,76,0.2)";
+                  (e.currentTarget as HTMLDivElement).style.boxShadow =
+                    "0 4px 20px rgba(0,0,0,0.3)";
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLDivElement).style.borderColor =
+                    "rgba(201,168,76,0.08)";
+                  (e.currentTarget as HTMLDivElement).style.boxShadow = "none";
+                }}
+              >
+                {/* Author */}
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "10px",
+                    marginBottom: "14px",
+                  }}
+                >
+                  <div
+                    style={{
+                      width: "32px",
+                      height: "32px",
+                      borderRadius: "50%",
+                      overflow: "hidden",
+                      flexShrink: 0,
+                    }}
+                  >
+                    <img
+                      src="/selo.png"
+                      alt="Aurum"
+                      style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                    />
+                  </div>
+                  <div>
+                    <p
+                      style={{
+                        fontSize: "13px",
+                        fontWeight: 600,
+                        color: "#e8dcc0",
+                        fontFamily: "var(--font-sans)",
+                        lineHeight: 1.3,
+                      }}
+                    >
+                      {author}
+                    </p>
+                    <p
+                      style={{
+                        fontSize: "11px",
+                        color: "#4a3a1a",
+                        fontFamily: "var(--font-sans)",
+                      }}
+                    >
+                      {time} atrás
+                    </p>
+                  </div>
+                </div>
+
+                <p
+                  style={{
+                    fontSize: "13px",
+                    color: "#8a7a5a",
+                    fontFamily: "var(--font-sans)",
+                    lineHeight: 1.65,
+                    marginBottom: "16px",
+                  }}
+                >
+                  {content}
+                </p>
+
+                {/* Interactions */}
+                <div
+                  style={{
+                    display: "flex",
+                    gap: "18px",
+                    paddingTop: "12px",
+                    borderTop: "1px solid rgba(201,168,76,0.06)",
+                  }}
+                >
+                  {[
+                    { icon: Heart, count: likes },
+                    { icon: MessageCircle, count: comments },
+                    { icon: Share2, count: shares },
+                  ].map(({ icon: Icon, count }, i) => (
+                    <button
+                      key={i}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "5px",
+                        background: "none",
+                        border: "none",
+                        cursor: "pointer",
+                        color: "#4a3a1a",
+                        fontSize: "12px",
+                        fontFamily: "var(--font-sans)",
+                        padding: 0,
+                        transition: "color 0.15s",
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.color = "#C9A84C"; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.color = "#4a3a1a"; }}
+                    >
+                      <Icon size={13} />
+                      {count}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      </div>
+    </div>
+  );
+}
+
+function SectionTitle({ children }: { children: React.ReactNode }) {
+  return (
+    <div style={{ marginBottom: "16px" }}>
+      <h2
+        style={{
+          fontSize: "18px",
+          fontWeight: 600,
+          color: "#e8dcc0",
+          fontFamily: "var(--font-display)",
+          letterSpacing: "-0.01em",
+          display: "inline-block",
+        }}
+      >
+        {children}
+      </h2>
+      <div
+        style={{
+          width: "28px",
+          height: "2px",
+          background: "linear-gradient(90deg, #C9A84C, transparent)",
+          marginTop: "6px",
+          borderRadius: "1px",
+        }}
+      />
     </div>
   );
 }
