@@ -7,18 +7,23 @@ export interface MarketItem {
   positive: boolean;
 }
 
-const BRAPI_TOKEN = process.env.BRAPI_TOKEN;
 const BASE = "https://brapi.dev/api";
 
-async function fetchQuotes(): Promise<Pick<MarketItem, "label" | "value" | "raw" | "positive">[]> {
-  const token = BRAPI_TOKEN ? `?token=${BRAPI_TOKEN}` : "";
+function brapiHeaders(): HeadersInit {
+  const token = process.env.BRAPI_TOKEN;
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
 
-  // Fetch IBOV (^BVSP) and S&P 500 (^GSPC) in one request, USD/BRL separately
+async function fetchQuotes(): Promise<Pick<MarketItem, "label" | "value" | "raw" | "positive">[]> {
+  const headers = brapiHeaders();
+
   const [quotesRes, currencyRes] = await Promise.all([
-    fetch(`${BASE}/quote/%5EBVSP,%5EGSPC${token}`, {
-      next: { revalidate: 300 }, // cache 5 min
+    fetch(`${BASE}/quote/%5EBVSP,%5EGSPC`, {
+      headers,
+      next: { revalidate: 300 },
     }),
-    fetch(`${BASE}/v2/currency?currency=USD-BRL${token}`, {
+    fetch(`${BASE}/v2/currency?currency=USD-BRL`, {
+      headers,
       next: { revalidate: 300 },
     }),
   ]);
@@ -57,9 +62,10 @@ async function fetchQuotes(): Promise<Pick<MarketItem, "label" | "value" | "raw"
   }
 
   // Dólar
+  // Campo correto da BRAPI: percentageChange (string)
   const usd = currencyData?.currency?.[0];
   if (usd) {
-    const pct: number = usd.pctChange ?? 0;
+    const pct: number = parseFloat(usd.percentageChange ?? "0");
     results.push({
       label: "Dólar",
       raw: pct,

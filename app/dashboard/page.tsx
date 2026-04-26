@@ -11,17 +11,23 @@ export const metadata: Metadata = {
 // Revalidate this page every 5 minutes so market data stays fresh
 export const revalidate = 300;
 
+function brapiHeaders(): HeadersInit {
+  const token = process.env.BRAPI_TOKEN;
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 async function getMarketData(): Promise<MarketItem[]> {
-  const BRAPI_TOKEN = process.env.BRAPI_TOKEN;
-  const token = BRAPI_TOKEN ? `?token=${BRAPI_TOKEN}` : "";
   const BASE = "https://brapi.dev/api";
+  const headers = brapiHeaders();
 
   try {
     const [quotesRes, currencyRes] = await Promise.all([
-      fetch(`${BASE}/quote/%5EBVSP,%5EGSPC${token}`, {
+      fetch(`${BASE}/quote/%5EBVSP,%5EGSPC`, {
+        headers,
         next: { revalidate: 300 },
       }),
-      fetch(`${BASE}/v2/currency?currency=USD-BRL${token}`, {
+      fetch(`${BASE}/v2/currency?currency=USD-BRL`, {
+        headers,
         next: { revalidate: 300 },
       }),
     ]);
@@ -57,9 +63,10 @@ async function getMarketData(): Promise<MarketItem[]> {
       });
     }
 
+    // Campo correto da BRAPI: percentageChange (string)
     const usd = currencyData?.currency?.[0];
     if (usd) {
-      const pct: number = usd.pctChange ?? 0;
+      const pct: number = parseFloat(usd.percentageChange ?? "0");
       results.push({
         label: "Dólar",
         raw: pct,
@@ -70,7 +77,6 @@ async function getMarketData(): Promise<MarketItem[]> {
 
     return results;
   } catch {
-    // Return fallback data if API fails
     return [
       { label: "IBOV", value: "--", raw: 0, positive: true },
       { label: "S&P 500", value: "--", raw: 0, positive: true },
