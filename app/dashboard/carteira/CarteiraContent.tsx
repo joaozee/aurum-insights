@@ -582,15 +582,15 @@ export default function CarteiraContent({ userEmail }: Props) {
   }, [transactions, gainRatio, chartFilter, now]);
 
   const kpis = useMemo(() => [
-    { label: "Renda Anual (Dividendos)", value: fmtK(annualDividends), sub: "estimado", color: "#22c55e" },
-    { label: "Dividend Yield Médio", value: `${avgDY.toFixed(2)}%`, sub: "ponderado pelo valor", color: "#C9A84C" },
-    { label: "Renda Mensal Est.", value: fmtK(annualDividends / 12), sub: "dividendos/mês", color: "#22c55e" },
-    { label: "Valor Total Investido", value: fmtK(totalInvested), sub: "custo médio ponderado", color: "#8b5cf6" },
-    { label: "Valor da Carteira", value: fmtK(currentValue), sub: "preço brapi em tempo real", color: "#3b82f6" },
+    { label: "Renda Anual (Dividendos)", value: fmtK(annualDividends), sub: "", color: "#22c55e" },
+    { label: "Dividend Yield Médio", value: `${avgDY.toFixed(2)}%`, sub: "", color: "#C9A84C" },
+    { label: "Renda Mensal Est.", value: fmtK(annualDividends / 12), sub: "", color: "#22c55e" },
+    { label: "Valor Total Investido", value: fmtK(totalInvested), sub: "", color: "#8b5cf6" },
+    { label: "Valor da Carteira", value: fmtK(currentValue), sub: "", color: "#3b82f6" },
     { label: "Retorno Total", value: `${totalGainPct >= 0 ? "+" : ""}${totalGainPct.toFixed(2)}%`, sub: fmt(totalGain), color: totalGain >= 0 ? "#22c55e" : "#f87171" },
-    { label: "Número de Ativos", value: String(effectiveAssets.length), sub: "posições abertas", color: "#06b6d4" },
+    { label: "Número de Ativos", value: String(effectiveAssets.length), sub: "", color: "#06b6d4" },
     { label: "Maior Posição", value: distribution[0]?.ticker ?? "—", sub: distribution[0] ? `${distribution[0].pct.toFixed(1)}% da carteira` : "", color: "#f59e0b" },
-    { label: "Lucro / Prejuízo", value: fmt(totalGain), sub: totalGain >= 0 ? "em lucro" : "em prejuízo", color: totalGain >= 0 ? "#22c55e" : "#f87171" },
+    { label: "Lucro / Prejuízo", value: fmt(totalGain), sub: "", color: totalGain >= 0 ? "#22c55e" : "#f87171" },
   ], [annualDividends, avgDY, totalInvested, currentValue, totalGainPct, totalGain, effectiveAssets.length, distribution]);
 
   // ── Save handlers ──────────────────────────────────────────────────────────
@@ -811,7 +811,7 @@ export default function CarteiraContent({ userEmail }: Props) {
                   <div key={label} style={{ background: "#0d0a06", border: "1px solid rgba(255,255,255,0.04)", borderRadius: "8px", padding: "14px 16px" }}>
                     <p style={{ fontSize: "10px", color: "#7a6a4a", fontFamily: "var(--font-sans)", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: "8px" }}>{label}</p>
                     <p style={{ fontSize: "18px", fontWeight: 700, color, fontFamily: "var(--font-sans)", lineHeight: 1, marginBottom: "4px" }}>{value}</p>
-                    <p style={{ fontSize: "10px", color: "#857560", fontFamily: "var(--font-sans)" }}>{sub}</p>
+                    {sub && <p style={{ fontSize: "10px", color: "#857560", fontFamily: "var(--font-sans)" }}>{sub}</p>}
                   </div>
                 ))}
               </div>
