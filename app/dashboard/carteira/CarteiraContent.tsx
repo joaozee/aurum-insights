@@ -51,6 +51,23 @@ interface StockInfo {
   sector: string;
 }
 
+interface BrapiStock {
+  stock: string;
+  name: string;
+  close: number;
+  change: number;
+  sector?: string;
+}
+
+interface BrapiQuote {
+  symbol: string;
+  shortName: string;
+  regularMarketPrice: number;
+  priceEarnings: number | null;
+  logourl: string;
+  dividendsData?: { yield: number; cashAmount?: number } | null;
+}
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const MONTHS_PT = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
@@ -304,6 +321,134 @@ function DonutChart({ data }: { data: { ticker: string; value: number; pct: numb
   );
 }
 
+// ─── Ticker Search with Brapi autocomplete ────────────────────────────────────
+
+function TickerSearch({
+  value,
+  onChange,
+  onSelect,
+  placeholder = "Digite o ticker...",
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  onSelect: (ticker: string, price: number, name: string) => void;
+  placeholder?: string;
+}) {
+  const [results, setResults] = useState<BrapiStock[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [open, setOpen] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const wrapRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const search = async (q: string) => {
+    if (q.length < 2) { setResults([]); setOpen(false); return; }
+    setLoading(true);
+    try {
+      const res = await fetch(`https://brapi.dev/api/quote/list?search=${encodeURIComponent(q)}&limit=8`);
+      const json = await res.json();
+      const stocks = (json.stocks ?? []) as BrapiStock[];
+      setResults(stocks);
+      setOpen(stocks.length > 0);
+    } catch {
+      setResults([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const v = e.target.value.toUpperCase();
+    onChange(v);
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => search(v), 300);
+  };
+
+  const handleSelect = (s: BrapiStock) => {
+    onChange(s.stock);
+    setOpen(false);
+    setResults([]);
+    onSelect(s.stock, s.close ?? 0, s.name ?? "");
+  };
+
+  return (
+    <div ref={wrapRef} style={{ position: "relative" }}>
+      <div style={{ position: "relative" }}>
+        <input
+          value={value}
+          onChange={handleChange}
+          onFocus={() => results.length > 0 && setOpen(true)}
+          style={{ ...inputStyle, paddingRight: "36px" }}
+          placeholder={placeholder}
+          autoComplete="off"
+        />
+        <div style={{
+          position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)",
+          color: loading ? "#C9A84C" : "#5a4a2a", fontSize: "13px", pointerEvents: "none",
+        }}>
+          {loading ? "⟳" : "⌕"}
+        </div>
+      </div>
+
+      {open && results.length > 0 && (
+        <div style={{
+          position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0,
+          background: "#1a1508", border: "1px solid #2a2010", borderRadius: "8px",
+          zIndex: 300, boxShadow: "0 12px 32px rgba(0,0,0,0.8)", overflow: "hidden",
+          maxHeight: "280px", overflowY: "auto",
+        }}>
+          {results.map((s) => (
+            <button
+              key={s.stock}
+              onMouseDown={e => { e.preventDefault(); handleSelect(s); }}
+              style={{
+                width: "100%", background: "none", border: "none", cursor: "pointer",
+                padding: "10px 14px", display: "flex", alignItems: "center", gap: "10px",
+                borderBottom: "1px solid rgba(255,255,255,0.04)",
+              }}
+              onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(201,168,76,0.08)"; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = "none"; }}
+            >
+              <div style={{
+                width: "34px", height: "34px", borderRadius: "8px",
+                background: `${tickerColor(s.stock)}20`,
+                display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+              }}>
+                <span style={{ fontSize: "11px", fontWeight: 700, color: tickerColor(s.stock), fontFamily: "var(--font-sans)" }}>
+                  {s.stock.slice(0, 2)}
+                </span>
+              </div>
+              <div style={{ flex: 1, textAlign: "left", minWidth: 0 }}>
+                <p style={{ fontSize: "13px", fontWeight: 700, color: "#e8dcc0", fontFamily: "var(--font-sans)", marginBottom: "2px" }}>{s.stock}</p>
+                <p style={{ fontSize: "11px", color: "#7a6a4a", fontFamily: "var(--font-sans)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.name}</p>
+              </div>
+              {s.close != null && s.close > 0 && (
+                <div style={{ textAlign: "right", flexShrink: 0 }}>
+                  <p style={{ fontSize: "13px", fontWeight: 700, color: "#C9A84C", fontFamily: "var(--font-sans)" }}>
+                    {s.close.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                  </p>
+                  {s.change != null && (
+                    <p style={{ fontSize: "10px", color: s.change >= 0 ? "#22c55e" : "#f87171", fontFamily: "var(--font-sans)" }}>
+                      {s.change >= 0 ? "+" : ""}{Number(s.change).toFixed(2)}%
+                    </p>
+                  )}
+                </div>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 interface Props { userEmail: string; }
@@ -316,6 +461,7 @@ export default function CarteiraContent({ userEmail }: Props) {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [insights, setInsights] = useState<PortfolioInsight[]>([]);
   const [stockMap, setStockMap] = useState<Record<string, StockInfo>>({});
+  const [brapiData, setBrapiData] = useState<Record<string, BrapiQuote>>({});
   const [loading, setLoading] = useState(true);
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const [chartFilter, setChartFilter] = useState<"6m" | "12m" | "all">("6m");
@@ -350,16 +496,31 @@ export default function CarteiraContent({ userEmail }: Props) {
     setTransactions((tData ?? []) as Transaction[]);
     setInsights((iData ?? []) as PortfolioInsight[]);
 
-    // Fetch stock_data for tickers in portfolio
+    // Fetch stock_data (Supabase) and brapi in parallel
     const tickers = Array.from(new Set(assetList.map(a => a.name)));
     if (tickers.length > 0) {
-      const { data: sData } = await supabase
-        .from("stock_data")
-        .select("ticker, company_name, current_price, dividend_yield, pe_ratio, sector")
-        .in("ticker", tickers);
+      const [{ data: sData }] = await Promise.all([
+        supabase
+          .from("stock_data")
+          .select("ticker, company_name, current_price, dividend_yield, pe_ratio, sector")
+          .in("ticker", tickers),
+      ]);
       const map: Record<string, StockInfo> = {};
       (sData ?? []).forEach((s: StockInfo) => { map[s.ticker] = s; });
       setStockMap(map);
+
+      // Fetch real-time data from brapi (logo, DY, P/L)
+      try {
+        const res = await fetch(
+          `https://brapi.dev/api/quote/${tickers.join(",")}?modules=summaryProfile`
+        );
+        const json = await res.json();
+        const bMap: Record<string, BrapiQuote> = {};
+        (json.results ?? []).forEach((q: BrapiQuote) => { bMap[q.symbol] = q; });
+        setBrapiData(bMap);
+      } catch {
+        // silently fallback to stockMap values
+      }
     }
 
     setLoading(false);
@@ -640,8 +801,10 @@ export default function CarteiraContent({ userEmail }: Props) {
                     const gain     = current - invested;
                     const gainPct  = invested > 0 ? (gain / invested) * 100 : 0;
                     const sd       = stockMap[a.name];
+                    const bq       = brapiData[a.name];
                     const color    = tickerColor(a.name);
                     const isMenu   = activeMenu === a.id;
+                    const logo     = bq?.logourl;
 
                     return (
                       <div key={a.id} style={{ ...card, position: "relative" }}
@@ -649,8 +812,16 @@ export default function CarteiraContent({ userEmail }: Props) {
                         {/* Card header */}
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "14px" }}>
                           <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                            <div style={{ width: "42px", height: "42px", borderRadius: "12px", background: `${color}22`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                              <span style={{ fontSize: "14px", fontWeight: 700, color, fontFamily: "var(--font-sans)" }}>
+                            <div style={{ width: "42px", height: "42px", borderRadius: "12px", background: `${color}22`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, overflow: "hidden" }}>
+                              {logo ? (
+                                <img
+                                  src={logo}
+                                  alt={a.name}
+                                  style={{ width: "42px", height: "42px", objectFit: "cover", borderRadius: "12px" }}
+                                  onError={e => { (e.currentTarget as HTMLImageElement).style.display = "none"; (e.currentTarget.nextSibling as HTMLElement).style.display = "flex"; }}
+                                />
+                              ) : null}
+                              <span style={{ fontSize: "14px", fontWeight: 700, color, fontFamily: "var(--font-sans)", display: logo ? "none" : "block" }}>
                                 {a.name.slice(0, 2)}
                               </span>
                             </div>
@@ -707,8 +878,20 @@ export default function CarteiraContent({ userEmail }: Props) {
                         <div style={{ display: "flex", gap: "0", borderTop: "1px solid rgba(255,255,255,0.05)", paddingTop: "12px" }}>
                           {[
                             { label: "Rentabilidade", value: `${gainPct >= 0 ? "+" : ""}${gainPct.toFixed(2)}%`, color: gain >= 0 ? "#22c55e" : "#f87171" },
-                            { label: "DY", value: sd?.dividend_yield ? `${Number(sd.dividend_yield).toFixed(1)}%` : "—", color: "#C9A84C" },
-                            { label: "P/L", value: sd?.pe_ratio ? Number(sd.pe_ratio).toFixed(1) : "—", color: "#a09068" },
+                            {
+                              label: "DY",
+                              value: bq?.dividendsData?.yield != null
+                                ? `${(Number(bq.dividendsData.yield) * 100).toFixed(1)}%`
+                                : sd?.dividend_yield ? `${Number(sd.dividend_yield).toFixed(1)}%` : "—",
+                              color: "#C9A84C",
+                            },
+                            {
+                              label: "P/L",
+                              value: bq?.priceEarnings != null
+                                ? Number(bq.priceEarnings).toFixed(1)
+                                : sd?.pe_ratio ? Number(sd.pe_ratio).toFixed(1) : "—",
+                              color: "#a09068",
+                            },
                           ].map(({ label, value, color: c }, i) => (
                             <div key={label} style={{ flex: 1, textAlign: "center", borderLeft: i > 0 ? "1px solid rgba(255,255,255,0.05)" : "none" }}>
                               <p style={{ fontSize: "10px", color: "#7a6a4a", fontFamily: "var(--font-sans)", marginBottom: "2px" }}>{label}</p>
@@ -848,7 +1031,20 @@ export default function CarteiraContent({ userEmail }: Props) {
             <ModalHeader title="Adicionar Ativo" onClose={() => setModal(null)} />
             <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
               <FormField label="Ticker (ex: PETR4)">
-                <input value={assetForm.name} onChange={e => setAssetForm(p => ({ ...p, name: e.target.value.toUpperCase() }))} style={inputStyle} placeholder="PETR4" />
+                <TickerSearch
+                  value={assetForm.name}
+                  onChange={v => setAssetForm(p => ({ ...p, name: v }))}
+                  onSelect={(ticker, price, _name) => {
+                    const autoType = ticker.endsWith("11") ? "fiis" : "acoes";
+                    setAssetForm(p => ({
+                      ...p,
+                      name: ticker,
+                      current_price: price > 0 ? price.toFixed(2) : p.current_price,
+                      type: autoType,
+                    }));
+                  }}
+                  placeholder="Digite PETR, BBAS, ITUB..."
+                />
               </FormField>
               <FormField label="Tipo de Ativo">
                 <select value={assetForm.type} onChange={e => setAssetForm(p => ({ ...p, type: e.target.value }))} style={selectStyle}>
@@ -863,8 +1059,8 @@ export default function CarteiraContent({ userEmail }: Props) {
                   <input value={assetForm.purchase_price} onChange={e => setAssetForm(p => ({ ...p, purchase_price: e.target.value }))} style={inputStyle} placeholder="38,00" />
                 </FormField>
               </div>
-              <FormField label="Preço Atual (R$) — opcional">
-                <input value={assetForm.current_price} onChange={e => setAssetForm(p => ({ ...p, current_price: e.target.value }))} style={inputStyle} placeholder="deixe em branco para usar o preço médio" />
+              <FormField label="Preço Atual (R$)">
+                <input value={assetForm.current_price} onChange={e => setAssetForm(p => ({ ...p, current_price: e.target.value }))} style={inputStyle} placeholder="Preenchido automaticamente ao selecionar" />
               </FormField>
               {formError && <p style={{ fontSize: "12px", color: "#f87171", fontFamily: "var(--font-sans)" }}>{formError}</p>}
               <SaveButton saving={saving} onClick={saveAsset} label="Adicionar Ativo" />
@@ -880,7 +1076,18 @@ export default function CarteiraContent({ userEmail }: Props) {
             <ModalHeader title="Registrar Transação" onClose={() => setModal(null)} />
             <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
               <FormField label="Ticker">
-                <input value={txForm.ticker} onChange={e => setTxForm(p => ({ ...p, ticker: e.target.value.toUpperCase() }))} style={inputStyle} placeholder="PETR4" />
+                <TickerSearch
+                  value={txForm.ticker}
+                  onChange={v => setTxForm(p => ({ ...p, ticker: v }))}
+                  onSelect={(ticker, price) => {
+                    setTxForm(p => ({
+                      ...p,
+                      ticker,
+                      price: price > 0 ? price.toFixed(2) : p.price,
+                    }));
+                  }}
+                  placeholder="Digite PETR, BBAS, ITUB..."
+                />
               </FormField>
               <FormField label="Tipo">
                 <div style={{ display: "flex", gap: "8px" }}>
