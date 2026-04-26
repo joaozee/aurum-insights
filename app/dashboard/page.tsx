@@ -21,61 +21,33 @@ async function getMarketData(): Promise<MarketItem[]> {
   const headers = brapiHeaders();
 
   try {
-    const [quotesRes, currencyRes] = await Promise.all([
-      fetch(`${BASE}/quote/%5EBVSP,%5EGSPC`, {
-        headers,
-        next: { revalidate: 300 },
-      }),
-      fetch(`${BASE}/v2/currency?currency=USD-BRL`, {
-        headers,
-        next: { revalidate: 300 },
-      }),
-    ]);
-
-    const quotesData = await quotesRes.json();
-    const currencyData = await currencyRes.json();
-
-    const results: MarketItem[] = [];
-
-    const ibov = quotesData?.results?.find(
-      (r: { symbol: string }) => r.symbol === "^BVSP"
+    // Busca IBOV, S&P 500 e Dólar num único request — todos em tempo real
+    const res = await fetch(
+      `${BASE}/quote/%5EBVSP,%5EGSPC,USDBRL=X`,
+      { headers, next: { revalidate: 300 } }
     );
-    if (ibov) {
-      const pct: number = ibov.regularMarketChangePercent ?? 0;
-      results.push({
-        label: "IBOV",
+    const data = await res.json();
+    const quotes: Record<string, number> = {};
+
+    for (const r of data?.results ?? []) {
+      quotes[r.symbol] = r.regularMarketChangePercent ?? 0;
+    }
+
+    const map: { label: string; symbol: string }[] = [
+      { label: "IBOV",    symbol: "^BVSP"   },
+      { label: "S&P 500", symbol: "^GSPC"   },
+      { label: "Dólar",   symbol: "USDBRL=X" },
+    ];
+
+    return map.map(({ label, symbol }) => {
+      const pct = quotes[symbol] ?? 0;
+      return {
+        label,
         raw: pct,
         value: `${pct >= 0 ? "+" : ""}${pct.toFixed(2)}%`,
         positive: pct >= 0,
-      });
-    }
-
-    const sp = quotesData?.results?.find(
-      (r: { symbol: string }) => r.symbol === "^GSPC"
-    );
-    if (sp) {
-      const pct: number = sp.regularMarketChangePercent ?? 0;
-      results.push({
-        label: "S&P 500",
-        raw: pct,
-        value: `${pct >= 0 ? "+" : ""}${pct.toFixed(2)}%`,
-        positive: pct >= 0,
-      });
-    }
-
-    // Campo correto da BRAPI: percentageChange (string)
-    const usd = currencyData?.currency?.[0];
-    if (usd) {
-      const pct: number = parseFloat(usd.percentageChange ?? "0");
-      results.push({
-        label: "Dólar",
-        raw: pct,
-        value: `${pct >= 0 ? "+" : ""}${pct.toFixed(2)}%`,
-        positive: pct >= 0,
-      });
-    }
-
-    return results;
+      };
+    });
   } catch {
     return [
       { label: "IBOV", value: "--", raw: 0, positive: true },
