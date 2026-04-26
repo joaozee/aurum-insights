@@ -318,7 +318,7 @@ export default function SobreContent() {
             }}
           >
             Junte-se a milhares de investidores que estão construindo patrimônio
-            de forma inteligente com a Aurum.
+            de forma inteligente com o Aurum.
           </p>
           <button
             onClick={() => router.push("/dashboard")}

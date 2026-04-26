@@ -417,7 +417,7 @@ export default function HomeContent({ firstName, marketData }: HomeContentProps)
           </div>
         </section>
 
-        {/* Conheça a Aurum */}
+        {/* Conheça o Aurum */}
         <section style={{ marginBottom: "36px" }}>
           <button
             onClick={() => router.push("/dashboard/sobre")}
@@ -469,7 +469,7 @@ export default function HomeContent({ firstName, marketData }: HomeContentProps)
                   letterSpacing: "-0.01em",
                 }}
               >
-                Conheça a Aurum
+                Conheça o Aurum
               </p>
               <p
                 style={{
