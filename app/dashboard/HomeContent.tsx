@@ -14,12 +14,7 @@ import {
   MessageCircle,
   Share2,
 } from "lucide-react";
-
-const MARKET_DATA = [
-  { label: "IBOV", value: "+1.24%", positive: true },
-  { label: "S&P 500", value: "+0.87%", positive: true },
-  { label: "Dólar", value: "-0.32%", positive: false },
-];
+import type { MarketItem } from "@/app/api/market/route";
 
 const QUICK_ACCESS = [
   {
@@ -81,6 +76,7 @@ const NEWS_MOCK = [
 
 interface HomeContentProps {
   firstName: string;
+  marketData: MarketItem[];
 }
 
 function getGreeting() {
@@ -94,7 +90,7 @@ function capitalize(str: string) {
   return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
 }
 
-export default function HomeContent({ firstName }: HomeContentProps) {
+export default function HomeContent({ firstName, marketData }: HomeContentProps) {
   const router = useRouter();
 
   return (
@@ -248,7 +244,7 @@ export default function HomeContent({ firstName }: HomeContentProps) {
               </span>
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: "13px" }}>
-              {MARKET_DATA.map(({ label, value, positive }) => (
+              {marketData.map(({ label, value, positive }) => (
                 <div
                   key={label}
                   style={{
