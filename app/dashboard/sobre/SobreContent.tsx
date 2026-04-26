@@ -114,17 +114,18 @@ export default function SobreContent() {
 
         {/* Hero */}
         <div style={{ textAlign: "center", marginBottom: "56px" }}>
-          <div
-            style={{
-              width: "64px",
-              height: "64px",
-              borderRadius: "50%",
-              overflow: "hidden",
-              margin: "0 auto 20px",
-              border: "2px solid rgba(201,168,76,0.2)",
-            }}
-          >
-            <img src="/selo.png" alt="Aurum" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          <div style={{ margin: "0 auto 20px" }}>
+            <img
+              src="/logo.png"
+              alt="Aurum Grupo — Fundado em Valor"
+              style={{
+                height: "100px",
+                objectFit: "contain",
+                maxWidth: "340px",
+                display: "block",
+                margin: "0 auto",
+              }}
+            />
           </div>
 
           <h1
