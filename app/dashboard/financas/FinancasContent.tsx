@@ -14,7 +14,7 @@ import { createClient } from "@/lib/supabase/client";
 interface FinanceTransaction {
   id: string;
   account_type: "pessoal" | "empresa";
-  type: "income" | "expense";
+  type: "entrada" | "saida";
   category: string;
   amount: number;
   description: string;
@@ -172,8 +172,8 @@ function TxRow({ t, onDelete }: { t: FinanceTransaction; onDelete: (id: string) 
           {t.description || "—"} · {new Date(t.transaction_date + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}
         </p>
       </div>
-      <span style={{ fontSize: "13px", fontWeight: 700, fontFamily: "var(--font-sans)", color: t.type === "income" ? "#22c55e" : "#f87171", flexShrink: 0 }}>
-        {t.type === "income" ? "+" : "-"}{fmt(Number(t.amount))}
+      <span style={{ fontSize: "13px", fontWeight: 700, fontFamily: "var(--font-sans)", color: t.type === "entrada" ? "#22c55e" : "#f87171", flexShrink: 0 }}>
+        {t.type === "entrada" ? "+" : "-"}{fmt(Number(t.amount))}
       </span>
       <button
         onClick={() => onDelete(t.id)}
@@ -181,6 +181,212 @@ function TxRow({ t, onDelete }: { t: FinanceTransaction; onDelete: (id: string) 
       >
         <Trash2 size={13} />
       </button>
+    </div>
+  );
+}
+
+// ─── SVG Chart Helpers ───────────────────────────────────────────────────────
+
+function polarToCartesian(cx: number, cy: number, r: number, angleDeg: number) {
+  const a = ((angleDeg - 90) * Math.PI) / 180;
+  return { x: cx + r * Math.cos(a), y: cy + r * Math.sin(a) };
+}
+
+function pieSlicePath(cx: number, cy: number, r: number, start: number, end: number) {
+  if (end - start >= 359.999) {
+    return `M ${cx} ${cy - r} A ${r} ${r} 0 1 1 ${cx - 0.001} ${cy - r} Z`;
+  }
+  const s = polarToCartesian(cx, cy, r, start);
+  const e = polarToCartesian(cx, cy, r, end);
+  const large = end - start > 180 ? 1 : 0;
+  return `M ${cx} ${cy} L ${s.x} ${s.y} A ${r} ${r} 0 ${large} 1 ${e.x} ${e.y} Z`;
+}
+
+function smoothPath(pts: { x: number; y: number }[]) {
+  if (pts.length < 2) return "";
+  return pts.reduce((acc, p, i) => {
+    if (i === 0) return `M ${p.x.toFixed(1)} ${p.y.toFixed(1)}`;
+    const prev = pts[i - 1];
+    const cp1x = (prev.x + p.x) / 2;
+    return `${acc} C ${cp1x.toFixed(1)} ${prev.y.toFixed(1)}, ${cp1x.toFixed(1)} ${p.y.toFixed(1)}, ${p.x.toFixed(1)} ${p.y.toFixed(1)}`;
+  }, "");
+}
+
+// ── Bar chart (category expenses) ────────────────────────────────────────────
+
+function BarChartSVG({ data }: { data: [string, number][] }) {
+  if (data.length === 0) return (
+    <div style={{ height: "180px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <span style={{ fontSize: "13px", color: "#3a2a10", fontFamily: "var(--font-sans)" }}>Sem despesas</span>
+    </div>
+  );
+  const W = 360, H = 180, PT = 12, PB = 32, PL = 8, PR = 8;
+  const cW = W - PL - PR;
+  const cH = H - PT - PB;
+  const maxVal = Math.max(...data.map(d => d[1]));
+  const bW = Math.min(32, cW / data.length - 6);
+  const gap = (cW - bW * data.length) / (data.length + 1);
+
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} width="100%" style={{ overflow: "visible" }}>
+      {[0, 0.25, 0.5, 0.75, 1].map(p => {
+        const y = PT + cH - p * cH;
+        return (
+          <line key={p} x1={PL} y1={y} x2={W - PR} y2={y}
+            stroke="rgba(255,255,255,0.04)" strokeWidth={1} />
+        );
+      })}
+      {data.map(([cat, val], i) => {
+        const bH = Math.max((val / maxVal) * cH, 2);
+        const x = PL + gap + i * (bW + gap);
+        const y = PT + cH - bH;
+        const color = CATEGORY_COLORS[cat] ?? "#C9A84C";
+        return (
+          <g key={cat}>
+            <defs>
+              <linearGradient id={`bg${i}`} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={color} stopOpacity={0.9} />
+                <stop offset="100%" stopColor={color} stopOpacity={0.5} />
+              </linearGradient>
+            </defs>
+            <rect x={x} y={y} width={bW} height={bH} fill={`url(#bg${i})`} rx={3} />
+            <text x={x + bW / 2} y={H - 4} textAnchor="middle" fontSize={7.5}
+              fill="#5a4a2a" fontFamily="var(--font-sans)">
+              {cat.length > 6 ? cat.slice(0, 5) + "." : cat}
+            </text>
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
+// ── Line chart (monthly trend) ────────────────────────────────────────────────
+
+function LineChartSVG({ data }: { data: { month: string; income: number; expense: number }[] }) {
+  const W = 360, H = 180, PT = 16, PB = 28, PL = 38, PR = 12;
+  const cW = W - PL - PR;
+  const cH = H - PT - PB;
+  const maxVal = Math.max(...data.map(d => Math.max(d.income, d.expense)), 1);
+  const n = data.length;
+
+  const toPoint = (val: number, i: number) => ({
+    x: PL + (n > 1 ? (i / (n - 1)) * cW : cW / 2),
+    y: PT + cH - (val / maxVal) * cH,
+  });
+
+  const expPts = data.map((d, i) => toPoint(d.expense, i));
+  const incPts = data.map((d, i) => toPoint(d.income, i));
+
+  const expPath = smoothPath(expPts);
+  const incPath = smoothPath(incPts);
+
+  const expArea = expPts.length > 0
+    ? `${expPath} L ${expPts[expPts.length - 1].x} ${PT + cH} L ${expPts[0].x} ${PT + cH} Z`
+    : "";
+  const incArea = incPts.length > 0
+    ? `${incPath} L ${incPts[incPts.length - 1].x} ${PT + cH} L ${incPts[0].x} ${PT + cH} Z`
+    : "";
+
+  const yLabels = [0, 0.25, 0.5, 0.75, 1];
+
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} width="100%">
+      <defs>
+        <linearGradient id="expGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#C9A84C" stopOpacity={0.25} />
+          <stop offset="100%" stopColor="#C9A84C" stopOpacity={0} />
+        </linearGradient>
+        <linearGradient id="incGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#22c55e" stopOpacity={0.15} />
+          <stop offset="100%" stopColor="#22c55e" stopOpacity={0} />
+        </linearGradient>
+      </defs>
+
+      {yLabels.map(p => {
+        const y = PT + cH - p * cH;
+        const v = p * maxVal;
+        return (
+          <g key={p}>
+            <line x1={PL} y1={y} x2={W - PR} y2={y} stroke="rgba(255,255,255,0.05)" strokeWidth={1} />
+            <text x={PL - 4} y={y + 3} textAnchor="end" fontSize={7} fill="#4a3a1a" fontFamily="var(--font-sans)">
+              {v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v.toFixed(0)}
+            </text>
+          </g>
+        );
+      })}
+
+      {/* Income area + line */}
+      {incArea && <path d={incArea} fill="url(#incGrad)" />}
+      {incPath && <path d={incPath} fill="none" stroke="#22c55e" strokeWidth={1.5} strokeOpacity={0.6} />}
+
+      {/* Expense area + line */}
+      {expArea && <path d={expArea} fill="url(#expGrad)" />}
+      {expPath && <path d={expPath} fill="none" stroke="#C9A84C" strokeWidth={2} />}
+
+      {/* Dots */}
+      {expPts.map((p, i) => (
+        <circle key={`e${i}`} cx={p.x} cy={p.y} r={3} fill="#C9A84C" />
+      ))}
+      {incPts.map((p, i) => (
+        <circle key={`i${i}`} cx={p.x} cy={p.y} r={2.5} fill="#22c55e" opacity={0.7} />
+      ))}
+
+      {/* X labels */}
+      {data.map((d, i) => (
+        <text key={i} x={PL + (n > 1 ? (i / (n - 1)) * cW : cW / 2)} y={H - 4}
+          textAnchor="middle" fontSize={7.5} fill="#5a4a2a" fontFamily="var(--font-sans)">
+          {d.month}
+        </text>
+      ))}
+    </svg>
+  );
+}
+
+// ── Donut / Pie chart ─────────────────────────────────────────────────────────
+
+function DonutChartSVG({ data, total }: { data: [string, number][]; total: number }) {
+  if (data.length === 0 || total === 0) return (
+    <div style={{ height: "160px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <span style={{ fontSize: "13px", color: "#3a2a10", fontFamily: "var(--font-sans)" }}>Sem dados</span>
+    </div>
+  );
+
+  const CX = 80, CY = 80, R = 68, IR = 42, W = 260, H = 160;
+  let angle = -90;
+  const slices = data.map(([cat, val]) => {
+    const sweep = (val / total) * 360;
+    const s = { cat, val, start: angle, end: angle + sweep };
+    angle += sweep;
+    return s;
+  });
+
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: "24px" }}>
+      <svg viewBox={`0 0 ${CX * 2} ${CY * 2}`} width={CX * 2} height={CY * 2} style={{ flexShrink: 0 }}>
+        {slices.map(({ cat, start, end }) => (
+          <path key={cat} d={pieSlicePath(CX, CY, R, start, end)}
+            fill={CATEGORY_COLORS[cat] ?? "#C9A84C"} opacity={0.85} />
+        ))}
+        <circle cx={CX} cy={CY} r={IR} fill="#130f09" />
+        <text x={CX} y={CY - 5} textAnchor="middle" fontSize={11} fontWeight={700} fill="#e8dcc0" fontFamily="var(--font-sans)">
+          {data.length}
+        </text>
+        <text x={CX} y={CY + 9} textAnchor="middle" fontSize={7.5} fill="#5a4a2a" fontFamily="var(--font-sans)">
+          categorias
+        </text>
+      </svg>
+      <div style={{ display: "flex", flexDirection: "column", gap: "8px", flex: 1 }}>
+        {slices.map(({ cat, val }) => (
+          <div key={cat} style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <div style={{ width: "8px", height: "8px", borderRadius: "2px", background: CATEGORY_COLORS[cat] ?? "#C9A84C", flexShrink: 0 }} />
+            <span style={{ fontSize: "12px", color: "#9a8a6a", fontFamily: "var(--font-sans)", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{cat}</span>
+            <span style={{ fontSize: "11px", color: "#5a4a2a", fontFamily: "var(--font-sans)", flexShrink: 0 }}>
+              {total > 0 ? `${((val / total) * 100).toFixed(1)}%` : "—"}
+            </span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -210,9 +416,12 @@ export default function FinancasContent({ userEmail }: Props) {
   // Calendar
   const [calendarDate, setCalendarDate] = useState(() => new Date(now.getFullYear(), now.getMonth(), 1));
 
+  // Relatórios filter
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
+
   // Modals
   const [modal, setModal] = useState<null | "transaction" | "budget" | "goal" | "event">(null);
-  const [modalTxType, setModalTxType] = useState<"income" | "expense">("expense");
+  const [modalTxType, setModalTxType] = useState<"entrada" | "saida">("saida");
   const [txForm, setTxForm]       = useState({ category: "", description: "", amount: "", date: now.toISOString().split("T")[0] });
   const [budgetForm, setBudgetForm] = useState({ category: "", monthly_limit: "", alert_threshold: "80" });
   const [goalForm, setGoalForm]   = useState({ title: "", category: "", target_amount: "", current_amount: "0", target_date: "", monthly_contribution: "", description: "" });
@@ -260,7 +469,7 @@ export default function FinancasContent({ userEmail }: Props) {
     (trendData ?? []).forEach((t: { type: string; amount: number; transaction_date: string }) => {
       const key = t.transaction_date.slice(0, 7);
       if (trendMap[key]) {
-        if (t.type === "income") trendMap[key].income += Number(t.amount);
+        if (t.type === "entrada") trendMap[key].income += Number(t.amount);
         else trendMap[key].expense += Number(t.amount);
       }
     });
@@ -309,13 +518,13 @@ export default function FinancasContent({ userEmail }: Props) {
 
   // ── Computed ──────────────────────────────────────────────────────────────
 
-  const income  = useMemo(() => transactions.filter(t => t.type === "income").reduce((s, t) => s + Number(t.amount), 0), [transactions]);
-  const expense = useMemo(() => transactions.filter(t => t.type === "expense").reduce((s, t) => s + Number(t.amount), 0), [transactions]);
+  const income  = useMemo(() => transactions.filter(t => t.type === "entrada").reduce((s, t) => s + Number(t.amount), 0), [transactions]);
+  const expense = useMemo(() => transactions.filter(t => t.type === "saida").reduce((s, t) => s + Number(t.amount), 0), [transactions]);
   const balance = income - expense;
 
   const byCategory = useMemo(() => {
     const map: Record<string, number> = {};
-    transactions.filter(t => t.type === "expense").forEach(t => {
+    transactions.filter(t => t.type === "saida").forEach(t => {
       map[t.category] = (map[t.category] ?? 0) + Number(t.amount);
     });
     return Object.entries(map).sort((a, b) => b[1] - a[1]);
@@ -339,6 +548,12 @@ export default function FinancasContent({ userEmail }: Props) {
   const daysInMonth    = new Date(calYear, calMonth + 1, 0).getDate();
 
   const trendMax = Math.max(...monthlyTrend.map(m => Math.max(m.income, m.expense)), 1);
+
+  const allCategories = useMemo(() => Array.from(new Set(transactions.map(t => t.category))).sort(), [transactions]);
+  const filteredForTable = useMemo(
+    () => selectedCategory === "all" ? transactions : transactions.filter(t => t.category === selectedCategory),
+    [transactions, selectedCategory]
+  );
 
   // ── Save handlers ─────────────────────────────────────────────────────────
 
@@ -419,7 +634,7 @@ export default function FinancasContent({ userEmail }: Props) {
     setBudgets(prev => prev.filter(b => b.id !== id));
   }
 
-  function openTxModal(type: "income" | "expense") {
+  function openTxModal(type: "entrada" | "saida") {
     setModalTxType(type);
     setTxForm({ category: "", description: "", amount: "", date: now.toISOString().split("T")[0] });
     setFormError(""); setModal("transaction");
@@ -466,7 +681,7 @@ export default function FinancasContent({ userEmail }: Props) {
         {/* Action buttons */}
         <div style={{ display: "flex", gap: "10px", marginBottom: "24px" }}>
           <button
-            onClick={() => openTxModal("expense")}
+            onClick={() => openTxModal("saida")}
             style={{ display: "flex", alignItems: "center", gap: "6px", background: "linear-gradient(135deg,#C9A84C,#A07820)", border: "none", borderRadius: "8px", padding: "9px 18px", color: "#0d0b07", fontSize: "13px", fontWeight: 600, fontFamily: "var(--font-sans)", cursor: "pointer" }}
           >
             <Plus size={14} /> Nova Transação
@@ -514,7 +729,7 @@ export default function FinancasContent({ userEmail }: Props) {
             {tab === "painel" && (
               <>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "12px", marginBottom: "24px" }}>
-                  <SummaryCard icon={TrendingUp}   label="Entradas"   value={fmt(income)}  color="#22c55e" bg="rgba(34,197,94,0.06)"   border="rgba(34,197,94,0.15)"   sub={`${transactions.filter(t => t.type === "income").length} transações`} />
+                  <SummaryCard icon={TrendingUp}   label="Entradas"   value={fmt(income)}  color="#22c55e" bg="rgba(34,197,94,0.06)"   border="rgba(34,197,94,0.15)"   sub={`${transactions.filter(t => t.type === "entrada").length} transações`} />
                   <SummaryCard icon={TrendingDown}  label="Saídas"     value={fmt(expense)} color="#f87171" bg="rgba(248,113,113,0.06)" border="rgba(248,113,113,0.15)" sub={income > 0 ? `${((expense / income) * 100).toFixed(0)}% do orçamento` : "0 transações"} />
                   <SummaryCard icon={Wallet}        label="Saldo Livre" value={fmt(balance)} color="#8b5cf6" bg="rgba(139,92,246,0.06)"  border="rgba(139,92,246,0.15)"  sub="disponível para investir" />
                 </div>
@@ -581,12 +796,12 @@ export default function FinancasContent({ userEmail }: Props) {
                             <td style={{ padding: "10px 0", fontSize: "12px", color: "#9a8a6a", fontFamily: "var(--font-sans)" }}>{t.category}</td>
                             <td style={{ padding: "10px 0", fontSize: "12px", color: "#6a5a3a", fontFamily: "var(--font-sans)", maxWidth: "120px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.description || "—"}</td>
                             <td style={{ padding: "10px 0" }}>
-                              <span style={{ fontSize: "10px", fontWeight: 600, padding: "3px 8px", borderRadius: "4px", fontFamily: "var(--font-sans)", background: t.type === "income" ? "rgba(34,197,94,0.12)" : "rgba(248,113,113,0.12)", color: t.type === "income" ? "#22c55e" : "#f87171" }}>
-                                {t.type === "income" ? "Entrada" : "Saída"}
+                              <span style={{ fontSize: "10px", fontWeight: 600, padding: "3px 8px", borderRadius: "4px", fontFamily: "var(--font-sans)", background: t.type === "entrada" ? "rgba(34,197,94,0.12)" : "rgba(248,113,113,0.12)", color: t.type === "entrada" ? "#22c55e" : "#f87171" }}>
+                                {t.type === "entrada" ? "Entrada" : "Saída"}
                               </span>
                             </td>
-                            <td style={{ padding: "10px 0", fontSize: "13px", fontWeight: 700, fontFamily: "var(--font-sans)", color: t.type === "income" ? "#22c55e" : "#f87171" }}>
-                              {t.type === "income" ? "+" : "-"}{fmt(Number(t.amount))}
+                            <td style={{ padding: "10px 0", fontSize: "13px", fontWeight: 700, fontFamily: "var(--font-sans)", color: t.type === "entrada" ? "#22c55e" : "#f87171" }}>
+                              {t.type === "entrada" ? "+" : "-"}{fmt(Number(t.amount))}
                             </td>
                             <td style={{ padding: "10px 0", textAlign: "right" }}>
                               <button onClick={() => deleteTx(t.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "#4a3a1a", padding: "2px" }}>
@@ -605,78 +820,109 @@ export default function FinancasContent({ userEmail }: Props) {
             {/* ══════════════════ RELATÓRIOS ══════════════════ */}
             {tab === "relatorios" && (
               <>
-                {/* Monthly trend bars */}
-                <div style={{ background: "#130f09", border: "1px solid rgba(201,168,76,0.08)", borderRadius: "12px", padding: "24px", marginBottom: "20px" }}>
-                  <p style={{ fontSize: "13px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-sans)", marginBottom: "4px" }}>Tendência — Últimos 6 Meses</p>
-                  <p style={{ fontSize: "11px", color: "#3a2a10", fontFamily: "var(--font-sans)", marginBottom: "24px" }}>Entradas vs Saídas</p>
-                  <div style={{ display: "flex", gap: "10px", alignItems: "flex-end", height: "130px" }}>
-                    {monthlyTrend.map(({ month, income: inc, expense: exp }) => (
-                      <div key={month} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: "6px", height: "100%", justifyContent: "flex-end" }}>
-                        <div style={{ display: "flex", gap: "3px", alignItems: "flex-end", width: "100%", height: "100px" }}>
-                          <div
-                            style={{ flex: 1, background: "rgba(34,197,94,0.5)", borderRadius: "3px 3px 0 0", height: `${(inc / trendMax) * 100}%`, minHeight: inc > 0 ? "4px" : "0", transition: "height 0.4s ease" }}
-                            title={fmt(inc)}
-                          />
-                          <div
-                            style={{ flex: 1, background: "rgba(248,113,113,0.5)", borderRadius: "3px 3px 0 0", height: `${(exp / trendMax) * 100}%`, minHeight: exp > 0 ? "4px" : "0", transition: "height 0.4s ease" }}
-                            title={fmt(exp)}
-                          />
-                        </div>
-                        <span style={{ fontSize: "10px", color: "#5a4a2a", fontFamily: "var(--font-sans)" }}>{month}</span>
-                      </div>
-                    ))}
-                  </div>
-                  <div style={{ display: "flex", gap: "16px", marginTop: "16px" }}>
-                    {[{ color: "rgba(34,197,94,0.5)", label: "Entradas" }, { color: "rgba(248,113,113,0.5)", label: "Saídas" }].map(({ color, label }) => (
-                      <div key={label} style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                        <div style={{ width: "10px", height: "10px", borderRadius: "2px", background: color }} />
-                        <span style={{ fontSize: "11px", color: "#5a4a2a", fontFamily: "var(--font-sans)" }}>{label}</span>
-                      </div>
-                    ))}
-                  </div>
+                {/* Top 4 summary cards */}
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "12px", marginBottom: "20px" }}>
+                  {[
+                    { label: "Entradas",       value: fmt(income),  color: "#22c55e", sub: `${transactions.filter(t => t.type === "entrada").length} transações` },
+                    { label: "Gastos",         value: fmt(expense), color: "#f87171", sub: "Total gasto" },
+                    { label: "Saldo",          value: fmt(balance), color: "#8b5cf6", sub: "Entradas − Gastos" },
+                    { label: "Taxa de Poupança", value: income > 0 ? `${((balance / income) * 100).toFixed(1)}%` : "—", color: "#C9A84C", sub: "% economizado" },
+                  ].map(({ label, value, color, sub }) => (
+                    <div key={label} style={{ background: "#130f09", border: `1px solid ${color}22`, borderRadius: "10px", padding: "16px 18px" }}>
+                      <p style={{ fontSize: "11px", color: "#5a4a2a", fontFamily: "var(--font-sans)", marginBottom: "8px" }}>{label}</p>
+                      <p style={{ fontSize: "18px", fontWeight: 700, color, fontFamily: "var(--font-sans)", lineHeight: 1, marginBottom: "6px" }}>{value}</p>
+                      <p style={{ fontSize: "10px", color: "#3a2a10", fontFamily: "var(--font-sans)" }}>{sub}</p>
+                    </div>
+                  ))}
                 </div>
 
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
-                  {/* Month summary */}
-                  <div style={{ background: "#130f09", border: "1px solid rgba(201,168,76,0.08)", borderRadius: "12px", padding: "24px" }}>
-                    <p style={{ fontSize: "13px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-sans)", marginBottom: "20px" }}>Resumo do Mês</p>
-                    <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-                      {[
-                        { label: "Total de entradas",  value: fmt(income),  color: "#22c55e" },
-                        { label: "Total de saídas",    value: fmt(expense), color: "#f87171" },
-                        { label: "Saldo líquido",      value: fmt(balance), color: "#8b5cf6" },
-                        { label: "Taxa de poupança",   value: income > 0 ? `${((balance / income) * 100).toFixed(1)}%` : "—", color: "#C9A84C" },
-                        { label: "Nº de transações",   value: `${transactions.length}`, color: "#e8dcc0" },
-                      ].map(({ label, value, color }) => (
-                        <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                          <span style={{ fontSize: "13px", color: "#5a4a2a", fontFamily: "var(--font-sans)" }}>{label}</span>
-                          <span style={{ fontSize: "14px", fontWeight: 700, color, fontFamily: "var(--font-sans)" }}>{value}</span>
+                {/* Category filter */}
+                <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "20px" }}>
+                  <span style={{ fontSize: "12px", color: "#5a4a2a", fontFamily: "var(--font-sans)", flexShrink: 0 }}>Filtrar por categoria:</span>
+                  <select
+                    value={selectedCategory}
+                    onChange={e => setSelectedCategory(e.target.value)}
+                    style={{ background: "#130f09", border: "1px solid #2a2010", borderRadius: "6px", padding: "6px 10px", color: "#9a8a6a", fontSize: "12px", fontFamily: "var(--font-sans)", outline: "none", cursor: "pointer" }}
+                  >
+                    <option value="all">Todas as categorias</option>
+                    {allCategories.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+
+                {/* Charts row */}
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px", marginBottom: "20px" }}>
+                  {/* Bar chart */}
+                  <div style={{ background: "#130f09", border: "1px solid rgba(201,168,76,0.08)", borderRadius: "12px", padding: "20px 24px" }}>
+                    <p style={{ fontSize: "13px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-sans)", marginBottom: "4px" }}>Gastos por Categoria</p>
+                    <p style={{ fontSize: "11px", color: "#3a2a10", fontFamily: "var(--font-sans)", marginBottom: "16px" }}>Distribuição mensal</p>
+                    <BarChartSVG data={byCategory} />
+                  </div>
+
+                  {/* Line chart */}
+                  <div style={{ background: "#130f09", border: "1px solid rgba(201,168,76,0.08)", borderRadius: "12px", padding: "20px 24px" }}>
+                    <p style={{ fontSize: "13px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-sans)", marginBottom: "4px" }}>Evolução de Gastos</p>
+                    <p style={{ fontSize: "11px", color: "#3a2a10", fontFamily: "var(--font-sans)", marginBottom: "16px" }}>Últimos 6 meses</p>
+                    <LineChartSVG data={monthlyTrend} />
+                    <div style={{ display: "flex", gap: "16px", marginTop: "8px" }}>
+                      {[{ color: "#C9A84C", label: "Saídas" }, { color: "#22c55e", label: "Entradas" }].map(({ color, label }) => (
+                        <div key={label} style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+                          <div style={{ width: "20px", height: "2px", background: color, borderRadius: "2px" }} />
+                          <span style={{ fontSize: "10px", color: "#5a4a2a", fontFamily: "var(--font-sans)" }}>{label}</span>
                         </div>
                       ))}
                     </div>
                   </div>
+                </div>
 
-                  {/* Category % breakdown */}
-                  <div style={{ background: "#130f09", border: "1px solid rgba(201,168,76,0.08)", borderRadius: "12px", padding: "24px" }}>
-                    <p style={{ fontSize: "13px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-sans)", marginBottom: "4px" }}>Despesas por Categoria</p>
-                    <p style={{ fontSize: "11px", color: "#3a2a10", fontFamily: "var(--font-sans)", marginBottom: "18px" }}>% do total gasto</p>
-                    {byCategory.length === 0 ? (
-                      <p style={{ fontSize: "13px", color: "#3a2a10", fontFamily: "var(--font-sans)", textAlign: "center", padding: "24px 0" }}>Sem despesas</p>
-                    ) : (
-                      <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-                        {byCategory.map(([cat, val]) => (
-                          <div key={cat} style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                            <div style={{ width: "8px", height: "8px", borderRadius: "50%", background: CATEGORY_COLORS[cat] ?? "#C9A84C", flexShrink: 0 }} />
-                            <span style={{ fontSize: "12px", color: "#9a8a6a", fontFamily: "var(--font-sans)", flex: 1 }}>{cat}</span>
-                            <span style={{ fontSize: "11px", color: "#5a4a2a", fontFamily: "var(--font-sans)" }}>
-                              {expense > 0 ? `${((val / expense) * 100).toFixed(1)}%` : "—"}
-                            </span>
-                            <span style={{ fontSize: "12px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-sans)" }}>{fmt(val)}</span>
-                          </div>
-                        ))}
-                      </div>
+                {/* Donut chart */}
+                <div style={{ background: "#130f09", border: "1px solid rgba(201,168,76,0.08)", borderRadius: "12px", padding: "20px 24px", marginBottom: "20px" }}>
+                  <p style={{ fontSize: "13px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-sans)", marginBottom: "4px" }}>Distribuição</p>
+                  <p style={{ fontSize: "11px", color: "#3a2a10", fontFamily: "var(--font-sans)", marginBottom: "20px" }}>% de cada categoria nas despesas</p>
+                  <DonutChartSVG data={byCategory} total={expense} />
+                </div>
+
+                {/* All transactions table */}
+                <div style={{ background: "#130f09", border: "1px solid rgba(201,168,76,0.08)", borderRadius: "12px", padding: "20px 24px" }}>
+                  <p style={{ fontSize: "13px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-sans)", marginBottom: "18px" }}>
+                    Todas as transações
+                    {selectedCategory !== "all" && (
+                      <span style={{ marginLeft: "8px", fontSize: "11px", color: "#C9A84C", fontWeight: 400 }}>— {selectedCategory}</span>
                     )}
-                  </div>
+                  </p>
+                  {filteredForTable.length === 0 ? (
+                    <p style={{ fontSize: "13px", color: "#3a2a10", fontFamily: "var(--font-sans)", textAlign: "center", padding: "24px 0" }}>Nenhuma transação</p>
+                  ) : (
+                    <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                      <thead>
+                        <tr>
+                          {["Data", "Categoria", "Descrição", "Valor"].map(h => (
+                            <th key={h} style={{ fontSize: "10px", color: "#4a3a1a", fontFamily: "var(--font-sans)", fontWeight: 600, textAlign: "left", padding: "0 0 10px", letterSpacing: "0.08em", textTransform: "uppercase" }}>{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredForTable.map(t => (
+                          <tr key={t.id} style={{ borderTop: "1px solid rgba(255,255,255,0.03)" }}>
+                            <td style={{ padding: "10px 0", fontSize: "12px", color: "#6a5a3a", fontFamily: "var(--font-sans)", whiteSpace: "nowrap" }}>
+                              {new Date(t.transaction_date + "T12:00:00").toLocaleDateString("pt-BR")}
+                            </td>
+                            <td style={{ padding: "10px 12px 10px 0", fontSize: "12px", color: "#9a8a6a", fontFamily: "var(--font-sans)" }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                                <div style={{ width: "6px", height: "6px", borderRadius: "50%", background: CATEGORY_COLORS[t.category] ?? "#C9A84C", flexShrink: 0 }} />
+                                {t.category}
+                              </div>
+                            </td>
+                            <td style={{ padding: "10px 0", fontSize: "12px", color: "#6a5a3a", fontFamily: "var(--font-sans)", maxWidth: "200px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                              {t.description || "—"}
+                            </td>
+                            <td style={{ padding: "10px 0", fontSize: "13px", fontWeight: 700, fontFamily: "var(--font-sans)", color: t.type === "entrada" ? "#22c55e" : "#f87171", textAlign: "right", whiteSpace: "nowrap" }}>
+                              {t.type === "entrada" ? "+" : "-"}{fmt(Number(t.amount))}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
                 </div>
               </>
             )}
@@ -912,17 +1158,17 @@ export default function FinancasContent({ userEmail }: Props) {
             {/* ── Transaction ── */}
             {modal === "transaction" && (
               <>
-                <ModalHeader title={`Nova ${modalTxType === "income" ? "Receita" : "Despesa"}`} onClose={() => setModal(null)} />
+                <ModalHeader title={`Nova ${modalTxType === "entrada" ? "Receita" : "Despesa"}`} onClose={() => setModal(null)} />
                 <div style={{ display: "flex", gap: "8px", marginBottom: "20px" }}>
-                  {(["income", "expense"] as const).map(type => (
+                  {(["entrada", "saida"] as const).map(type => (
                     <button key={type} onClick={() => setModalTxType(type)} style={{
                       flex: 1, padding: "9px", borderRadius: "8px", border: "1px solid", cursor: "pointer",
-                      borderColor: modalTxType === type ? (type === "income" ? "rgba(34,197,94,0.4)" : "rgba(248,113,113,0.4)") : "#2a2010",
-                      background: modalTxType === type ? (type === "income" ? "rgba(34,197,94,0.1)" : "rgba(248,113,113,0.1)") : "transparent",
-                      color: modalTxType === type ? (type === "income" ? "#22c55e" : "#f87171") : "#5a4a2a",
+                      borderColor: modalTxType === type ? (type === "entrada" ? "rgba(34,197,94,0.4)" : "rgba(248,113,113,0.4)") : "#2a2010",
+                      background: modalTxType === type ? (type === "entrada" ? "rgba(34,197,94,0.1)" : "rgba(248,113,113,0.1)") : "transparent",
+                      color: modalTxType === type ? (type === "entrada" ? "#22c55e" : "#f87171") : "#5a4a2a",
                       fontSize: "13px", fontWeight: 600, fontFamily: "var(--font-sans)",
                     }}>
-                      {type === "income" ? "Receita" : "Despesa"}
+                      {type === "entrada" ? "Receita" : "Despesa"}
                     </button>
                   ))}
                 </div>
@@ -930,7 +1176,7 @@ export default function FinancasContent({ userEmail }: Props) {
                   <FormField label="Categoria">
                     <select value={txForm.category} onChange={e => setTxForm(f => ({ ...f, category: e.target.value }))} style={selectStyle}>
                       <option value="">Selecione...</option>
-                      {(modalTxType === "income" ? CATEGORIES_INCOME : CATEGORIES_EXPENSE).map(c => <option key={c} value={c}>{c}</option>)}
+                      {(modalTxType === "entrada" ? CATEGORIES_INCOME : CATEGORIES_EXPENSE).map(c => <option key={c} value={c}>{c}</option>)}
                     </select>
                   </FormField>
                   <FormField label="Descrição">
@@ -945,7 +1191,7 @@ export default function FinancasContent({ userEmail }: Props) {
                 </div>
                 {formError && <p style={{ fontSize: "12px", color: "#f87171", fontFamily: "var(--font-sans)", marginTop: "12px" }}>{formError}</p>}
                 <div style={{ marginTop: "20px" }}>
-                  <SaveButton saving={saving} onClick={saveTx} label={`Salvar ${modalTxType === "income" ? "Receita" : "Despesa"}`} />
+                  <SaveButton saving={saving} onClick={saveTx} label={`Salvar ${modalTxType === "entrada" ? "Receita" : "Despesa"}`} />
                 </div>
               </>
             )}
