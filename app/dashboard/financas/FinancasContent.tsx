@@ -116,7 +116,7 @@ function ModalHeader({ title, onClose }: { title: string; onClose: () => void })
   return (
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
       <h2 style={{ fontSize: "17px", fontWeight: 600, color: "#f0e8d0", fontFamily: "var(--font-display)" }}>{title}</h2>
-      <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: "#5a4a2a", padding: 0 }}>
+      <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: "#a09068", padding: 0 }}>
         <X size={18} />
       </button>
     </div>
@@ -162,9 +162,9 @@ function SummaryCard({ icon: Icon, label, value, color, bg, border, sub }: {
         <Icon size={16} style={{ color }} />
       </div>
       <div style={{ flex: 1 }}>
-        <p style={{ fontSize: "11px", color: "#5a4a2a", fontFamily: "var(--font-sans)", marginBottom: "4px" }}>{label}</p>
+        <p style={{ fontSize: "11px", color: "#a09068", fontFamily: "var(--font-sans)", marginBottom: "4px" }}>{label}</p>
         <p style={{ fontSize: "20px", fontWeight: 700, color, fontFamily: "var(--font-sans)", lineHeight: 1 }}>{value}</p>
-        <p style={{ fontSize: "10px", color: "#4a3a1a", fontFamily: "var(--font-sans)", marginTop: "4px" }}>{sub}</p>
+        <p style={{ fontSize: "10px", color: "#857560", fontFamily: "var(--font-sans)", marginTop: "4px" }}>{sub}</p>
       </div>
     </div>
   );
@@ -187,7 +187,7 @@ function TxRow({ t, onDelete }: { t: FinanceTransaction; onDelete: (id: string) 
         <p style={{ fontSize: "13px", fontWeight: 500, color: "#e8dcc0", fontFamily: "var(--font-sans)", marginBottom: "2px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           {t.category}
         </p>
-        <p style={{ fontSize: "11px", color: "#4a3a1a", fontFamily: "var(--font-sans)" }}>
+        <p style={{ fontSize: "11px", color: "#857560", fontFamily: "var(--font-sans)" }}>
           {t.description || "—"} · {new Date(t.transaction_date + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}
         </p>
       </div>
@@ -255,7 +255,7 @@ function BarChartSVG({ data }: { data: [string, number][] }) {
 
   if (data.length === 0) return (
     <div style={{ height: "180px", display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <span style={{ fontSize: "13px", color: "#3a2a10", fontFamily: "var(--font-sans)" }}>Sem despesas</span>
+      <span style={{ fontSize: "13px", color: "#7a6a4a", fontFamily: "var(--font-sans)" }}>Sem despesas</span>
     </div>
   );
 
@@ -297,7 +297,7 @@ function BarChartSVG({ data }: { data: [string, number][] }) {
               </defs>
               <rect x={x} y={y} width={bW} height={bH + (isHov ? 3 : 0)} fill={`url(#bg${i})`} rx={3} />
               <text x={x + bW / 2} y={H - 4} textAnchor="middle" fontSize={7.5}
-                fill={isHov ? "#C9A84C" : "#5a4a2a"} fontFamily="var(--font-sans)">
+                fill={isHov ? "#C9A84C" : "#a09068"} fontFamily="var(--font-sans)">
                 {cat.length > 6 ? cat.slice(0, 5) + "." : cat}
               </text>
             </g>
@@ -311,7 +311,7 @@ function BarChartSVG({ data }: { data: [string, number][] }) {
             <span style={{ fontSize: "12px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-sans)" }}>{hovered.cat}</span>
           </div>
           <p style={{ fontSize: "14px", fontWeight: 700, color: "#f87171", fontFamily: "var(--font-sans)", margin: 0 }}>{fmt(hovered.val)}</p>
-          <p style={{ fontSize: "10px", color: "#5a4a2a", fontFamily: "var(--font-sans)", marginTop: "3px" }}>
+          <p style={{ fontSize: "10px", color: "#a09068", fontFamily: "var(--font-sans)", marginTop: "3px" }}>
             {maxVal > 0 ? `${((hovered.val / maxVal) * 100).toFixed(0)}% do maior gasto` : ""}
           </p>
         </Tooltip>
@@ -371,7 +371,7 @@ function LineChartSVG({ data }: { data: { month: string; income: number; expense
           return (
             <g key={p}>
               <line x1={PL} y1={y} x2={W - PR} y2={y} stroke="rgba(255,255,255,0.05)" strokeWidth={1} />
-              <text x={PL - 4} y={y + 3} textAnchor="end" fontSize={7} fill="#4a3a1a" fontFamily="var(--font-sans)">
+              <text x={PL - 4} y={y + 3} textAnchor="end" fontSize={7} fill="#857560" fontFamily="var(--font-sans)">
                 {v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v.toFixed(0)}
               </text>
             </g>
@@ -412,7 +412,7 @@ function LineChartSVG({ data }: { data: { month: string; income: number; expense
         {data.map((d, i) => (
           <text key={i} x={PL + (n > 1 ? (i / (n - 1)) * cW : cW / 2)} y={H - 4}
             textAnchor="middle" fontSize={7.5}
-            fill={hovered?.idx === i ? "#C9A84C" : "#5a4a2a"} fontFamily="var(--font-sans)">
+            fill={hovered?.idx === i ? "#C9A84C" : "#a09068"} fontFamily="var(--font-sans)">
             {d.month}
           </text>
         ))}
@@ -426,7 +426,7 @@ function LineChartSVG({ data }: { data: { month: string; income: number; expense
           <div style={{ display: "flex", justifyContent: "space-between", gap: "20px", marginBottom: "5px" }}>
             <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
               <div style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#22c55e" }} />
-              <span style={{ fontSize: "11px", color: "#5a4a2a", fontFamily: "var(--font-sans)" }}>Entradas</span>
+              <span style={{ fontSize: "11px", color: "#a09068", fontFamily: "var(--font-sans)" }}>Entradas</span>
             </div>
             <span style={{ fontSize: "12px", fontWeight: 700, color: "#22c55e", fontFamily: "var(--font-sans)" }}>
               {fmt(data[hovered.idx].income)}
@@ -435,7 +435,7 @@ function LineChartSVG({ data }: { data: { month: string; income: number; expense
           <div style={{ display: "flex", justifyContent: "space-between", gap: "20px" }}>
             <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
               <div style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#C9A84C" }} />
-              <span style={{ fontSize: "11px", color: "#5a4a2a", fontFamily: "var(--font-sans)" }}>Saídas</span>
+              <span style={{ fontSize: "11px", color: "#a09068", fontFamily: "var(--font-sans)" }}>Saídas</span>
             </div>
             <span style={{ fontSize: "12px", fontWeight: 700, color: "#f87171", fontFamily: "var(--font-sans)" }}>
               {fmt(data[hovered.idx].expense)}
@@ -456,7 +456,7 @@ function DonutChartSVG({ data, total }: { data: [string, number][]; total: numbe
 
   if (data.length === 0 || total === 0) return (
     <div style={{ height: "160px", display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <span style={{ fontSize: "13px", color: "#3a2a10", fontFamily: "var(--font-sans)" }}>Sem dados</span>
+      <span style={{ fontSize: "13px", color: "#7a6a4a", fontFamily: "var(--font-sans)" }}>Sem dados</span>
     </div>
   );
 
@@ -498,7 +498,7 @@ function DonutChartSVG({ data, total }: { data: [string, number][]; total: numbe
           fontWeight={700} fill="#e8dcc0" fontFamily="var(--font-sans)">
           {hovSlice ? `${((hovSlice.val / total) * 100).toFixed(0)}%` : data.length}
         </text>
-        <text x={CX} y={CY + 9} textAnchor="middle" fontSize={7.5} fill="#5a4a2a" fontFamily="var(--font-sans)">
+        <text x={CX} y={CY + 9} textAnchor="middle" fontSize={7.5} fill="#a09068" fontFamily="var(--font-sans)">
           {hovSlice ? hovSlice.cat.slice(0, 8) : "categorias"}
         </text>
       </svg>
@@ -512,7 +512,7 @@ function DonutChartSVG({ data, total }: { data: [string, number][]; total: numbe
           >
             <div style={{ width: "8px", height: "8px", borderRadius: "2px", background: CATEGORY_COLORS[cat] ?? "#C9A84C", flexShrink: 0 }} />
             <span style={{ fontSize: "12px", color: "#9a8a6a", fontFamily: "var(--font-sans)", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{cat}</span>
-            <span style={{ fontSize: "11px", color: "#5a4a2a", fontFamily: "var(--font-sans)", flexShrink: 0 }}>
+            <span style={{ fontSize: "11px", color: "#a09068", fontFamily: "var(--font-sans)", flexShrink: 0 }}>
               {`${((val / total) * 100).toFixed(1)}%`}
             </span>
             <span style={{ fontSize: "12px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-sans)", flexShrink: 0 }}>{fmt(val)}</span>
@@ -527,11 +527,11 @@ function DonutChartSVG({ data, total }: { data: [string, number][]; total: numbe
             <span style={{ fontSize: "12px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-sans)" }}>{hovSlice.cat}</span>
           </div>
           <div style={{ display: "flex", justifyContent: "space-between", gap: "16px", marginBottom: "4px" }}>
-            <span style={{ fontSize: "11px", color: "#5a4a2a", fontFamily: "var(--font-sans)" }}>Valor</span>
+            <span style={{ fontSize: "11px", color: "#a09068", fontFamily: "var(--font-sans)" }}>Valor</span>
             <span style={{ fontSize: "13px", fontWeight: 700, color: "#f87171", fontFamily: "var(--font-sans)" }}>{fmt(hovSlice.val)}</span>
           </div>
           <div style={{ display: "flex", justifyContent: "space-between", gap: "16px" }}>
-            <span style={{ fontSize: "11px", color: "#5a4a2a", fontFamily: "var(--font-sans)" }}>Participação</span>
+            <span style={{ fontSize: "11px", color: "#a09068", fontFamily: "var(--font-sans)" }}>Participação</span>
             <span style={{ fontSize: "13px", fontWeight: 700, color: "#C9A84C", fontFamily: "var(--font-sans)" }}>
               {`${((hovSlice.val / total) * 100).toFixed(1)}%`}
             </span>
@@ -803,7 +803,7 @@ export default function FinancasContent({ userEmail }: Props) {
             <h1 style={{ fontSize: "24px", fontWeight: 700, color: "#f0e8d0", fontFamily: "var(--font-display)", marginBottom: "4px" }}>
               Finanças
             </h1>
-            <p style={{ fontSize: "13px", color: "#5a4a2a", fontFamily: "var(--font-sans)" }}>
+            <p style={{ fontSize: "13px", color: "#a09068", fontFamily: "var(--font-sans)" }}>
               Gerencie suas receitas e despesas
             </p>
           </div>
@@ -818,7 +818,7 @@ export default function FinancasContent({ userEmail }: Props) {
                   display: "flex", alignItems: "center", gap: "6px",
                   padding: "7px 18px", borderRadius: "6px", border: "none", cursor: "pointer",
                   background: accountType === type ? "linear-gradient(135deg,#C9A84C,#A07820)" : "transparent",
-                  color: accountType === type ? "#0d0b07" : "#5a4a2a",
+                  color: accountType === type ? "#0d0b07" : "#a09068",
                   fontSize: "13px", fontWeight: 600, fontFamily: "var(--font-sans)", transition: "all 0.2s",
                 }}
               >
@@ -859,7 +859,7 @@ export default function FinancasContent({ userEmail }: Props) {
                 padding: "8px 16px", marginBottom: "-1px",
                 fontSize: "13px", fontFamily: "var(--font-sans)",
                 fontWeight: tab === id ? 600 : 400,
-                color: tab === id ? "#C9A84C" : "#5a4a2a",
+                color: tab === id ? "#C9A84C" : "#a09068",
                 borderBottom: tab === id ? "2px solid #C9A84C" : "2px solid transparent",
                 transition: "all 0.15s",
               }}
@@ -871,7 +871,7 @@ export default function FinancasContent({ userEmail }: Props) {
 
         {/* Content */}
         {loading ? (
-          <div style={{ textAlign: "center", padding: "80px 0", color: "#4a3a1a", fontFamily: "var(--font-sans)", fontSize: "13px" }}>
+          <div style={{ textAlign: "center", padding: "80px 0", color: "#857560", fontFamily: "var(--font-sans)", fontSize: "13px" }}>
             Carregando...
           </div>
         ) : (
@@ -889,9 +889,9 @@ export default function FinancasContent({ userEmail }: Props) {
                   {/* Category chart */}
                   <div style={{ background: "#130f09", border: "1px solid rgba(201,168,76,0.08)", borderRadius: "12px", padding: "22px 24px" }}>
                     <p style={{ fontSize: "13px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-sans)", marginBottom: "4px" }}>Gastos por Categoria</p>
-                    <p style={{ fontSize: "11px", color: "#3a2a10", fontFamily: "var(--font-sans)", marginBottom: "18px" }}>Distribuição mensal</p>
+                    <p style={{ fontSize: "11px", color: "#7a6a4a", fontFamily: "var(--font-sans)", marginBottom: "18px" }}>Distribuição mensal</p>
                     {byCategory.length === 0 ? (
-                      <p style={{ fontSize: "13px", color: "#3a2a10", fontFamily: "var(--font-sans)", textAlign: "center", padding: "24px 0" }}>Sem despesas este mês</p>
+                      <p style={{ fontSize: "13px", color: "#7a6a4a", fontFamily: "var(--font-sans)", textAlign: "center", padding: "24px 0" }}>Sem despesas este mês</p>
                     ) : (
                       <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
                         {byCategory.map(([cat, val]) => (
@@ -913,7 +913,7 @@ export default function FinancasContent({ userEmail }: Props) {
                   <div style={{ background: "#130f09", border: "1px solid rgba(201,168,76,0.08)", borderRadius: "12px", padding: "22px 24px" }}>
                     <p style={{ fontSize: "13px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-sans)", marginBottom: "18px" }}>Movimentações Recentes</p>
                     {transactions.length === 0 ? (
-                      <p style={{ fontSize: "13px", color: "#3a2a10", fontFamily: "var(--font-sans)", textAlign: "center", padding: "24px 0" }}>Nenhuma transação este mês</p>
+                      <p style={{ fontSize: "13px", color: "#7a6a4a", fontFamily: "var(--font-sans)", textAlign: "center", padding: "24px 0" }}>Nenhuma transação este mês</p>
                     ) : (
                       <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
                         {transactions.slice(0, 8).map(t => (
@@ -934,18 +934,18 @@ export default function FinancasContent({ userEmail }: Props) {
                       <thead>
                         <tr>
                           {["Data", "Categoria", "Descrição", "Tipo", "Valor", ""].map(h => (
-                            <th key={h} style={{ fontSize: "10px", color: "#4a3a1a", fontFamily: "var(--font-sans)", fontWeight: 600, textAlign: "left", padding: "0 0 10px", letterSpacing: "0.08em", textTransform: "uppercase" }}>{h}</th>
+                            <th key={h} style={{ fontSize: "10px", color: "#857560", fontFamily: "var(--font-sans)", fontWeight: 600, textAlign: "left", padding: "0 0 10px", letterSpacing: "0.08em", textTransform: "uppercase" }}>{h}</th>
                           ))}
                         </tr>
                       </thead>
                       <tbody>
                         {transactions.map(t => (
                           <tr key={t.id} style={{ borderTop: "1px solid rgba(255,255,255,0.03)" }}>
-                            <td style={{ padding: "10px 0", fontSize: "12px", color: "#6a5a3a", fontFamily: "var(--font-sans)" }}>
+                            <td style={{ padding: "10px 0", fontSize: "12px", color: "#9a8a6a", fontFamily: "var(--font-sans)" }}>
                               {new Date(t.transaction_date + "T12:00:00").toLocaleDateString("pt-BR")}
                             </td>
                             <td style={{ padding: "10px 0", fontSize: "12px", color: "#9a8a6a", fontFamily: "var(--font-sans)" }}>{t.category}</td>
-                            <td style={{ padding: "10px 0", fontSize: "12px", color: "#6a5a3a", fontFamily: "var(--font-sans)", maxWidth: "120px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.description || "—"}</td>
+                            <td style={{ padding: "10px 0", fontSize: "12px", color: "#9a8a6a", fontFamily: "var(--font-sans)", maxWidth: "120px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.description || "—"}</td>
                             <td style={{ padding: "10px 0" }}>
                               <span style={{ fontSize: "10px", fontWeight: 600, padding: "3px 8px", borderRadius: "4px", fontFamily: "var(--font-sans)", background: t.type === "entrada" ? "rgba(34,197,94,0.12)" : "rgba(248,113,113,0.12)", color: t.type === "entrada" ? "#22c55e" : "#f87171" }}>
                                 {t.type === "entrada" ? "Entrada" : "Saída"}
@@ -955,7 +955,7 @@ export default function FinancasContent({ userEmail }: Props) {
                               {t.type === "entrada" ? "+" : "-"}{fmt(Number(t.amount))}
                             </td>
                             <td style={{ padding: "10px 0", textAlign: "right" }}>
-                              <button onClick={() => deleteTx(t.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "#4a3a1a", padding: "2px" }}>
+                              <button onClick={() => deleteTx(t.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "#857560", padding: "2px" }}>
                                 <Trash2 size={13} />
                               </button>
                             </td>
@@ -980,16 +980,16 @@ export default function FinancasContent({ userEmail }: Props) {
                     { label: "Taxa de Poupança", value: income > 0 ? `${((balance / income) * 100).toFixed(1)}%` : "—", color: "#C9A84C", sub: "% economizado" },
                   ].map(({ label, value, color, sub }) => (
                     <div key={label} style={{ background: "#130f09", border: `1px solid ${color}22`, borderRadius: "10px", padding: "16px 18px" }}>
-                      <p style={{ fontSize: "11px", color: "#5a4a2a", fontFamily: "var(--font-sans)", marginBottom: "8px" }}>{label}</p>
+                      <p style={{ fontSize: "11px", color: "#a09068", fontFamily: "var(--font-sans)", marginBottom: "8px" }}>{label}</p>
                       <p style={{ fontSize: "18px", fontWeight: 700, color, fontFamily: "var(--font-sans)", lineHeight: 1, marginBottom: "6px" }}>{value}</p>
-                      <p style={{ fontSize: "10px", color: "#3a2a10", fontFamily: "var(--font-sans)" }}>{sub}</p>
+                      <p style={{ fontSize: "10px", color: "#7a6a4a", fontFamily: "var(--font-sans)" }}>{sub}</p>
                     </div>
                   ))}
                 </div>
 
                 {/* Category filter */}
                 <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "20px" }}>
-                  <span style={{ fontSize: "12px", color: "#5a4a2a", fontFamily: "var(--font-sans)", flexShrink: 0 }}>Filtrar por categoria:</span>
+                  <span style={{ fontSize: "12px", color: "#a09068", fontFamily: "var(--font-sans)", flexShrink: 0 }}>Filtrar por categoria:</span>
                   <select
                     value={selectedCategory}
                     onChange={e => setSelectedCategory(e.target.value)}
@@ -1005,20 +1005,20 @@ export default function FinancasContent({ userEmail }: Props) {
                   {/* Bar chart */}
                   <div style={{ background: "#130f09", border: "1px solid rgba(201,168,76,0.08)", borderRadius: "12px", padding: "20px 24px" }}>
                     <p style={{ fontSize: "13px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-sans)", marginBottom: "4px" }}>Gastos por Categoria</p>
-                    <p style={{ fontSize: "11px", color: "#3a2a10", fontFamily: "var(--font-sans)", marginBottom: "16px" }}>Distribuição mensal</p>
+                    <p style={{ fontSize: "11px", color: "#7a6a4a", fontFamily: "var(--font-sans)", marginBottom: "16px" }}>Distribuição mensal</p>
                     <BarChartSVG data={byCategory} />
                   </div>
 
                   {/* Line chart */}
                   <div style={{ background: "#130f09", border: "1px solid rgba(201,168,76,0.08)", borderRadius: "12px", padding: "20px 24px" }}>
                     <p style={{ fontSize: "13px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-sans)", marginBottom: "4px" }}>Evolução de Gastos</p>
-                    <p style={{ fontSize: "11px", color: "#3a2a10", fontFamily: "var(--font-sans)", marginBottom: "16px" }}>Últimos 6 meses</p>
+                    <p style={{ fontSize: "11px", color: "#7a6a4a", fontFamily: "var(--font-sans)", marginBottom: "16px" }}>Últimos 6 meses</p>
                     <LineChartSVG data={monthlyTrend} />
                     <div style={{ display: "flex", gap: "16px", marginTop: "8px" }}>
                       {[{ color: "#C9A84C", label: "Saídas" }, { color: "#22c55e", label: "Entradas" }].map(({ color, label }) => (
                         <div key={label} style={{ display: "flex", alignItems: "center", gap: "5px" }}>
                           <div style={{ width: "20px", height: "2px", background: color, borderRadius: "2px" }} />
-                          <span style={{ fontSize: "10px", color: "#5a4a2a", fontFamily: "var(--font-sans)" }}>{label}</span>
+                          <span style={{ fontSize: "10px", color: "#a09068", fontFamily: "var(--font-sans)" }}>{label}</span>
                         </div>
                       ))}
                     </div>
@@ -1028,7 +1028,7 @@ export default function FinancasContent({ userEmail }: Props) {
                 {/* Donut chart */}
                 <div style={{ background: "#130f09", border: "1px solid rgba(201,168,76,0.08)", borderRadius: "12px", padding: "20px 24px", marginBottom: "20px" }}>
                   <p style={{ fontSize: "13px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-sans)", marginBottom: "4px" }}>Distribuição</p>
-                  <p style={{ fontSize: "11px", color: "#3a2a10", fontFamily: "var(--font-sans)", marginBottom: "20px" }}>% de cada categoria nas despesas</p>
+                  <p style={{ fontSize: "11px", color: "#7a6a4a", fontFamily: "var(--font-sans)", marginBottom: "20px" }}>% de cada categoria nas despesas</p>
                   <DonutChartSVG data={byCategory} total={expense} />
                 </div>
 
@@ -1041,20 +1041,20 @@ export default function FinancasContent({ userEmail }: Props) {
                     )}
                   </p>
                   {filteredForTable.length === 0 ? (
-                    <p style={{ fontSize: "13px", color: "#3a2a10", fontFamily: "var(--font-sans)", textAlign: "center", padding: "24px 0" }}>Nenhuma transação</p>
+                    <p style={{ fontSize: "13px", color: "#7a6a4a", fontFamily: "var(--font-sans)", textAlign: "center", padding: "24px 0" }}>Nenhuma transação</p>
                   ) : (
                     <table style={{ width: "100%", borderCollapse: "collapse" }}>
                       <thead>
                         <tr>
                           {["Data", "Categoria", "Descrição", "Valor"].map(h => (
-                            <th key={h} style={{ fontSize: "10px", color: "#4a3a1a", fontFamily: "var(--font-sans)", fontWeight: 600, textAlign: "left", padding: "0 0 10px", letterSpacing: "0.08em", textTransform: "uppercase" }}>{h}</th>
+                            <th key={h} style={{ fontSize: "10px", color: "#857560", fontFamily: "var(--font-sans)", fontWeight: 600, textAlign: "left", padding: "0 0 10px", letterSpacing: "0.08em", textTransform: "uppercase" }}>{h}</th>
                           ))}
                         </tr>
                       </thead>
                       <tbody>
                         {filteredForTable.map(t => (
                           <tr key={t.id} style={{ borderTop: "1px solid rgba(255,255,255,0.03)" }}>
-                            <td style={{ padding: "10px 0", fontSize: "12px", color: "#6a5a3a", fontFamily: "var(--font-sans)", whiteSpace: "nowrap" }}>
+                            <td style={{ padding: "10px 0", fontSize: "12px", color: "#9a8a6a", fontFamily: "var(--font-sans)", whiteSpace: "nowrap" }}>
                               {new Date(t.transaction_date + "T12:00:00").toLocaleDateString("pt-BR")}
                             </td>
                             <td style={{ padding: "10px 12px 10px 0", fontSize: "12px", color: "#9a8a6a", fontFamily: "var(--font-sans)" }}>
@@ -1063,7 +1063,7 @@ export default function FinancasContent({ userEmail }: Props) {
                                 {t.category}
                               </div>
                             </td>
-                            <td style={{ padding: "10px 0", fontSize: "12px", color: "#6a5a3a", fontFamily: "var(--font-sans)", maxWidth: "200px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            <td style={{ padding: "10px 0", fontSize: "12px", color: "#9a8a6a", fontFamily: "var(--font-sans)", maxWidth: "200px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                               {t.description || "—"}
                             </td>
                             <td style={{ padding: "10px 0", fontSize: "13px", fontWeight: 700, fontFamily: "var(--font-sans)", color: t.type === "entrada" ? "#22c55e" : "#f87171", textAlign: "right", whiteSpace: "nowrap" }}>
@@ -1086,7 +1086,7 @@ export default function FinancasContent({ userEmail }: Props) {
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
                     <div>
                       <p style={{ fontSize: "13px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-sans)", marginBottom: "2px" }}>Orçamentos do Mês</p>
-                      <p style={{ fontSize: "11px", color: "#3a2a10", fontFamily: "var(--font-sans)" }}>Limites por categoria — {MONTHS_PT[now.getMonth()]}</p>
+                      <p style={{ fontSize: "11px", color: "#7a6a4a", fontFamily: "var(--font-sans)" }}>Limites por categoria — {MONTHS_PT[now.getMonth()]}</p>
                     </div>
                     <button
                       onClick={() => { setBudgetForm({ category: "", monthly_limit: "", alert_threshold: "80" }); setFormError(""); setModal("budget"); }}
@@ -1098,8 +1098,8 @@ export default function FinancasContent({ userEmail }: Props) {
 
                   {budgets.length === 0 ? (
                     <div style={{ background: "#130f09", border: "1px solid rgba(201,168,76,0.08)", borderRadius: "12px", padding: "40px", textAlign: "center" }}>
-                      <p style={{ fontSize: "13px", color: "#3a2a10", fontFamily: "var(--font-sans)", marginBottom: "12px" }}>Nenhum orçamento configurado</p>
-                      <p style={{ fontSize: "11px", color: "#2a2010", fontFamily: "var(--font-sans)" }}>Defina limites por categoria para controlar seus gastos</p>
+                      <p style={{ fontSize: "13px", color: "#7a6a4a", fontFamily: "var(--font-sans)", marginBottom: "12px" }}>Nenhum orçamento configurado</p>
+                      <p style={{ fontSize: "11px", color: "#9a8a6a", fontFamily: "var(--font-sans)" }}>Defina limites por categoria para controlar seus gastos</p>
                     </div>
                   ) : (
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
@@ -1115,19 +1115,19 @@ export default function FinancasContent({ userEmail }: Props) {
                               <span style={{ fontSize: "13px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-sans)" }}>{b.category}</span>
                               <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
                                 {over && <AlertCircle size={13} style={{ color: "#f87171" }} />}
-                                <button onClick={() => deleteBudget(b.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "#3a2a10", padding: 0 }}>
+                                <button onClick={() => deleteBudget(b.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "#7a6a4a", padding: 0 }}>
                                   <Trash2 size={12} />
                                 </button>
                               </div>
                             </div>
                             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
                               <span style={{ fontSize: "12px", color: barColor, fontFamily: "var(--font-sans)", fontWeight: 600 }}>{fmt(spent)}</span>
-                              <span style={{ fontSize: "12px", color: "#5a4a2a", fontFamily: "var(--font-sans)" }}>de {fmt(b.monthly_limit)}</span>
+                              <span style={{ fontSize: "12px", color: "#a09068", fontFamily: "var(--font-sans)" }}>de {fmt(b.monthly_limit)}</span>
                             </div>
                             <div style={{ height: "6px", background: "rgba(255,255,255,0.05)", borderRadius: "3px", overflow: "hidden" }}>
                               <div style={{ height: "100%", width: `${pct}%`, background: barColor, borderRadius: "3px" }} />
                             </div>
-                            <p style={{ fontSize: "11px", color: "#3a2a10", fontFamily: "var(--font-sans)", marginTop: "6px" }}>{pct.toFixed(0)}% utilizado</p>
+                            <p style={{ fontSize: "11px", color: "#7a6a4a", fontFamily: "var(--font-sans)", marginTop: "6px" }}>{pct.toFixed(0)}% utilizado</p>
                           </div>
                         );
                       })}
@@ -1140,7 +1140,7 @@ export default function FinancasContent({ userEmail }: Props) {
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
                     <div>
                       <p style={{ fontSize: "13px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-sans)", marginBottom: "2px" }}>Metas Financeiras</p>
-                      <p style={{ fontSize: "11px", color: "#3a2a10", fontFamily: "var(--font-sans)" }}>Objetivos de médio e longo prazo</p>
+                      <p style={{ fontSize: "11px", color: "#7a6a4a", fontFamily: "var(--font-sans)" }}>Objetivos de médio e longo prazo</p>
                     </div>
                     <button
                       onClick={() => { setGoalForm({ title: "", category: "", target_amount: "", current_amount: "0", target_date: "", monthly_contribution: "", description: "" }); setFormError(""); setModal("goal"); }}
@@ -1152,8 +1152,8 @@ export default function FinancasContent({ userEmail }: Props) {
 
                   {goals.length === 0 ? (
                     <div style={{ background: "#130f09", border: "1px solid rgba(201,168,76,0.08)", borderRadius: "12px", padding: "40px", textAlign: "center" }}>
-                      <p style={{ fontSize: "13px", color: "#3a2a10", fontFamily: "var(--font-sans)", marginBottom: "12px" }}>Nenhuma meta criada</p>
-                      <p style={{ fontSize: "11px", color: "#2a2010", fontFamily: "var(--font-sans)" }}>Defina objetivos financeiros e acompanhe seu progresso</p>
+                      <p style={{ fontSize: "13px", color: "#7a6a4a", fontFamily: "var(--font-sans)", marginBottom: "12px" }}>Nenhuma meta criada</p>
+                      <p style={{ fontSize: "11px", color: "#9a8a6a", fontFamily: "var(--font-sans)" }}>Defina objetivos financeiros e acompanhe seu progresso</p>
                     </div>
                   ) : (
                     <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
@@ -1165,25 +1165,25 @@ export default function FinancasContent({ userEmail }: Props) {
                             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "12px" }}>
                               <div>
                                 <p style={{ fontSize: "14px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-sans)", marginBottom: "3px" }}>{g.title}</p>
-                                <p style={{ fontSize: "11px", color: "#5a4a2a", fontFamily: "var(--font-sans)" }}>
+                                <p style={{ fontSize: "11px", color: "#a09068", fontFamily: "var(--font-sans)" }}>
                                   {g.category} · {daysLeft > 0 ? `${daysLeft} dias restantes` : "Prazo encerrado"}
                                 </p>
                               </div>
                               <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                                 {pct >= 100 && <Check size={14} style={{ color: "#22c55e" }} />}
-                                <button onClick={() => deleteGoal(g.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "#4a3a1a", padding: "2px" }}>
+                                <button onClick={() => deleteGoal(g.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "#857560", padding: "2px" }}>
                                   <Trash2 size={13} />
                                 </button>
                               </div>
                             </div>
                             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
                               <span style={{ fontSize: "12px", color: "#8b5cf6", fontFamily: "var(--font-sans)", fontWeight: 600 }}>{fmt(Number(g.current_amount))}</span>
-                              <span style={{ fontSize: "12px", color: "#5a4a2a", fontFamily: "var(--font-sans)" }}>meta: {fmt(Number(g.target_amount))}</span>
+                              <span style={{ fontSize: "12px", color: "#a09068", fontFamily: "var(--font-sans)" }}>meta: {fmt(Number(g.target_amount))}</span>
                             </div>
                             <div style={{ height: "6px", background: "rgba(255,255,255,0.05)", borderRadius: "3px", overflow: "hidden" }}>
                               <div style={{ height: "100%", width: `${pct}%`, background: "linear-gradient(90deg,#8b5cf6,#a78bfa)", borderRadius: "3px" }} />
                             </div>
-                            <p style={{ fontSize: "11px", color: "#3a2a10", fontFamily: "var(--font-sans)", marginTop: "6px" }}>
+                            <p style={{ fontSize: "11px", color: "#7a6a4a", fontFamily: "var(--font-sans)", marginTop: "6px" }}>
                               {pct.toFixed(1)}% concluído{Number(g.monthly_contribution) > 0 && ` · ${fmt(Number(g.monthly_contribution))}/mês`}
                             </p>
                           </div>
@@ -1217,7 +1217,7 @@ export default function FinancasContent({ userEmail }: Props) {
                   {/* Day headers */}
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: "2px", marginBottom: "4px" }}>
                     {["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"].map(d => (
-                      <div key={d} style={{ textAlign: "center", fontSize: "10px", color: "#4a3a1a", fontFamily: "var(--font-sans)", fontWeight: 600, padding: "4px 0", letterSpacing: "0.06em" }}>{d}</div>
+                      <div key={d} style={{ textAlign: "center", fontSize: "10px", color: "#857560", fontFamily: "var(--font-sans)", fontWeight: 600, padding: "4px 0", letterSpacing: "0.06em" }}>{d}</div>
                     ))}
                   </div>
 
@@ -1240,14 +1240,14 @@ export default function FinancasContent({ userEmail }: Props) {
                             border: `1px solid ${isToday ? "rgba(201,168,76,0.3)" : "rgba(255,255,255,0.03)"}`,
                           }}
                         >
-                          <span style={{ fontSize: "11px", color: isToday ? "#C9A84C" : "#5a4a2a", fontFamily: "var(--font-sans)", fontWeight: isToday ? 700 : 400 }}>{day}</span>
+                          <span style={{ fontSize: "11px", color: isToday ? "#C9A84C" : "#a09068", fontFamily: "var(--font-sans)", fontWeight: isToday ? 700 : 400 }}>{day}</span>
                           <div style={{ display: "flex", flexDirection: "column", gap: "1px", marginTop: "2px" }}>
                             {dayEvts.slice(0, 2).map(e => (
                               <div key={e.id} style={{ fontSize: "9px", color: "#0d0b07", background: EVENT_TYPE_COLORS[e.event_type] ?? "#C9A84C", borderRadius: "3px", padding: "1px 3px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontFamily: "var(--font-sans)" }}>
                                 {e.title}
                               </div>
                             ))}
-                            {dayEvts.length > 2 && <span style={{ fontSize: "9px", color: "#5a4a2a" }}>+{dayEvts.length - 2}</span>}
+                            {dayEvts.length > 2 && <span style={{ fontSize: "9px", color: "#a09068" }}>+{dayEvts.length - 2}</span>}
                           </div>
                         </div>
                       );
@@ -1267,7 +1267,7 @@ export default function FinancasContent({ userEmail }: Props) {
                     </button>
                   </div>
                   {events.length === 0 ? (
-                    <p style={{ fontSize: "13px", color: "#3a2a10", fontFamily: "var(--font-sans)", textAlign: "center", padding: "24px 0" }}>Nenhum evento próximo</p>
+                    <p style={{ fontSize: "13px", color: "#7a6a4a", fontFamily: "var(--font-sans)", textAlign: "center", padding: "24px 0" }}>Nenhum evento próximo</p>
                   ) : (
                     <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                       {events.map(e => (
@@ -1279,7 +1279,7 @@ export default function FinancasContent({ userEmail }: Props) {
                           </div>
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <p style={{ fontSize: "13px", fontWeight: 500, color: "#e8dcc0", fontFamily: "var(--font-sans)", marginBottom: "2px" }}>{e.title}</p>
-                            <p style={{ fontSize: "11px", color: "#4a3a1a", fontFamily: "var(--font-sans)" }}>
+                            <p style={{ fontSize: "11px", color: "#857560", fontFamily: "var(--font-sans)" }}>
                               {new Date(e.event_date + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })} · {e.event_type}
                               {e.is_recurring && " · recorrente"}
                             </p>
@@ -1314,9 +1314,9 @@ export default function FinancasContent({ userEmail }: Props) {
                   {(["entrada", "saida"] as const).map(type => (
                     <button key={type} onClick={() => setModalTxType(type)} style={{
                       flex: 1, padding: "9px", borderRadius: "8px", border: "1px solid", cursor: "pointer",
-                      borderColor: modalTxType === type ? (type === "entrada" ? "rgba(34,197,94,0.4)" : "rgba(248,113,113,0.4)") : "#2a2010",
+                      borderColor: modalTxType === type ? (type === "entrada" ? "rgba(34,197,94,0.4)" : "rgba(248,113,113,0.4)") : "#9a8a6a",
                       background: modalTxType === type ? (type === "entrada" ? "rgba(34,197,94,0.1)" : "rgba(248,113,113,0.1)") : "transparent",
-                      color: modalTxType === type ? (type === "entrada" ? "#22c55e" : "#f87171") : "#5a4a2a",
+                      color: modalTxType === type ? (type === "entrada" ? "#22c55e" : "#f87171") : "#a09068",
                       fontSize: "13px", fontWeight: 600, fontFamily: "var(--font-sans)",
                     }}>
                       {type === "entrada" ? "Receita" : "Despesa"}
