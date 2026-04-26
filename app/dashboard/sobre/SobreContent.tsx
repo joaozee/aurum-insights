@@ -114,45 +114,17 @@ export default function SobreContent() {
 
         {/* Hero */}
         <div style={{ textAlign: "center", marginBottom: "56px" }}>
-          <div style={{ margin: "0 auto 20px" }}>
-            <img
-              src="/logo.png"
-              alt="Aurum Grupo — Fundado em Valor"
-              style={{
-                height: "100px",
-                objectFit: "contain",
-                maxWidth: "340px",
-                display: "block",
-                margin: "0 auto",
-              }}
-            />
-          </div>
-
-          <h1
+          <img
+            src="/logo.png"
+            alt="Aurum Grupo — Fundado em Valor"
             style={{
-              fontSize: "clamp(28px, 4vw, 40px)",
-              fontWeight: 700,
-              color: "#f0e8d0",
-              fontFamily: "var(--font-display)",
-              marginBottom: "14px",
-              letterSpacing: "-0.01em",
-            }}
-          >
-            Aurum Investimentos
-          </h1>
-          <p
-            style={{
-              fontSize: "15px",
-              color: "#6a5a3a",
-              fontFamily: "var(--font-sans)",
-              lineHeight: 1.7,
+              height: "160px",
+              objectFit: "contain",
               maxWidth: "520px",
+              display: "block",
               margin: "0 auto",
             }}
-          >
-            Transformando conhecimento em patrimônio através de educação
-            financeira e análises inteligentes.
-          </p>
+          />
         </div>
 
         {/* Nossa História */}
