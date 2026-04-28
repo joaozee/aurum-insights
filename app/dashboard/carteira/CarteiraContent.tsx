@@ -65,12 +65,9 @@ interface BrapiQuote {
   regularMarketPrice: number;
   priceEarnings: number | null;
   earningsPerShare: number | null;
-  // DY pode vir como campo direto (decimal) ou dentro de dividendsData
+  // dividendYield comes as percentage (e.g. 6.5 = 6.5%)
   dividendYield: number | null;
   logourl: string;
-  dividendsData?: { yield: number; cashAmount?: number } | null;
-  summaryProfile?: { dividendYield?: number } | null;
-  defaultKeyStatistics?: { trailingPE?: number; forwardPE?: number } | null;
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -517,7 +514,7 @@ export default function CarteiraContent({ userEmail }: Props) {
       // Fetch real-time data from brapi (logo, DY, P/L)
       try {
         const res = await fetch(
-          `https://brapi.dev/api/quote/${tickers.join(",")}?modules=summaryProfile,dividendsData,defaultKeyStatistics`
+          `https://brapi.dev/api/quote/${tickers.join(",")}`
         );
         const json = await res.json();
         const bMap: Record<string, BrapiQuote> = {};
@@ -539,16 +536,12 @@ export default function CarteiraContent({ userEmail }: Props) {
   const effectiveAssets = useMemo(() => assets.map(a => {
     const bq = brapiData[a.name];
     const livePrice = bq?.regularMarketPrice ?? Number(a.current_price);
-    // DY: try dividendsData.yield first, then dividendYield (direct field, may be % already)
-    const rawDY = bq?.dividendsData?.yield
-      ?? (bq?.dividendYield != null ? (bq.dividendYield > 1 ? bq.dividendYield / 100 : bq.dividendYield) : null)
-      ?? (bq?.summaryProfile?.dividendYield != null ? bq.summaryProfile.dividendYield : null);
-    const liveDY = rawDY;
-    // P/L: try priceEarnings, then trailingPE from defaultKeyStatistics
-    const livePE = bq?.priceEarnings
-      ?? bq?.defaultKeyStatistics?.trailingPE
-      ?? bq?.defaultKeyStatistics?.forwardPE
-      ?? null;
+    // brapi returns dividendYield as a percentage (e.g. 6.5 = 6.5%) — store as decimal
+    const liveDY = bq != null && bq.dividendYield != null
+      ? Number(bq.dividendYield) / 100
+      : null;
+    // priceEarnings is the P/E ratio
+    const livePE = bq?.priceEarnings != null ? Number(bq.priceEarnings) : null;
     return { ...a, live_price: livePrice, live_dy: liveDY, live_pe: livePE };
   }), [assets, brapiData]);
 
@@ -611,7 +604,7 @@ export default function CarteiraContent({ userEmail }: Props) {
   // Fetch real-time price from brapi for a single ticker
   async function fetchLivePrice(ticker: string): Promise<number | null> {
     try {
-      const res = await fetch(`https://brapi.dev/api/quote/${encodeURIComponent(ticker)}?modules=summaryProfile,dividendsData,defaultKeyStatistics`);
+      const res = await fetch(`https://brapi.dev/api/quote/${encodeURIComponent(ticker)}`);
       const json = await res.json();
       return json.results?.[0]?.regularMarketPrice ?? null;
     } catch {
@@ -625,7 +618,7 @@ export default function CarteiraContent({ userEmail }: Props) {
     setLoading(true);
     try {
       const tickerStr = Array.from(new Set(assets.map(a => a.name))).join(",");
-      const res = await fetch(`https://brapi.dev/api/quote/${tickerStr}?modules=summaryProfile`);
+      const res = await fetch(`https://brapi.dev/api/quote/${tickerStr}`);
       const json = await res.json();
       const supabase = createClient();
       for (const q of json.results ?? []) {
