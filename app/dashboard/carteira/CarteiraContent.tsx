@@ -518,10 +518,12 @@ export default function CarteiraContent({ userEmail }: Props) {
       (sData ?? []).forEach((s: StockInfo) => { map[s.ticker] = s; });
       setStockMap(map);
 
-      // Fetch real-time data from brapi (logo, P/L) — basic endpoint, no token needed
+      // Fetch real-time data from brapi (logo, P/L, DY)
       try {
+        const token = process.env.NEXT_PUBLIC_BRAPI_TOKEN ?? "";
+        const params = `dividends=true${token ? `&token=${token}` : ""}`;
         const res = await fetch(
-          `https://brapi.dev/api/quote/${tickers.join(",")}`
+          `https://brapi.dev/api/quote/${tickers.join(",")}?${params}`
         );
         const json = await res.json();
         const bMap: Record<string, BrapiQuote> = {};
