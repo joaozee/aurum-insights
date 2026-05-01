@@ -82,10 +82,25 @@ interface BrapiQuote {
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const MONTHS_PT = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
-const ASSET_TYPES = ["acoes","fiis","renda_fixa","cripto","fundos"];
+const ASSET_TYPES = ["acoes","fiis","renda_fixa","cripto"] as const;
+type AssetType = typeof ASSET_TYPES[number];
 const ASSET_LABELS: Record<string, string> = {
-  acoes: "Ações", fiis: "FIIs", renda_fixa: "Renda Fixa", cripto: "Cripto", fundos: "Fundos",
+  acoes: "Ações", fiis: "FIIs", renda_fixa: "Renda Fixa", cripto: "Cripto",
+  fundos: "Fundos", // legacy — keep for any pre-existing rows in the DB
 };
+
+const RF_INDEXERS = ["CDI", "Prefixado", "IPCA+", "Selic"] as const;
+type RfIndexer = typeof RF_INDEXERS[number];
+function fmtRfRate(indexer: RfIndexer, rate: string): string {
+  const r = rate.replace(",", ".").trim();
+  if (!r) return "";
+  switch (indexer) {
+    case "CDI":       return `${r}% do CDI`;
+    case "Prefixado": return `${r}% a.a.`;
+    case "IPCA+":     return `IPCA + ${r}% a.a.`;
+    case "Selic":     return `${r}% da Selic`;
+  }
+}
 const PALETTE = ["#8b5cf6","#3b82f6","#22c55e","#f59e0b","#f97316","#ec4899","#06b6d4","#10b981","#eab308","#ef4444","#a78bfa","#60a5fa"];
 
 function tickerColor(ticker: string): string {
@@ -382,9 +397,12 @@ function TickerSearch({
     if (q.length < 2) { setResults([]); setOpen(false); return; }
     setLoading(true);
     try {
-      const res = await fetch(`https://brapi.dev/api/quote/list?search=${encodeURIComponent(q)}&limit=8`);
+      // Fetch wider list, then drop B3 fractional tickers (suffix "F")
+      const res = await fetch(`https://brapi.dev/api/quote/list?search=${encodeURIComponent(q)}&limit=24`);
       const json = await res.json();
-      const stocks = (json.stocks ?? []) as BrapiStock[];
+      const stocks = ((json.stocks ?? []) as BrapiStock[])
+        .filter(s => !/F$/.test(s.stock))
+        .slice(0, 8);
       setResults(stocks);
       setOpen(stocks.length > 0);
     } catch {
@@ -450,8 +468,22 @@ function TickerSearch({
                 width: "34px", height: "34px", borderRadius: "8px",
                 background: `${tickerColor(s.stock)}20`,
                 display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+                overflow: "hidden",
               }}>
-                <span style={{ fontSize: "11px", fontWeight: 700, color: tickerColor(s.stock), fontFamily: "var(--font-sans)" }}>
+                <img
+                  src={`https://icons.brapi.dev/icons/${s.stock}.svg`}
+                  alt={s.stock}
+                  style={{ width: "34px", height: "34px", objectFit: "cover", borderRadius: "8px" }}
+                  onError={e => {
+                    (e.currentTarget as HTMLImageElement).style.display = "none";
+                    (e.currentTarget.nextSibling as HTMLElement).style.display = "flex";
+                  }}
+                />
+                <span style={{
+                  fontSize: "11px", fontWeight: 700, color: tickerColor(s.stock),
+                  fontFamily: "var(--font-sans)", display: "none",
+                  alignItems: "center", justifyContent: "center", width: "100%", height: "100%",
+                }}>
                   {s.stock.slice(0, 2)}
                 </span>
               </div>
@@ -502,7 +534,9 @@ export default function CarteiraContent({ userEmail }: Props) {
   const [formError, setFormError] = useState("");
 
   const [assetForm, setAssetForm] = useState({
-    name: "", type: "acoes", quantity: "", purchase_price: "", current_price: "",
+    name: "", type: "acoes" as AssetType, quantity: "", purchase_price: "", current_price: "",
+    // Renda Fixa specific
+    rf_indexer: "CDI" as RfIndexer, rf_rate: "", rf_amount: "", rf_maturity: "",
   });
   const [txForm, setTxForm] = useState({
     ticker: "", type: "compra" as "compra" | "venda", quantity: "", price: "",
@@ -786,24 +820,54 @@ export default function CarteiraContent({ userEmail }: Props) {
   }
 
   async function saveAsset() {
-    if (!assetForm.name || !assetForm.quantity || !assetForm.purchase_price) {
-      setFormError("Preencha ticker, quantidade e preço médio."); return;
+    const t = assetForm.type;
+    setFormError("");
+
+    // Per-type validation + normalization
+    let displayName = "";
+    let qty = 0;
+    let purchasePrice = 0;
+    let currentPrice = 0;
+
+    if (t === "acoes" || t === "fiis") {
+      if (!assetForm.name || !assetForm.quantity || !assetForm.purchase_price) {
+        setFormError("Preencha ticker, quantidade e preço médio."); return;
+      }
+      displayName  = assetForm.name.toUpperCase().trim();
+      qty          = parseFloat(assetForm.quantity);
+      purchasePrice = parseFloat(assetForm.purchase_price.replace(",", "."));
+      const livePrice = await fetchLivePrice(displayName);
+      currentPrice = livePrice
+        ?? (assetForm.current_price ? parseFloat(assetForm.current_price.replace(",", ".")) : purchasePrice);
+    } else if (t === "renda_fixa") {
+      if (!assetForm.name.trim() || !assetForm.rf_rate || !assetForm.rf_amount) {
+        setFormError("Preencha nome, taxa e valor aplicado."); return;
+      }
+      const amount = parseFloat(assetForm.rf_amount.replace(/\./g, "").replace(",", "."));
+      if (!(amount > 0)) { setFormError("Valor aplicado inválido."); return; }
+      displayName  = `${assetForm.name.trim()} — ${fmtRfRate(assetForm.rf_indexer, assetForm.rf_rate)}`;
+      qty          = 1;
+      purchasePrice = amount;
+      currentPrice  = amount;
+    } else { // cripto
+      if (!assetForm.name.trim() || !assetForm.quantity || !assetForm.purchase_price) {
+        setFormError("Preencha símbolo, quantidade e preço médio."); return;
+      }
+      displayName  = assetForm.name.toUpperCase().trim();
+      qty          = parseFloat(assetForm.quantity.replace(",", "."));
+      purchasePrice = parseFloat(assetForm.purchase_price.replace(/\./g, "").replace(",", "."));
+      currentPrice = assetForm.current_price
+        ? parseFloat(assetForm.current_price.replace(/\./g, "").replace(",", "."))
+        : purchasePrice;
     }
+
     setSaving(true);
-    const ticker = assetForm.name.toUpperCase().trim();
-    const purchasePrice = parseFloat(assetForm.purchase_price.replace(",", "."));
-
-    // Try to get real current price from brapi
-    const livePrice = await fetchLivePrice(ticker);
-    const currentPrice = livePrice
-      ?? (assetForm.current_price ? parseFloat(assetForm.current_price.replace(",", ".")) : purchasePrice);
-
     const supabase = createClient();
     const { error } = await supabase.from("asset").insert({
       user_email: userEmail,
-      name: ticker,
-      type: assetForm.type,
-      quantity: parseFloat(assetForm.quantity),
+      name: displayName,
+      type: t,
+      quantity: qty,
       purchase_price: purchasePrice,
       current_price: currentPrice,
     });
@@ -812,11 +876,11 @@ export default function CarteiraContent({ userEmail }: Props) {
     // Also log as transaction
     await supabase.from("transaction").insert({
       user_email: userEmail,
-      ticker,
+      ticker: displayName,
       type: "compra",
-      quantity: parseFloat(assetForm.quantity),
+      quantity: qty,
       price: purchasePrice,
-      total_value: parseFloat(assetForm.quantity) * purchasePrice,
+      total_value: qty * purchasePrice,
       transaction_date: now.toISOString().split("T")[0],
     });
 
@@ -888,7 +952,7 @@ export default function CarteiraContent({ userEmail }: Props) {
               </button>
             ))}
             <button
-              onClick={() => { setAssetForm({ name: "", type: "acoes", quantity: "", purchase_price: "", current_price: "" }); setFormError(""); setModal("asset"); }}
+              onClick={() => { setAssetForm({ name: "", type: "acoes", quantity: "", purchase_price: "", current_price: "", rf_indexer: "CDI", rf_rate: "", rf_amount: "", rf_maturity: "" }); setFormError(""); setModal("asset"); }}
               style={{
                 display: "flex", alignItems: "center", gap: "6px",
                 background: "linear-gradient(135deg,#C9A84C,#A07820)",
@@ -1040,7 +1104,7 @@ export default function CarteiraContent({ userEmail }: Props) {
               {effectiveAssets.length === 0 ? (
                 <div style={{ ...card, textAlign: "center", padding: "48px" }}>
                   <p style={{ fontSize: "13px", color: "#7a6a4a", fontFamily: "var(--font-sans)", marginBottom: "12px" }}>Nenhum ativo cadastrado</p>
-                  <button onClick={() => { setAssetForm({ name: "", type: "acoes", quantity: "", purchase_price: "", current_price: "" }); setFormError(""); setModal("asset"); }}
+                  <button onClick={() => { setAssetForm({ name: "", type: "acoes", quantity: "", purchase_price: "", current_price: "", rf_indexer: "CDI", rf_rate: "", rf_amount: "", rf_maturity: "" }); setFormError(""); setModal("asset"); }}
                     style={{ background: "rgba(201,168,76,0.1)", border: "1px solid rgba(201,168,76,0.2)", borderRadius: "8px", padding: "9px 18px", color: "#C9A84C", fontSize: "13px", fontFamily: "var(--font-sans)", cursor: "pointer" }}>
                     <Plus size={13} style={{ display: "inline", marginRight: "6px" }} />Adicionar primeiro ativo
                   </button>
@@ -1361,38 +1425,167 @@ export default function CarteiraContent({ userEmail }: Props) {
           <div style={{ background: "#130f09", border: "1px solid rgba(201,168,76,0.15)", borderRadius: "16px", padding: "32px", width: "100%", maxWidth: "440px" }}>
             <ModalHeader title="Adicionar Ativo" onClose={() => setModal(null)} />
             <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-              <FormField label="Ticker (ex: PETR4)">
-                <TickerSearch
-                  value={assetForm.name}
-                  onChange={v => setAssetForm(p => ({ ...p, name: v }))}
-                  onSelect={(ticker, price, _name) => {
-                    const autoType = ticker.endsWith("11") ? "fiis" : "acoes";
-                    setAssetForm(p => ({
-                      ...p,
-                      name: ticker,
-                      current_price: price > 0 ? price.toFixed(2) : p.current_price,
-                      type: autoType,
-                    }));
-                  }}
-                  placeholder="Digite PETR, BBAS, ITUB..."
-                />
-              </FormField>
+              {/* Type segmented control */}
               <FormField label="Tipo de Ativo">
-                <select value={assetForm.type} onChange={e => setAssetForm(p => ({ ...p, type: e.target.value }))} style={selectStyle}>
-                  {ASSET_TYPES.map(t => <option key={t} value={t}>{ASSET_LABELS[t]}</option>)}
-                </select>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "6px" }}>
+                  {ASSET_TYPES.map(t => {
+                    const active = assetForm.type === t;
+                    return (
+                      <button
+                        key={t}
+                        type="button"
+                        onClick={() => setAssetForm(p => ({ ...p, type: t }))}
+                        style={{
+                          background: active ? "rgba(201,168,76,0.15)" : "#1a1508",
+                          border: `1px solid ${active ? "rgba(201,168,76,0.5)" : "#2a2010"}`,
+                          borderRadius: "6px", padding: "9px 4px",
+                          color: active ? "#C9A84C" : "#857560",
+                          fontSize: "12px", fontWeight: active ? 600 : 500,
+                          fontFamily: "var(--font-sans)", cursor: "pointer",
+                        }}
+                      >
+                        {ASSET_LABELS[t]}
+                      </button>
+                    );
+                  })}
+                </div>
               </FormField>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-                <FormField label="Quantidade">
-                  <input value={assetForm.quantity} onChange={e => setAssetForm(p => ({ ...p, quantity: e.target.value }))} style={inputStyle} placeholder="100" type="number" min="0" />
-                </FormField>
-                <FormField label="Preço Médio (R$)">
-                  <input value={assetForm.purchase_price} onChange={e => setAssetForm(p => ({ ...p, purchase_price: e.target.value }))} style={inputStyle} placeholder="38,00" />
-                </FormField>
-              </div>
-              <FormField label="Preço Atual (R$)">
-                <input value={assetForm.current_price} onChange={e => setAssetForm(p => ({ ...p, current_price: e.target.value }))} style={inputStyle} placeholder="Preenchido automaticamente ao selecionar" />
-              </FormField>
+
+              {/* Ações & FIIs — ticker search + qty + price */}
+              {(assetForm.type === "acoes" || assetForm.type === "fiis") && (
+                <>
+                  <FormField label={assetForm.type === "fiis" ? "Ticker do FII (ex: HGLG11)" : "Ticker (ex: PETR4)"}>
+                    <TickerSearch
+                      value={assetForm.name}
+                      onChange={v => setAssetForm(p => ({ ...p, name: v }))}
+                      onSelect={(ticker, price, _name) => {
+                        const autoType: AssetType = ticker.endsWith("11") ? "fiis" : "acoes";
+                        setAssetForm(p => ({
+                          ...p,
+                          name: ticker,
+                          current_price: price > 0 ? price.toFixed(2) : p.current_price,
+                          type: autoType,
+                        }));
+                      }}
+                      placeholder={assetForm.type === "fiis" ? "Digite HGLG, MXRF, KNRI..." : "Digite PETR, BBAS, ITUB..."}
+                    />
+                  </FormField>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                    <FormField label="Quantidade">
+                      <input value={assetForm.quantity} onChange={e => setAssetForm(p => ({ ...p, quantity: e.target.value }))} style={inputStyle} placeholder="100" type="number" min="0" />
+                    </FormField>
+                    <FormField label="Preço Médio (R$)">
+                      <input value={assetForm.purchase_price} onChange={e => setAssetForm(p => ({ ...p, purchase_price: e.target.value }))} style={inputStyle} placeholder="38,00" />
+                    </FormField>
+                  </div>
+                  <FormField label="Preço Atual (R$)">
+                    <input value={assetForm.current_price} onChange={e => setAssetForm(p => ({ ...p, current_price: e.target.value }))} style={inputStyle} placeholder="Preenchido automaticamente ao selecionar" />
+                  </FormField>
+                </>
+              )}
+
+              {/* Renda Fixa — title + indexer + rate + invested + maturity */}
+              {assetForm.type === "renda_fixa" && (
+                <>
+                  <FormField label="Nome do Título">
+                    <input
+                      value={assetForm.name}
+                      onChange={e => setAssetForm(p => ({ ...p, name: e.target.value }))}
+                      style={inputStyle}
+                      placeholder="Ex.: CDB Banco Inter 2027"
+                    />
+                  </FormField>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                    <FormField label="Indexador">
+                      <select
+                        value={assetForm.rf_indexer}
+                        onChange={e => setAssetForm(p => ({ ...p, rf_indexer: e.target.value as RfIndexer }))}
+                        style={selectStyle}
+                      >
+                        {RF_INDEXERS.map(ix => <option key={ix} value={ix}>{ix}</option>)}
+                      </select>
+                    </FormField>
+                    <FormField label={
+                      assetForm.rf_indexer === "IPCA+" ? "Taxa adicional (% a.a.)" :
+                      assetForm.rf_indexer === "Prefixado" ? "Taxa fixa (% a.a.)" :
+                      assetForm.rf_indexer === "Selic" ? "% da Selic" :
+                      "% do CDI"
+                    }>
+                      <input
+                        value={assetForm.rf_rate}
+                        onChange={e => setAssetForm(p => ({ ...p, rf_rate: e.target.value }))}
+                        style={inputStyle}
+                        placeholder={assetForm.rf_indexer === "IPCA+" ? "5,5" : assetForm.rf_indexer === "Prefixado" ? "12,0" : "110"}
+                      />
+                    </FormField>
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                    <FormField label="Valor Aplicado (R$)">
+                      <input
+                        value={assetForm.rf_amount}
+                        onChange={e => setAssetForm(p => ({ ...p, rf_amount: e.target.value }))}
+                        style={inputStyle}
+                        placeholder="1.000,00"
+                      />
+                    </FormField>
+                    <FormField label="Vencimento (opcional)">
+                      <input
+                        type="date"
+                        value={assetForm.rf_maturity}
+                        onChange={e => setAssetForm(p => ({ ...p, rf_maturity: e.target.value }))}
+                        style={inputStyle}
+                      />
+                    </FormField>
+                  </div>
+                  {assetForm.rf_rate && (
+                    <p style={{ fontSize: "11px", color: "#857560", fontFamily: "var(--font-sans)", marginTop: "-6px" }}>
+                      Será salvo como: <span style={{ color: "#C9A84C" }}>{fmtRfRate(assetForm.rf_indexer, assetForm.rf_rate)}</span>
+                    </p>
+                  )}
+                </>
+              )}
+
+              {/* Cripto — symbol + qty + price */}
+              {assetForm.type === "cripto" && (
+                <>
+                  <FormField label="Símbolo (ex: BTC, ETH, SOL)">
+                    <input
+                      value={assetForm.name}
+                      onChange={e => setAssetForm(p => ({ ...p, name: e.target.value.toUpperCase() }))}
+                      style={inputStyle}
+                      placeholder="BTC"
+                    />
+                  </FormField>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                    <FormField label="Quantidade">
+                      <input
+                        value={assetForm.quantity}
+                        onChange={e => setAssetForm(p => ({ ...p, quantity: e.target.value }))}
+                        style={inputStyle}
+                        placeholder="0,02500000"
+                        inputMode="decimal"
+                      />
+                    </FormField>
+                    <FormField label="Preço Médio (R$)">
+                      <input
+                        value={assetForm.purchase_price}
+                        onChange={e => setAssetForm(p => ({ ...p, purchase_price: e.target.value }))}
+                        style={inputStyle}
+                        placeholder="350.000,00"
+                      />
+                    </FormField>
+                  </div>
+                  <FormField label="Preço Atual (R$, opcional)">
+                    <input
+                      value={assetForm.current_price}
+                      onChange={e => setAssetForm(p => ({ ...p, current_price: e.target.value }))}
+                      style={inputStyle}
+                      placeholder="Deixe em branco para usar o preço médio"
+                    />
+                  </FormField>
+                </>
+              )}
+
               {formError && <p style={{ fontSize: "12px", color: "#f87171", fontFamily: "var(--font-sans)" }}>{formError}</p>}
               <SaveButton saving={saving} onClick={saveAsset} label="Adicionar Ativo" />
             </div>
