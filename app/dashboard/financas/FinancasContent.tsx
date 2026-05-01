@@ -569,6 +569,9 @@ export default function FinancasContent({ userEmail }: Props) {
 
   // Relatórios filter
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [reportPeriod, setReportPeriod] = useState<"mes" | "6m" | "12m" | "tudo">("12m");
+  const [reportTx, setReportTx] = useState<FinanceTransaction[]>([]);
+  const [reportTrend, setReportTrend] = useState<{ month: string; income: number; expense: number }[]>([]);
 
   // Modals
   const [modal, setModal] = useState<null | "transaction" | "budget" | "goal" | "event">(null);
@@ -667,6 +670,83 @@ export default function FinancasContent({ userEmail }: Props) {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
+  // ── Relatórios data (period-aware, separate from current-month state) ─────
+
+  const fetchReportData = useCallback(async () => {
+    const supabase = createClient();
+    const year  = now.getFullYear();
+    const month = now.getMonth();
+    const lastDay = new Date(year, month + 1, 0).toISOString().split("T")[0];
+
+    let firstDay: string | null;
+    let monthsCount: number;
+    if (reportPeriod === "mes") {
+      firstDay = new Date(year, month, 1).toISOString().split("T")[0];
+      monthsCount = 1;
+    } else if (reportPeriod === "6m") {
+      firstDay = new Date(year, month - 5, 1).toISOString().split("T")[0];
+      monthsCount = 6;
+    } else if (reportPeriod === "12m") {
+      firstDay = new Date(year, month - 11, 1).toISOString().split("T")[0];
+      monthsCount = 12;
+    } else { // tudo
+      firstDay = null;
+      monthsCount = 0;
+    }
+
+    let q = supabase
+      .from("finance_transaction")
+      .select("*")
+      .eq("user_email", userEmail)
+      .eq("account_type", accountType)
+      .lte("transaction_date", lastDay)
+      .order("transaction_date", { ascending: false });
+    if (firstDay) q = q.gte("transaction_date", firstDay);
+    const { data: rows } = await q;
+    const list = (rows ?? []) as FinanceTransaction[];
+    setReportTx(list);
+
+    // Build monthly trend across the period (or full history if "tudo")
+    const trendMap: Record<string, { income: number; expense: number }> = {};
+    if (reportPeriod === "tudo") {
+      for (const t of list) {
+        const key = t.transaction_date.slice(0, 7);
+        if (!trendMap[key]) trendMap[key] = { income: 0, expense: 0 };
+        if (t.type === "entrada") trendMap[key].income += Number(t.amount);
+        else trendMap[key].expense += Number(t.amount);
+      }
+    } else {
+      for (let i = monthsCount - 1; i >= 0; i--) {
+        const d = new Date(year, month - i, 1);
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+        trendMap[key] = { income: 0, expense: 0 };
+      }
+      for (const t of list) {
+        const key = t.transaction_date.slice(0, 7);
+        if (trendMap[key]) {
+          if (t.type === "entrada") trendMap[key].income += Number(t.amount);
+          else trendMap[key].expense += Number(t.amount);
+        }
+      }
+    }
+    const trend = Object.entries(trendMap)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([key, v]) => {
+        const [y, m] = key.split("-");
+        const monthIdx = parseInt(m) - 1;
+        const yearShort = y.slice(2);
+        return {
+          month: reportPeriod === "tudo" || monthsCount > 12
+            ? `${MONTHS_PT[monthIdx].slice(0, 3)}/${yearShort}`
+            : MONTHS_PT[monthIdx].slice(0, 3),
+          ...v,
+        };
+      });
+    setReportTrend(trend);
+  }, [userEmail, accountType, now, reportPeriod]);
+
+  useEffect(() => { fetchReportData(); }, [fetchReportData]);
+
   // ── Computed ──────────────────────────────────────────────────────────────
 
   const income  = useMemo(() => transactions.filter(t => t.type === "entrada").reduce((s, t) => s + Number(t.amount), 0), [transactions]);
@@ -705,6 +785,35 @@ export default function FinancasContent({ userEmail }: Props) {
     () => selectedCategory === "all" ? transactions : transactions.filter(t => t.category === selectedCategory),
     [transactions, selectedCategory]
   );
+
+  // ── Relatórios aggregates (period-scoped) ───────────────────────────────────
+  const reportIncome  = useMemo(() => reportTx.filter(t => t.type === "entrada").reduce((s, t) => s + Number(t.amount), 0), [reportTx]);
+  const reportExpense = useMemo(() => reportTx.filter(t => t.type === "saida").reduce((s, t) => s + Number(t.amount), 0), [reportTx]);
+  const reportBalance = reportIncome - reportExpense;
+
+  const reportByCategory = useMemo(() => {
+    const map: Record<string, number> = {};
+    reportTx.filter(t => t.type === "saida").forEach(t => {
+      map[t.category] = (map[t.category] ?? 0) + Number(t.amount);
+    });
+    return Object.entries(map).sort((a, b) => b[1] - a[1]);
+  }, [reportTx]);
+
+  const reportCategories = useMemo(() => Array.from(new Set(reportTx.map(t => t.category))).sort(), [reportTx]);
+  const reportFiltered   = useMemo(
+    () => selectedCategory === "all" ? reportTx : reportTx.filter(t => t.category === selectedCategory),
+    [reportTx, selectedCategory]
+  );
+
+  const reportPeriodLabel = (() => {
+    switch (reportPeriod) {
+      case "mes":  return "este mês";
+      case "6m":   return "últimos 6 meses";
+      case "12m":  return "últimos 12 meses";
+      case "tudo": return "todo o histórico";
+    }
+  })();
+  const reportMonthsCount = reportTrend.length || 1;
 
   // ── Save handlers ─────────────────────────────────────────────────────────
 
@@ -971,13 +1080,56 @@ export default function FinancasContent({ userEmail }: Props) {
             {/* ══════════════════ RELATÓRIOS ══════════════════ */}
             {tab === "relatorios" && (
               <>
-                {/* Top 4 summary cards */}
+                {/* Period selector */}
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px", gap: "12px", flexWrap: "wrap" }}>
+                  <div>
+                    <p style={{ fontSize: "13px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-sans)", marginBottom: "2px" }}>
+                      Período do relatório
+                    </p>
+                    <p style={{ fontSize: "11px", color: "#7a6a4a", fontFamily: "var(--font-sans)" }}>
+                      Mostrando {reportPeriodLabel} · {reportTx.length} transaç{reportTx.length === 1 ? "ão" : "ões"}
+                    </p>
+                  </div>
+                  <div style={{
+                    display: "inline-flex", padding: "3px",
+                    background: "#0d0a06", border: "1px solid rgba(255,255,255,0.05)",
+                    borderRadius: "8px",
+                  }}>
+                    {([
+                      { key: "mes",  label: "Este mês" },
+                      { key: "6m",   label: "6 meses"  },
+                      { key: "12m",  label: "12 meses" },
+                      { key: "tudo", label: "Tudo"     },
+                    ] as const).map(({ key, label }) => {
+                      const active = reportPeriod === key;
+                      return (
+                        <button
+                          key={key}
+                          type="button"
+                          onClick={() => setReportPeriod(key)}
+                          style={{
+                            background: active ? "rgba(201,168,76,0.14)" : "transparent",
+                            border: "none", borderRadius: "6px", padding: "6px 14px",
+                            color: active ? "#C9A84C" : "#857560",
+                            fontSize: "11px", fontWeight: active ? 600 : 500,
+                            fontFamily: "var(--font-sans)", cursor: "pointer",
+                            transition: "background 0.15s, color 0.15s",
+                          }}
+                        >
+                          {label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Top summary cards */}
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "12px", marginBottom: "20px" }}>
                   {[
-                    { label: "Entradas",       value: fmt(income),  color: "#22c55e", sub: `${transactions.filter(t => t.type === "entrada").length} transações` },
-                    { label: "Gastos",         value: fmt(expense), color: "#f87171", sub: "Total gasto" },
-                    { label: "Saldo",          value: fmt(balance), color: "#8b5cf6", sub: "Entradas − Gastos" },
-                    { label: "Taxa de Poupança", value: income > 0 ? `${((balance / income) * 100).toFixed(1)}%` : "—", color: "#C9A84C", sub: "% economizado" },
+                    { label: "Entradas",       value: fmt(reportIncome),  color: "#22c55e", sub: `${reportTx.filter(t => t.type === "entrada").length} transações` },
+                    { label: "Gastos",         value: fmt(reportExpense), color: "#f87171", sub: `Média ${fmt(reportExpense / reportMonthsCount)}/mês` },
+                    { label: "Saldo",          value: fmt(reportBalance), color: reportBalance >= 0 ? "#8b5cf6" : "#f87171", sub: "Entradas − Gastos" },
+                    { label: "Taxa de Poupança", value: reportIncome > 0 ? `${((reportBalance / reportIncome) * 100).toFixed(1)}%` : "—", color: "#C9A84C", sub: "% economizado" },
                   ].map(({ label, value, color, sub }) => (
                     <div key={label} style={{ background: "#130f09", border: `1px solid ${color}22`, borderRadius: "10px", padding: "16px 18px" }}>
                       <p style={{ fontSize: "11px", color: "#a09068", fontFamily: "var(--font-sans)", marginBottom: "8px" }}>{label}</p>
@@ -996,7 +1148,7 @@ export default function FinancasContent({ userEmail }: Props) {
                     style={{ background: "#130f09", border: "1px solid #2a2010", borderRadius: "6px", padding: "6px 10px", color: "#9a8a6a", fontSize: "12px", fontFamily: "var(--font-sans)", outline: "none", cursor: "pointer" }}
                   >
                     <option value="all">Todas as categorias</option>
-                    {allCategories.map(c => <option key={c} value={c}>{c}</option>)}
+                    {reportCategories.map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
                 </div>
 
@@ -1005,15 +1157,15 @@ export default function FinancasContent({ userEmail }: Props) {
                   {/* Bar chart */}
                   <div style={{ background: "#130f09", border: "1px solid rgba(201,168,76,0.08)", borderRadius: "12px", padding: "20px 24px" }}>
                     <p style={{ fontSize: "13px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-sans)", marginBottom: "4px" }}>Gastos por Categoria</p>
-                    <p style={{ fontSize: "11px", color: "#7a6a4a", fontFamily: "var(--font-sans)", marginBottom: "16px" }}>Distribuição mensal</p>
-                    <BarChartSVG data={byCategory} />
+                    <p style={{ fontSize: "11px", color: "#7a6a4a", fontFamily: "var(--font-sans)", marginBottom: "16px" }}>{reportPeriodLabel}</p>
+                    <BarChartSVG data={reportByCategory} />
                   </div>
 
                   {/* Line chart */}
                   <div style={{ background: "#130f09", border: "1px solid rgba(201,168,76,0.08)", borderRadius: "12px", padding: "20px 24px" }}>
                     <p style={{ fontSize: "13px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-sans)", marginBottom: "4px" }}>Evolução de Gastos</p>
-                    <p style={{ fontSize: "11px", color: "#7a6a4a", fontFamily: "var(--font-sans)", marginBottom: "16px" }}>Últimos 6 meses</p>
-                    <LineChartSVG data={monthlyTrend} />
+                    <p style={{ fontSize: "11px", color: "#7a6a4a", fontFamily: "var(--font-sans)", marginBottom: "16px" }}>{reportPeriodLabel}</p>
+                    <LineChartSVG data={reportTrend} />
                     <div style={{ display: "flex", gap: "16px", marginTop: "8px" }}>
                       {[{ color: "#C9A84C", label: "Saídas" }, { color: "#22c55e", label: "Entradas" }].map(({ color, label }) => (
                         <div key={label} style={{ display: "flex", alignItems: "center", gap: "5px" }}>
@@ -1028,20 +1180,21 @@ export default function FinancasContent({ userEmail }: Props) {
                 {/* Donut chart */}
                 <div style={{ background: "#130f09", border: "1px solid rgba(201,168,76,0.08)", borderRadius: "12px", padding: "20px 24px", marginBottom: "20px" }}>
                   <p style={{ fontSize: "13px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-sans)", marginBottom: "4px" }}>Distribuição</p>
-                  <p style={{ fontSize: "11px", color: "#7a6a4a", fontFamily: "var(--font-sans)", marginBottom: "20px" }}>% de cada categoria nas despesas</p>
-                  <DonutChartSVG data={byCategory} total={expense} />
+                  <p style={{ fontSize: "11px", color: "#7a6a4a", fontFamily: "var(--font-sans)", marginBottom: "20px" }}>% de cada categoria nas despesas — {reportPeriodLabel}</p>
+                  <DonutChartSVG data={reportByCategory} total={reportExpense} />
                 </div>
 
                 {/* All transactions table */}
                 <div style={{ background: "#130f09", border: "1px solid rgba(201,168,76,0.08)", borderRadius: "12px", padding: "20px 24px" }}>
                   <p style={{ fontSize: "13px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-sans)", marginBottom: "18px" }}>
                     Todas as transações
+                    <span style={{ marginLeft: "8px", fontSize: "11px", color: "#857560", fontWeight: 400 }}>· {reportPeriodLabel}</span>
                     {selectedCategory !== "all" && (
                       <span style={{ marginLeft: "8px", fontSize: "11px", color: "#C9A84C", fontWeight: 400 }}>— {selectedCategory}</span>
                     )}
                   </p>
-                  {filteredForTable.length === 0 ? (
-                    <p style={{ fontSize: "13px", color: "#7a6a4a", fontFamily: "var(--font-sans)", textAlign: "center", padding: "24px 0" }}>Nenhuma transação</p>
+                  {reportFiltered.length === 0 ? (
+                    <p style={{ fontSize: "13px", color: "#7a6a4a", fontFamily: "var(--font-sans)", textAlign: "center", padding: "24px 0" }}>Nenhuma transação no período</p>
                   ) : (
                     <table style={{ width: "100%", borderCollapse: "collapse" }}>
                       <thead>
@@ -1052,7 +1205,7 @@ export default function FinancasContent({ userEmail }: Props) {
                         </tr>
                       </thead>
                       <tbody>
-                        {filteredForTable.map(t => (
+                        {reportFiltered.map(t => (
                           <tr key={t.id} style={{ borderTop: "1px solid rgba(255,255,255,0.03)" }}>
                             <td style={{ padding: "10px 0", fontSize: "12px", color: "#9a8a6a", fontFamily: "var(--font-sans)", whiteSpace: "nowrap" }}>
                               {new Date(t.transaction_date + "T12:00:00").toLocaleDateString("pt-BR")}
