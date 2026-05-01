@@ -518,19 +518,18 @@ export default function CarteiraContent({ userEmail }: Props) {
       (sData ?? []).forEach((s: StockInfo) => { map[s.ticker] = s; });
       setStockMap(map);
 
-      // Fetch real-time data from brapi (logo, P/L, DY)
+      // Fetch real-time data from brapi via server proxy (logo, P/L, DY)
       try {
-        const token = process.env.NEXT_PUBLIC_BRAPI_TOKEN ?? "";
-        const params = `dividends=true${token ? `&token=${token}` : ""}`;
         const res = await fetch(
-          `https://brapi.dev/api/quote/${tickers.join(",")}?${params}`
+          `/api/brapi-quote?tickers=${encodeURIComponent(tickers.join(","))}&dividends=true`,
+          { cache: "no-store" }
         );
         const json = await res.json();
         const bMap: Record<string, BrapiQuote> = {};
         (json.results ?? []).forEach((q: BrapiQuote) => { bMap[q.symbol] = q; });
         setBrapiData(bMap);
-      } catch {
-        // silently fallback
+      } catch (err) {
+        console.error("[carteira] brapi fetch failed:", err);
       }
     }
 
@@ -617,10 +616,10 @@ export default function CarteiraContent({ userEmail }: Props) {
 
   // ── Save handlers ──────────────────────────────────────────────────────────
 
-  // Fetch real-time price from brapi for a single ticker
+  // Fetch real-time price from brapi via server proxy
   async function fetchLivePrice(ticker: string): Promise<number | null> {
     try {
-      const res = await fetch(`https://brapi.dev/api/quote/${encodeURIComponent(ticker)}`);
+      const res = await fetch(`/api/brapi-quote?tickers=${encodeURIComponent(ticker)}`, { cache: "no-store" });
       const json = await res.json();
       return json.results?.[0]?.regularMarketPrice ?? null;
     } catch {
@@ -634,7 +633,7 @@ export default function CarteiraContent({ userEmail }: Props) {
     setLoading(true);
     try {
       const tickerStr = Array.from(new Set(assets.map(a => a.name))).join(",");
-      const res = await fetch(`https://brapi.dev/api/quote/${tickerStr}`);
+      const res = await fetch(`/api/brapi-quote?tickers=${encodeURIComponent(tickerStr)}`, { cache: "no-store" });
       const json = await res.json();
       const supabase = createClient();
       for (const q of json.results ?? []) {
