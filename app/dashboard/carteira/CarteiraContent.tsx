@@ -673,6 +673,17 @@ export default function CarteiraContent({ userEmail }: Props) {
     return { yoyGrowthPct, consistencyPct, paybackYears, dividendsReceived, totalReturnPct, concentrationPct };
   }, [effectiveAssets, brapiData, transactions, now, annualDividends, totalInvested, totalGain, distribution]);
 
+  const firstPurchaseLabel = useMemo(() => {
+    const compras = transactions.filter(t => t.type === "compra");
+    if (compras.length === 0) return `${avgDY.toFixed(2)}% DY médio`;
+    const minDate = compras.reduce(
+      (m, t) => (t.transaction_date < m ? t.transaction_date : m),
+      compras[0].transaction_date,
+    );
+    const d = new Date(minDate + "T12:00:00");
+    return `desde ${MONTHS_PT[d.getMonth()].toLowerCase()}/${String(d.getFullYear()).slice(2)}`;
+  }, [transactions, avgDY]);
+
   type KpiTrend = { value: number; suffix?: string };
   type Kpi = {
     label: string;
@@ -903,7 +914,7 @@ export default function CarteiraContent({ userEmail }: Props) {
                 { label: "Valor Investido", value: fmt(totalInvested), sub: `${effectiveAssets.length} ativos`, color: "#8b5cf6", icon: Wallet },
                 { label: "Valor Atual", value: fmt(currentValue), sub: "preço de mercado", color: "#3b82f6", icon: TrendingUp },
                 { label: "Ganho / Perda", value: fmt(totalGain), sub: `${totalGain >= 0 ? "+" : ""}${totalGainPct.toFixed(2)}%`, color: totalGain >= 0 ? "#22c55e" : "#f87171", icon: totalGain >= 0 ? TrendingUp : TrendingDown },
-                { label: "Renda Anual (DY)", value: fmtK(annualDividends), sub: `${avgDY.toFixed(2)}% DY médio`, color: "#C9A84C", icon: TrendingUp },
+                { label: "Dividendos Recebidos", value: fmt(advancedMetrics.dividendsReceived), sub: firstPurchaseLabel, color: "#C9A84C", icon: Coins },
               ].map(({ label, value, sub, color, icon: Icon }) => (
                 <div key={label} style={{ background: "#130f09", border: `1px solid ${color}22`, borderRadius: "12px", padding: "18px 20px" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "10px" }}>
