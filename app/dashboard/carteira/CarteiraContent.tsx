@@ -282,7 +282,17 @@ function pieSlice(cx: number, cy: number, r: number, start: number, end: number)
   return `M ${cx} ${cy} L ${s.x} ${s.y} A ${r} ${r} 0 ${end - start > 180 ? 1 : 0} 1 ${e.x} ${e.y} Z`;
 }
 
-function DonutChart({ data }: { data: { ticker: string; value: number; pct: number }[] }) {
+type DistRow = {
+  ticker: string;
+  value: number;
+  invested: number;
+  gain: number;
+  gainPct: number;
+  pct: number;
+  logourl?: string;
+};
+
+function DonutChart({ data }: { data: DistRow[] }) {
   const [hov, setHov] = useState<string | null>(null);
   const [pos, setPos] = useState({ x: 0, y: 0 });
   const ref = useRef<HTMLDivElement>(null);
@@ -294,7 +304,7 @@ function DonutChart({ data }: { data: { ticker: string; value: number; pct: numb
     </div>
   );
 
-  const CX = 90, CY = 90, R = 78, IR = 46;
+  const CX = 110, CY = 110, R = 96, IR = 62;
   let angle = -90;
   const slices = data.map(d => {
     const sweep = (d.value / total) * 360;
@@ -304,59 +314,182 @@ function DonutChart({ data }: { data: { ticker: string; value: number; pct: numb
   });
 
   const hovSlice = slices.find(s => s.ticker === hov);
+  const totalGain = data.reduce((s, d) => s + d.gain, 0);
+  const totalGainPct = (() => {
+    const inv = data.reduce((s, d) => s + d.invested, 0);
+    return inv > 0 ? (totalGain / inv) * 100 : 0;
+  })();
   const onMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!ref.current) return;
     const r = ref.current.getBoundingClientRect();
-    setPos({ x: Math.min(e.clientX - r.left + 12, r.width - 170), y: e.clientY - r.top - 75 });
+    setPos({ x: Math.min(e.clientX - r.left + 12, r.width - 200), y: e.clientY - r.top - 90 });
   };
 
   return (
-    <div ref={ref} style={{ display: "flex", alignItems: "flex-start", gap: "28px", position: "relative" }} onMouseMove={onMove}>
+    <div ref={ref} style={{ display: "flex", alignItems: "center", gap: "32px", position: "relative" }} onMouseMove={onMove}>
       <svg viewBox={`0 0 ${CX * 2} ${CY * 2}`} width={CX * 2} height={CY * 2} style={{ flexShrink: 0 }}>
+        <defs>
+          {slices.map(({ ticker }) => {
+            const c = tickerColor(ticker);
+            return (
+              <radialGradient key={`g-${ticker}`} id={`g-${ticker}`} cx="50%" cy="50%" r="65%">
+                <stop offset="0%"   stopColor={c} stopOpacity={0.95} />
+                <stop offset="100%" stopColor={c} stopOpacity={0.7} />
+              </radialGradient>
+            );
+          })}
+        </defs>
         {slices.map(({ ticker, start, end }) => {
           const isH = hov === ticker;
           return (
-            <path key={ticker} d={pieSlice(CX, CY, isH ? R + 5 : R, start, end)}
-              fill={tickerColor(ticker)} opacity={!hov || isH ? 0.9 : 0.3}
+            <path key={ticker} d={pieSlice(CX, CY, isH ? R + 6 : R, start, end)}
+              fill={`url(#g-${ticker})`} opacity={!hov || isH ? 1 : 0.28}
               style={{ cursor: "pointer", transition: "opacity 0.15s" }}
               onMouseEnter={() => setHov(ticker)} onMouseLeave={() => setHov(null)} />
           );
         })}
         <circle cx={CX} cy={CY} r={IR} fill="#130f09" />
-        <text x={CX} y={CY - 6} textAnchor="middle" fontSize={14} fontWeight={700} fill="#e8dcc0" fontFamily="var(--font-sans)">
-          {hovSlice ? `${hovSlice.pct.toFixed(1)}%` : data.length}
-        </text>
-        <text x={CX} y={CY + 9} textAnchor="middle" fontSize={8} fill="#857560" fontFamily="var(--font-sans)">
-          {hovSlice ? hovSlice.ticker : "ativos"}
-        </text>
+        {hovSlice ? (
+          <>
+            <text x={CX} y={CY - 12} textAnchor="middle" fontSize={11} fontWeight={600} fill="#857560" fontFamily="var(--font-sans)" letterSpacing="1">
+              {hovSlice.ticker}
+            </text>
+            <text x={CX} y={CY + 6} textAnchor="middle" fontSize={20} fontWeight={700} fill={tickerColor(hovSlice.ticker)} fontFamily="var(--font-sans)">
+              {hovSlice.pct.toFixed(1)}%
+            </text>
+            <text x={CX} y={CY + 22} textAnchor="middle" fontSize={9} fill="#857560" fontFamily="var(--font-sans)">
+              {fmt(hovSlice.value)}
+            </text>
+          </>
+        ) : (
+          <>
+            <text x={CX} y={CY - 12} textAnchor="middle" fontSize={9} fontWeight={600} fill="#857560" fontFamily="var(--font-sans)" letterSpacing="1.2">
+              CARTEIRA
+            </text>
+            <text x={CX} y={CY + 6} textAnchor="middle" fontSize={16} fontWeight={700} fill="#e8dcc0" fontFamily="var(--font-sans)">
+              {total >= 1000000 ? `R$ ${(total / 1000000).toFixed(1)}M` : total >= 1000 ? `R$ ${(total / 1000).toFixed(1)}k` : fmt(total)}
+            </text>
+            <text x={CX} y={CY + 22} textAnchor="middle" fontSize={9} fill={totalGain >= 0 ? "#22c55e" : "#f87171"} fontFamily="var(--font-sans)" fontWeight={600}>
+              {totalGain >= 0 ? "+" : ""}{totalGainPct.toFixed(2)}% · {data.length} ativos
+            </text>
+          </>
+        )}
       </svg>
 
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "10px", paddingTop: "4px" }}>
-        {slices.map(({ ticker, value, pct }) => (
-          <div key={ticker} style={{ display: "flex", alignItems: "center", gap: "8px", opacity: !hov || hov === ticker ? 1 : 0.35, transition: "opacity 0.15s", cursor: "default" }}
-            onMouseEnter={() => setHov(ticker)} onMouseLeave={() => setHov(null)}>
-            <div style={{ width: "8px", height: "8px", borderRadius: "2px", background: tickerColor(ticker), flexShrink: 0 }} />
-            <span style={{ fontSize: "13px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-sans)", width: "56px", flexShrink: 0 }}>{ticker}</span>
-            <div style={{ flex: 1, height: "4px", background: "rgba(255,255,255,0.06)", borderRadius: "2px", overflow: "hidden" }}>
-              <div style={{ height: "100%", width: `${pct}%`, background: tickerColor(ticker), borderRadius: "2px" }} />
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "10px" }}>
+        {slices.map(({ ticker, value, pct, gainPct, logourl }) => {
+          const c = tickerColor(ticker);
+          const isH = hov === ticker;
+          const dim = !!hov && !isH;
+          const gainPos = gainPct >= 0;
+          return (
+            <div key={ticker} style={{
+              display: "flex", alignItems: "center", gap: "10px",
+              opacity: dim ? 0.32 : 1,
+              transition: "opacity 0.15s, transform 0.15s",
+              transform: isH ? "translateX(2px)" : "none",
+              cursor: "default",
+            }}
+              onMouseEnter={() => setHov(ticker)} onMouseLeave={() => setHov(null)}>
+              {/* Logo / fallback */}
+              <div style={{
+                width: "26px", height: "26px", borderRadius: "7px",
+                background: `${c}1f`, flexShrink: 0, overflow: "hidden",
+                display: "flex", alignItems: "center", justifyContent: "center",
+              }}>
+                {logourl ? (
+                  <img
+                    src={logourl}
+                    alt={ticker}
+                    style={{ width: "26px", height: "26px", objectFit: "cover", borderRadius: "7px" }}
+                    onError={e => {
+                      (e.currentTarget as HTMLImageElement).style.display = "none";
+                      (e.currentTarget.nextSibling as HTMLElement).style.display = "flex";
+                    }}
+                  />
+                ) : null}
+                <span style={{
+                  fontSize: "9px", fontWeight: 700, color: c, fontFamily: "var(--font-sans)",
+                  display: logourl ? "none" : "flex",
+                  alignItems: "center", justifyContent: "center", width: "100%", height: "100%",
+                }}>
+                  {ticker.slice(0, 2)}
+                </span>
+              </div>
+
+              <span style={{
+                fontSize: "13px", fontWeight: 700, color: "#e8dcc0",
+                fontFamily: "var(--font-sans)", width: "62px", flexShrink: 0,
+              }}>{ticker}</span>
+
+              {/* Bar */}
+              <div style={{
+                flex: 1, height: "6px", background: "rgba(255,255,255,0.05)",
+                borderRadius: "3px", overflow: "hidden", position: "relative",
+              }}>
+                <div style={{
+                  height: "100%", width: `${Math.max(pct, 1.5)}%`,
+                  background: `linear-gradient(90deg, ${c}, ${c}cc)`,
+                  borderRadius: "3px",
+                  boxShadow: isH ? `0 0 8px ${c}80` : "none",
+                  transition: "box-shadow 0.15s",
+                }} />
+              </div>
+
+              <span style={{
+                fontSize: "12px", color: "#a09068",
+                fontFamily: "var(--font-sans)", width: "44px",
+                textAlign: "right", flexShrink: 0,
+              }}>{pct.toFixed(1)}%</span>
+
+              <span style={{
+                fontSize: "12px", fontWeight: 700, color: "#e8dcc0",
+                fontFamily: "var(--font-sans)", width: "82px",
+                textAlign: "right", flexShrink: 0,
+              }}>{fmtK(value)}</span>
+
+              {/* Gain pill */}
+              <span style={{
+                display: "inline-flex", alignItems: "center", justifyContent: "center",
+                fontSize: "10px", fontWeight: 600,
+                fontFamily: "var(--font-sans)",
+                width: "62px", padding: "3px 0", flexShrink: 0,
+                borderRadius: "4px", textAlign: "center",
+                background: gainPos ? "rgba(34,197,94,0.10)" : "rgba(248,113,113,0.10)",
+                color: gainPos ? "#22c55e" : "#f87171",
+              }}>
+                {gainPos ? "+" : ""}{gainPct.toFixed(1)}%
+              </span>
             </div>
-            <span style={{ fontSize: "12px", color: "#a09068", fontFamily: "var(--font-sans)", width: "36px", textAlign: "right", flexShrink: 0 }}>{pct.toFixed(1)}%</span>
-            <span style={{ fontSize: "12px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-sans)", width: "90px", textAlign: "right", flexShrink: 0 }}>{fmtK(value)}</span>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {hovSlice && (
         <Tooltip x={pos.x} y={Math.max(pos.y, 4)}>
           <div style={{ display: "flex", alignItems: "center", gap: "7px", marginBottom: "8px" }}>
-            <div style={{ width: "8px", height: "8px", borderRadius: "2px", background: tickerColor(hovSlice.ticker) }} />
+            <div style={{ width: "10px", height: "10px", borderRadius: "3px", background: tickerColor(hovSlice.ticker) }} />
             <span style={{ fontSize: "13px", fontWeight: 700, color: "#e8dcc0", fontFamily: "var(--font-sans)" }}>{hovSlice.ticker}</span>
           </div>
           <div style={{ display: "flex", justifyContent: "space-between", gap: "16px", marginBottom: "4px" }}>
-            <span style={{ fontSize: "11px", color: "#a09068", fontFamily: "var(--font-sans)" }}>Valor</span>
+            <span style={{ fontSize: "11px", color: "#a09068", fontFamily: "var(--font-sans)" }}>Valor atual</span>
             <span style={{ fontSize: "13px", fontWeight: 700, color: "#C9A84C", fontFamily: "var(--font-sans)" }}>{fmt(hovSlice.value)}</span>
           </div>
-          <div style={{ display: "flex", justifyContent: "space-between", gap: "16px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: "16px", marginBottom: "4px" }}>
+            <span style={{ fontSize: "11px", color: "#a09068", fontFamily: "var(--font-sans)" }}>Investido</span>
+            <span style={{ fontSize: "12px", fontWeight: 600, color: "#857560", fontFamily: "var(--font-sans)" }}>{fmt(hovSlice.invested)}</span>
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: "16px", marginBottom: "4px" }}>
+            <span style={{ fontSize: "11px", color: "#a09068", fontFamily: "var(--font-sans)" }}>Ganho</span>
+            <span style={{
+              fontSize: "13px", fontWeight: 700,
+              color: hovSlice.gain >= 0 ? "#22c55e" : "#f87171",
+              fontFamily: "var(--font-sans)",
+            }}>
+              {hovSlice.gain >= 0 ? "+" : ""}{fmt(hovSlice.gain)} ({hovSlice.gainPct >= 0 ? "+" : ""}{hovSlice.gainPct.toFixed(2)}%)
+            </span>
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: "16px", paddingTop: "4px", borderTop: "1px solid rgba(255,255,255,0.06)", marginTop: "4px" }}>
             <span style={{ fontSize: "11px", color: "#a09068", fontFamily: "var(--font-sans)" }}>Participação</span>
             <span style={{ fontSize: "13px", fontWeight: 700, color: "#e8dcc0", fontFamily: "var(--font-sans)" }}>{hovSlice.pct.toFixed(1)}%</span>
           </div>
@@ -635,12 +768,21 @@ export default function CarteiraContent({ userEmail }: Props) {
 
   const distribution = useMemo(() => {
     const total = currentValue || 1;
-    return effectiveAssets.map(a => ({
-      ticker: a.name,
-      value: Number(a.quantity) * a.live_price,
-      pct: (Number(a.quantity) * a.live_price / total) * 100,
-    })).sort((a, b) => b.value - a.value);
-  }, [effectiveAssets, currentValue]);
+    return effectiveAssets.map(a => {
+      const value    = Number(a.quantity) * a.live_price;
+      const invested = Number(a.quantity) * Number(a.purchase_price);
+      const gain     = value - invested;
+      return {
+        ticker: a.name,
+        value,
+        invested,
+        gain,
+        gainPct: invested > 0 ? (gain / invested) * 100 : 0,
+        pct: (value / total) * 100,
+        logourl: brapiData[a.name]?.logourl,
+      };
+    }).sort((a, b) => b.value - a.value);
+  }, [effectiveAssets, currentValue, brapiData]);
 
   const gainRatio = totalInvested > 0 ? currentValue / totalInvested : 1;
 
@@ -1089,8 +1231,43 @@ export default function CarteiraContent({ userEmail }: Props) {
 
             {/* ── Distribution ── */}
             <div style={{ ...card, marginBottom: "20px" }}>
-              <p style={{ fontSize: "14px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-sans)", marginBottom: "4px" }}>Distribuição por Ativo</p>
-              <p style={{ fontSize: "11px", color: "#7a6a4a", fontFamily: "var(--font-sans)", marginBottom: "20px" }}>Percentual do valor total da carteira</p>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "20px", gap: "16px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                  <div style={{
+                    width: "32px", height: "32px", borderRadius: "8px",
+                    background: "rgba(245,158,11,0.12)",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                  }}>
+                    <PieChart size={15} style={{ color: "#f59e0b" }} />
+                  </div>
+                  <div>
+                    <p style={{ fontSize: "14px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-sans)", marginBottom: "2px" }}>Distribuição por Ativo</p>
+                    <p style={{ fontSize: "11px", color: "#7a6a4a", fontFamily: "var(--font-sans)" }}>Percentual do valor total da carteira</p>
+                  </div>
+                </div>
+                {distribution[0] && (() => {
+                  const top = distribution[0];
+                  const concentrated = top.pct > 40;
+                  const dim = top.pct > 25;
+                  const color = concentrated ? "#f87171" : dim ? "#f59e0b" : "#22c55e";
+                  const label = concentrated ? "Alta concentração" : dim ? "Concentração moderada" : "Boa diversificação";
+                  return (
+                    <div style={{
+                      display: "inline-flex", alignItems: "center", gap: "8px",
+                      padding: "6px 12px", borderRadius: "8px",
+                      background: `${color}14`, border: `1px solid ${color}33`,
+                    }}>
+                      <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: color, display: "inline-block", flexShrink: 0 }} />
+                      <span style={{ fontSize: "11px", fontWeight: 600, color, fontFamily: "var(--font-sans)" }}>
+                        {label}
+                      </span>
+                      <span style={{ fontSize: "10px", color: "#857560", fontFamily: "var(--font-sans)" }}>
+                        · maior {top.ticker} {top.pct.toFixed(1)}%
+                      </span>
+                    </div>
+                  );
+                })()}
+              </div>
               <DonutChart data={distribution} />
             </div>
 
