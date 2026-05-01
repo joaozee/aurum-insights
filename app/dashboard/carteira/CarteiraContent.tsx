@@ -59,15 +59,22 @@ interface BrapiStock {
   sector?: string;
 }
 
+interface BrapiCashDividend {
+  paymentDate: string;
+  rate: number;
+  label: string;
+}
+
 interface BrapiQuote {
   symbol: string;
   shortName: string;
   regularMarketPrice: number;
   priceEarnings: number | null;
   earningsPerShare: number | null;
-  // dividendYield comes as percentage (e.g. 6.5 = 6.5%)
-  dividendYield: number | null;
   logourl: string;
+  dividendsData?: {
+    cashDividends: BrapiCashDividend[];
+  };
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -514,7 +521,7 @@ export default function CarteiraContent({ userEmail }: Props) {
       // Fetch real-time data from brapi (logo, DY, P/L)
       try {
         const res = await fetch(
-          `https://brapi.dev/api/quote/${tickers.join(",")}`
+          `https://brapi.dev/api/quote/${tickers.join(",")}?dividends=true`
         );
         const json = await res.json();
         const bMap: Record<string, BrapiQuote> = {};
@@ -536,10 +543,17 @@ export default function CarteiraContent({ userEmail }: Props) {
   const effectiveAssets = useMemo(() => assets.map(a => {
     const bq = brapiData[a.name];
     const livePrice = bq?.regularMarketPrice ?? Number(a.current_price);
-    // brapi returns dividendYield as a percentage (e.g. 6.5 = 6.5%) — store as decimal
-    const liveDY = bq != null && bq.dividendYield != null
-      ? Number(bq.dividendYield) / 100
-      : null;
+    // Calculate DY from last 12 months of cashDividends / current price
+    const liveDY = (() => {
+      const cash = bq?.dividendsData?.cashDividends;
+      if (!cash || cash.length === 0 || !bq.regularMarketPrice) return null;
+      const cutoff = new Date();
+      cutoff.setFullYear(cutoff.getFullYear() - 1);
+      const sum = cash
+        .filter(d => new Date(d.paymentDate) >= cutoff)
+        .reduce((acc, d) => acc + d.rate, 0);
+      return sum > 0 ? sum / bq.regularMarketPrice : null;
+    })();
     // priceEarnings is the P/E ratio
     const livePE = bq?.priceEarnings != null ? Number(bq.priceEarnings) : null;
     return { ...a, live_price: livePrice, live_dy: liveDY, live_pe: livePE };
