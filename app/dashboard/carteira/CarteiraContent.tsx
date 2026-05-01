@@ -4,6 +4,8 @@ import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import {
   Plus, Download, RefreshCw, Upload, TrendingUp, TrendingDown,
   Wallet, X, Trash2, MoreVertical, Sparkles, Brain, ChevronLeft,
+  DollarSign, Percent, CalendarClock, Zap, BarChart3, Layers, PieChart, Coins,
+  type LucideIcon,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
@@ -627,17 +629,116 @@ export default function CarteiraContent({ userEmail }: Props) {
     });
   }, [transactions, gainRatio, chartFilter, now]);
 
-  const kpis = useMemo(() => [
-    { label: "Renda Anual (Dividendos)", value: fmtK(annualDividends), sub: "", color: "#22c55e" },
-    { label: "Dividend Yield Médio", value: `${avgDY.toFixed(2)}%`, sub: "", color: "#C9A84C" },
-    { label: "Renda Mensal Est.", value: fmtK(annualDividends / 12), sub: "", color: "#22c55e" },
-    { label: "Valor Total Investido", value: fmtK(totalInvested), sub: "", color: "#8b5cf6" },
-    { label: "Valor da Carteira", value: fmtK(currentValue), sub: "", color: "#3b82f6" },
-    { label: "Retorno Total", value: `${totalGainPct >= 0 ? "+" : ""}${totalGainPct.toFixed(2)}%`, sub: fmt(totalGain), color: totalGain >= 0 ? "#22c55e" : "#f87171" },
-    { label: "Número de Ativos", value: String(effectiveAssets.length), sub: "", color: "#06b6d4" },
-    { label: "Maior Posição", value: distribution[0]?.ticker ?? "—", sub: distribution[0] ? `${distribution[0].pct.toFixed(1)}% da carteira` : "", color: "#f59e0b" },
-    { label: "Lucro / Prejuízo", value: fmt(totalGain), sub: "", color: totalGain >= 0 ? "#22c55e" : "#f87171" },
-  ], [annualDividends, avgDY, totalInvested, currentValue, totalGainPct, totalGain, effectiveAssets.length, distribution]);
+  // ── Advanced metrics (use brapi cashDividends history) ────────────────────
+  const advancedMetrics = useMemo(() => {
+    const today = now;
+    const last12mStart = new Date(today); last12mStart.setFullYear(today.getFullYear() - 1);
+    const prev12mStart = new Date(today); prev12mStart.setFullYear(today.getFullYear() - 2);
+
+    let last12m = 0, prev12m = 0;
+    const monthsWithDividend = new Set<string>();
+
+    for (const a of effectiveAssets) {
+      const cash = brapiData[a.name]?.dividendsData?.cashDividends ?? [];
+      const qty = Number(a.quantity);
+      for (const d of cash) {
+        const dDate = new Date(d.paymentDate);
+        if (dDate >= last12mStart && dDate <= today) {
+          last12m += d.rate * qty;
+          monthsWithDividend.add(`${dDate.getFullYear()}-${dDate.getMonth()}`);
+        } else if (dDate >= prev12mStart && dDate < last12mStart) {
+          prev12m += d.rate * qty;
+        }
+      }
+    }
+
+    // Total dividends actually received per buy transaction (since tx_date)
+    let dividendsReceived = 0;
+    for (const t of transactions) {
+      if (t.type !== "compra") continue;
+      const cash = brapiData[t.ticker]?.dividendsData?.cashDividends ?? [];
+      const txDate = new Date(t.transaction_date + "T00:00:00");
+      const qty = Number(t.quantity);
+      for (const d of cash) {
+        if (new Date(d.paymentDate) >= txDate) dividendsReceived += d.rate * qty;
+      }
+    }
+
+    const yoyGrowthPct = prev12m > 0 ? ((last12m - prev12m) / prev12m) * 100 : null;
+    const consistencyPct = (monthsWithDividend.size / 12) * 100;
+    const paybackYears = annualDividends > 0 ? totalInvested / annualDividends : null;
+    const totalReturnPct = totalInvested > 0 ? ((totalGain + dividendsReceived) / totalInvested) * 100 : 0;
+    const concentrationPct = distribution[0]?.pct ?? 0;
+
+    return { yoyGrowthPct, consistencyPct, paybackYears, dividendsReceived, totalReturnPct, concentrationPct };
+  }, [effectiveAssets, brapiData, transactions, now, annualDividends, totalInvested, totalGain, distribution]);
+
+  type KpiTrend = { value: number; suffix?: string };
+  type Kpi = {
+    label: string;
+    value: string;
+    sub?: string;
+    color: string;
+    icon: LucideIcon;
+    trend?: KpiTrend | null;
+  };
+  const kpis = useMemo<Kpi[]>(() => {
+    const { yoyGrowthPct, consistencyPct, paybackYears, totalReturnPct, concentrationPct } = advancedMetrics;
+    const fmtPayback = paybackYears == null
+      ? "—"
+      : paybackYears >= 100
+        ? "100+ anos"
+        : `${paybackYears.toFixed(1)} anos`;
+
+    return [
+      { label: "Renda Anual em Dividendos", value: fmtK(annualDividends), color: "#22c55e", icon: DollarSign },
+      { label: "Dividend Yield Médio",      value: `${avgDY.toFixed(2)}%`, color: "#C9A84C", icon: Percent },
+      { label: "Renda Mensal em Dividendos", value: fmtK(annualDividends / 12), color: "#22c55e", icon: Coins },
+
+      {
+        label: "Crescimento da Renda (YoY)",
+        value: yoyGrowthPct == null ? "—" : `${yoyGrowthPct >= 0 ? "+" : ""}${yoyGrowthPct.toFixed(1)}%`,
+        color: yoyGrowthPct == null ? "#7a6a4a" : yoyGrowthPct >= 0 ? "#22c55e" : "#f87171",
+        icon: TrendingUp,
+        trend: yoyGrowthPct != null ? { value: yoyGrowthPct, suffix: "%" } : null,
+      },
+      {
+        label: "Consistência de Dividendos",
+        value: `${consistencyPct.toFixed(0)}%`,
+        sub: `${Math.round(consistencyPct / 100 * 12)}/12 meses`,
+        color: "#C9A84C",
+        icon: Zap,
+      },
+      { label: "Payback em Dividendos", value: fmtPayback, color: "#a78bfa", icon: CalendarClock },
+
+      { label: "Valor Total Investido", value: fmtK(totalInvested), color: "#8b5cf6", icon: BarChart3 },
+      { label: "Valor da Carteira",     value: fmtK(currentValue),  color: "#3b82f6", icon: Wallet },
+      {
+        label: "Retorno Total (Preço + Div.)",
+        value: `${totalReturnPct >= 0 ? "+" : ""}${totalReturnPct.toFixed(2)}%`,
+        sub: fmt(totalGain + advancedMetrics.dividendsReceived),
+        color: totalReturnPct >= 0 ? "#22c55e" : "#f87171",
+        icon: Zap,
+        trend: { value: totalReturnPct, suffix: "%" },
+      },
+
+      {
+        label: "Lucro / Prejuízo",
+        value: fmt(totalGain),
+        sub: `${totalGainPct >= 0 ? "+" : ""}${totalGainPct.toFixed(2)}%`,
+        color: totalGain >= 0 ? "#22c55e" : "#f87171",
+        icon: DollarSign,
+      },
+      {
+        label: "Concentração da Carteira",
+        value: `${concentrationPct.toFixed(1)}%`,
+        sub: distribution[0] ? `maior: ${distribution[0].ticker}` : "",
+        color: "#f59e0b",
+        icon: PieChart,
+      },
+      { label: "Número de Ativos", value: String(effectiveAssets.length), color: "#06b6d4", icon: Layers },
+    ];
+  }, [annualDividends, avgDY, totalInvested, currentValue, totalGainPct, totalGain, effectiveAssets.length, distribution, advancedMetrics]);
 
   // ── Save handlers ──────────────────────────────────────────────────────────
 
@@ -853,13 +954,61 @@ export default function CarteiraContent({ userEmail }: Props) {
             <div style={{ ...card, marginBottom: "20px" }}>
               <p style={{ fontSize: "14px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-sans)", marginBottom: "16px" }}>KPIs Financeiros</p>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "12px" }}>
-                {kpis.map(({ label, value, sub, color }) => (
-                  <div key={label} style={{ background: "#0d0a06", border: "1px solid rgba(255,255,255,0.04)", borderRadius: "8px", padding: "14px 16px" }}>
-                    <p style={{ fontSize: "10px", color: "#7a6a4a", fontFamily: "var(--font-sans)", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: "8px" }}>{label}</p>
-                    <p style={{ fontSize: "18px", fontWeight: 700, color, fontFamily: "var(--font-sans)", lineHeight: 1, marginBottom: "4px" }}>{value}</p>
-                    {sub && <p style={{ fontSize: "10px", color: "#857560", fontFamily: "var(--font-sans)" }}>{sub}</p>}
-                  </div>
-                ))}
+                {kpis.map(({ label, value, sub, color, icon: Icon, trend }) => {
+                  const trendUp = trend != null && trend.value >= 0;
+                  return (
+                    <div key={label} style={{
+                      position: "relative",
+                      background: "#0d0a06",
+                      border: "1px solid rgba(255,255,255,0.04)",
+                      borderRadius: "10px",
+                      padding: "14px 16px",
+                      minHeight: "108px",
+                    }}>
+                      {/* Trend pill — top right */}
+                      {trend && (
+                        <span style={{
+                          position: "absolute", top: "12px", right: "12px",
+                          display: "inline-flex", alignItems: "center", gap: "3px",
+                          fontSize: "10px", fontWeight: 600,
+                          color: trendUp ? "#22c55e" : "#f87171",
+                          fontFamily: "var(--font-sans)",
+                        }}>
+                          {trendUp ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
+                          {trendUp ? "+" : ""}{trend.value.toFixed(1)}{trend.suffix ?? ""}
+                        </span>
+                      )}
+
+                      {/* Icon badge */}
+                      <div style={{
+                        width: "28px", height: "28px", borderRadius: "7px",
+                        background: `${color}1f`,
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        marginBottom: "10px",
+                      }}>
+                        <Icon size={14} style={{ color }} />
+                      </div>
+
+                      <p style={{
+                        fontSize: "10px", color: "#7a6a4a", fontFamily: "var(--font-sans)",
+                        letterSpacing: "0.08em", textTransform: "uppercase",
+                        marginBottom: "6px", lineHeight: 1.3,
+                      }}>
+                        {label}
+                      </p>
+                      <p style={{
+                        fontSize: "18px", fontWeight: 700, color,
+                        fontFamily: "var(--font-sans)", lineHeight: 1,
+                        marginBottom: sub ? "4px" : 0,
+                      }}>
+                        {value}
+                      </p>
+                      {sub && (
+                        <p style={{ fontSize: "10px", color: "#857560", fontFamily: "var(--font-sans)" }}>{sub}</p>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
 
