@@ -77,6 +77,10 @@ interface BrapiQuote {
   dividendsData?: {
     cashDividends: BrapiCashDividend[];
   };
+  summaryProfile?: {
+    sector?: string;
+    industry?: string;
+  };
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -101,13 +105,49 @@ function fmtRfRate(indexer: RfIndexer, rate: string): string {
     case "Selic":     return `${r}% da Selic`;
   }
 }
-const PALETTE = ["#8b5cf6","#3b82f6","#22c55e","#f59e0b","#f97316","#ec4899","#06b6d4","#10b981","#eab308","#ef4444","#a78bfa","#60a5fa"];
+// Curated palette: hue-spaced, 10 colors, no near-duplicates.
+const PALETTE = [
+  "#8b5cf6", // violet
+  "#3b82f6", // blue
+  "#0ea5e9", // sky
+  "#06b6d4", // cyan
+  "#14b8a6", // teal
+  "#22c55e", // green
+  "#eab308", // gold
+  "#f97316", // orange
+  "#ef4444", // red
+  "#ec4899", // pink
+];
 
 function tickerColor(ticker: string): string {
   let h = 0;
   for (const c of ticker) h = (h * 31 + c.charCodeAt(0)) & 0xffffff;
   return PALETTE[Math.abs(h) % PALETTE.length];
 }
+
+// Fixed colors for asset classes (4 distinct anchors)
+const CLASS_COLORS: Record<string, string> = {
+  acoes:      "#3b82f6", // blue
+  fiis:       "#f97316", // orange
+  renda_fixa: "#22c55e", // green
+  cripto:     "#eab308", // gold
+  fundos:     "#a78bfa", // light violet (legacy)
+};
+
+// Curated colors for common Brazilian B3 sectors (brapi summaryProfile.sector)
+const SECTOR_COLORS: Record<string, string> = {
+  "Serviços Financeiros":    "#3b82f6", // blue
+  "Energia":                 "#f97316", // orange
+  "Materiais":               "#14b8a6", // teal
+  "Bens de Consumo":         "#ec4899", // pink
+  "Saúde":                   "#22c55e", // green
+  "Tecnologia":              "#06b6d4", // cyan
+  "Utilidade Pública":       "#eab308", // gold
+  "Industrial":              "#ef4444", // red
+  "Imobiliário":             "#a78bfa", // light violet
+  "Comunicações":            "#0ea5e9", // sky
+  "Outros":                  "#7a6a4a", // muted
+};
 
 const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const fmtK = (v: number) => v >= 1000000
@@ -290,9 +330,12 @@ type DistRow = {
   gainPct: number;
   pct: number;
   logourl?: string;
+  color?: string; // explicit override; falls back to tickerColor()
 };
 
-function DonutChart({ data }: { data: DistRow[] }) {
+const rowColor = (r: { ticker: string; color?: string }) => r.color ?? tickerColor(r.ticker);
+
+function DonutChart({ data, totalCount, unitLabel }: { data: DistRow[]; totalCount?: number; unitLabel?: string }) {
   const [hov, setHov] = useState<string | null>(null);
   const [pos, setPos] = useState({ x: 0, y: 0 });
   const ref = useRef<HTMLDivElement>(null);
@@ -329,21 +372,22 @@ function DonutChart({ data }: { data: DistRow[] }) {
     <div ref={ref} style={{ display: "flex", alignItems: "center", gap: "32px", position: "relative" }} onMouseMove={onMove}>
       <svg viewBox={`0 0 ${CX * 2} ${CY * 2}`} width={CX * 2} height={CY * 2} style={{ flexShrink: 0 }}>
         <defs>
-          {slices.map(({ ticker }) => {
-            const c = tickerColor(ticker);
+          {slices.map((s, i) => {
+            const c = rowColor(s);
             return (
-              <radialGradient key={`g-${ticker}`} id={`g-${ticker}`} cx="50%" cy="50%" r="65%">
+              <radialGradient key={`g-${i}`} id={`g-${i}`} cx="50%" cy="50%" r="65%">
                 <stop offset="0%"   stopColor={c} stopOpacity={0.95} />
                 <stop offset="100%" stopColor={c} stopOpacity={0.7} />
               </radialGradient>
             );
           })}
         </defs>
-        {slices.map(({ ticker, start, end }) => {
+        {slices.map((s, i) => {
+          const { ticker, start, end } = s;
           const isH = hov === ticker;
           return (
             <path key={ticker} d={pieSlice(CX, CY, isH ? R + 6 : R, start, end)}
-              fill={`url(#g-${ticker})`} opacity={!hov || isH ? 1 : 0.28}
+              fill={`url(#g-${i})`} opacity={!hov || isH ? 1 : 0.28}
               style={{ cursor: "pointer", transition: "opacity 0.15s" }}
               onMouseEnter={() => setHov(ticker)} onMouseLeave={() => setHov(null)} />
           );
@@ -354,7 +398,7 @@ function DonutChart({ data }: { data: DistRow[] }) {
             <text x={CX} y={CY - 12} textAnchor="middle" fontSize={11} fontWeight={600} fill="#857560" fontFamily="var(--font-sans)" letterSpacing="1">
               {hovSlice.ticker}
             </text>
-            <text x={CX} y={CY + 6} textAnchor="middle" fontSize={20} fontWeight={700} fill={tickerColor(hovSlice.ticker)} fontFamily="var(--font-sans)">
+            <text x={CX} y={CY + 6} textAnchor="middle" fontSize={20} fontWeight={700} fill={rowColor(hovSlice)} fontFamily="var(--font-sans)">
               {hovSlice.pct.toFixed(1)}%
             </text>
             <text x={CX} y={CY + 22} textAnchor="middle" fontSize={9} fill="#857560" fontFamily="var(--font-sans)">
@@ -370,15 +414,16 @@ function DonutChart({ data }: { data: DistRow[] }) {
               {total >= 1000000 ? `R$ ${(total / 1000000).toFixed(1)}M` : total >= 1000 ? `R$ ${(total / 1000).toFixed(1)}k` : fmt(total)}
             </text>
             <text x={CX} y={CY + 22} textAnchor="middle" fontSize={9} fill={totalGain >= 0 ? "#22c55e" : "#f87171"} fontFamily="var(--font-sans)" fontWeight={600}>
-              {totalGain >= 0 ? "+" : ""}{totalGainPct.toFixed(2)}% · {data.length} ativos
+              {totalGain >= 0 ? "+" : ""}{totalGainPct.toFixed(2)}% · {totalCount ?? data.length} {unitLabel ?? "ativos"}
             </text>
           </>
         )}
       </svg>
 
       <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "10px" }}>
-        {slices.map(({ ticker, value, pct, gainPct, logourl }) => {
-          const c = tickerColor(ticker);
+        {slices.map(s => {
+          const { ticker, value, pct, gainPct, logourl } = s;
+          const c = rowColor(s);
           const isH = hov === ticker;
           const dim = !!hov && !isH;
           const gainPos = gainPct >= 0;
@@ -468,7 +513,7 @@ function DonutChart({ data }: { data: DistRow[] }) {
       {hovSlice && (
         <Tooltip x={pos.x} y={Math.max(pos.y, 4)}>
           <div style={{ display: "flex", alignItems: "center", gap: "7px", marginBottom: "8px" }}>
-            <div style={{ width: "10px", height: "10px", borderRadius: "3px", background: tickerColor(hovSlice.ticker) }} />
+            <div style={{ width: "10px", height: "10px", borderRadius: "3px", background: rowColor(hovSlice) }} />
             <span style={{ fontSize: "13px", fontWeight: 700, color: "#e8dcc0", fontFamily: "var(--font-sans)" }}>{hovSlice.ticker}</span>
           </div>
           <div style={{ display: "flex", justifyContent: "space-between", gap: "16px", marginBottom: "4px" }}>
@@ -660,6 +705,7 @@ export default function CarteiraContent({ userEmail }: Props) {
   const [loading, setLoading] = useState(true);
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const [chartFilter, setChartFilter] = useState<"6m" | "12m" | "all">("6m");
+  const [distView, setDistView] = useState<"ativo" | "setor" | "classe">("ativo");
 
   // Modals
   const [modal, setModal] = useState<null | "asset" | "tx">(null);
@@ -712,10 +758,10 @@ export default function CarteiraContent({ userEmail }: Props) {
       (sData ?? []).forEach((s: StockInfo) => { map[s.ticker] = s; });
       setStockMap(map);
 
-      // Fetch real-time data from brapi via server proxy (logo, P/L, DY)
+      // Fetch real-time data from brapi via server proxy (logo, P/L, DY, sector)
       try {
         const res = await fetch(
-          `/api/brapi-quote?tickers=${encodeURIComponent(tickers.join(","))}&dividends=true`,
+          `/api/brapi-quote?tickers=${encodeURIComponent(tickers.join(","))}&dividends=true&modules=summaryProfile`,
           { cache: "no-store" }
         );
         const json = await res.json();
@@ -768,7 +814,7 @@ export default function CarteiraContent({ userEmail }: Props) {
 
   const distribution = useMemo(() => {
     const total = currentValue || 1;
-    return effectiveAssets.map(a => {
+    const perAsset = effectiveAssets.map(a => {
       const value    = Number(a.quantity) * a.live_price;
       const invested = Number(a.quantity) * Number(a.purchase_price);
       const gain     = value - invested;
@@ -780,9 +826,49 @@ export default function CarteiraContent({ userEmail }: Props) {
         gainPct: invested > 0 ? (gain / invested) * 100 : 0,
         pct: (value / total) * 100,
         logourl: brapiData[a.name]?.logourl,
+        sector: brapiData[a.name]?.summaryProfile?.sector || "Outros",
+        type: a.type as string,
       };
-    }).sort((a, b) => b.value - a.value);
-  }, [effectiveAssets, currentValue, brapiData]);
+    });
+
+    if (distView === "ativo") {
+      return perAsset
+        .map(({ ticker, value, invested, gain, gainPct, pct, logourl }) => ({
+          ticker, value, invested, gain, gainPct, pct, logourl,
+        }))
+        .sort((a, b) => b.value - a.value);
+    }
+
+    // Group by sector or class
+    const groups = new Map<string, { value: number; invested: number; typeKey?: string }>();
+    for (const a of perAsset) {
+      const key = distView === "setor"
+        ? a.sector
+        : (ASSET_LABELS[a.type] ?? a.type);
+      const cur = groups.get(key) ?? { value: 0, invested: 0, typeKey: a.type };
+      cur.value    += a.value;
+      cur.invested += a.invested;
+      groups.set(key, cur);
+    }
+    return Array.from(groups.entries())
+      .map(([key, g]) => {
+        const gain = g.value - g.invested;
+        const color = distView === "setor"
+          ? (SECTOR_COLORS[key] ?? tickerColor(key))
+          : (CLASS_COLORS[g.typeKey ?? ""] ?? tickerColor(key));
+        return {
+          ticker: key, // generic label key
+          value: g.value,
+          invested: g.invested,
+          gain,
+          gainPct: g.invested > 0 ? (gain / g.invested) * 100 : 0,
+          pct: (g.value / total) * 100,
+          logourl: undefined as string | undefined,
+          color,
+        };
+      })
+      .sort((a, b) => b.value - a.value);
+  }, [effectiveAssets, currentValue, brapiData, distView]);
 
   const gainRatio = totalInvested > 0 ? currentValue / totalInvested : 1;
 
@@ -1245,30 +1331,72 @@ export default function CarteiraContent({ userEmail }: Props) {
                     <p style={{ fontSize: "11px", color: "#7a6a4a", fontFamily: "var(--font-sans)" }}>Percentual do valor total da carteira</p>
                   </div>
                 </div>
-                {distribution[0] && (() => {
-                  const top = distribution[0];
-                  const concentrated = top.pct > 40;
-                  const dim = top.pct > 25;
-                  const color = concentrated ? "#f87171" : dim ? "#f59e0b" : "#22c55e";
-                  const label = concentrated ? "Alta concentração" : dim ? "Concentração moderada" : "Boa diversificação";
-                  return (
-                    <div style={{
-                      display: "inline-flex", alignItems: "center", gap: "8px",
-                      padding: "6px 12px", borderRadius: "8px",
-                      background: `${color}14`, border: `1px solid ${color}33`,
-                    }}>
-                      <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: color, display: "inline-block", flexShrink: 0 }} />
-                      <span style={{ fontSize: "11px", fontWeight: 600, color, fontFamily: "var(--font-sans)" }}>
-                        {label}
-                      </span>
-                      <span style={{ fontSize: "10px", color: "#857560", fontFamily: "var(--font-sans)" }}>
-                        · maior {top.ticker} {top.pct.toFixed(1)}%
-                      </span>
-                    </div>
-                  );
-                })()}
+                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                  {/* View mode toggle */}
+                  <div style={{
+                    display: "inline-flex", padding: "3px",
+                    background: "#0d0a06", border: "1px solid rgba(255,255,255,0.05)",
+                    borderRadius: "8px",
+                  }}>
+                    {([
+                      { key: "ativo",  label: "Ativo"  },
+                      { key: "setor",  label: "Setor"  },
+                      { key: "classe", label: "Classe" },
+                    ] as const).map(({ key, label }) => {
+                      const active = distView === key;
+                      return (
+                        <button
+                          key={key}
+                          type="button"
+                          onClick={() => setDistView(key)}
+                          style={{
+                            background: active ? "rgba(201,168,76,0.14)" : "transparent",
+                            border: "none",
+                            borderRadius: "6px",
+                            padding: "5px 12px",
+                            color: active ? "#C9A84C" : "#857560",
+                            fontSize: "11px",
+                            fontWeight: active ? 600 : 500,
+                            fontFamily: "var(--font-sans)",
+                            cursor: "pointer",
+                            transition: "background 0.15s, color 0.15s",
+                          }}
+                        >
+                          {label}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {distribution[0] && (() => {
+                    const top = distribution[0];
+                    const concentrated = top.pct > 40;
+                    const dim = top.pct > 25;
+                    const color = concentrated ? "#f87171" : dim ? "#f59e0b" : "#22c55e";
+                    const label = concentrated ? "Alta concentração" : dim ? "Concentração moderada" : "Boa diversificação";
+                    return (
+                      <div style={{
+                        display: "inline-flex", alignItems: "center", gap: "8px",
+                        padding: "6px 12px", borderRadius: "8px",
+                        background: `${color}14`, border: `1px solid ${color}33`,
+                      }}>
+                        <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: color, display: "inline-block", flexShrink: 0 }} />
+                        <span style={{ fontSize: "11px", fontWeight: 600, color, fontFamily: "var(--font-sans)" }}>
+                          {label}
+                        </span>
+                        <span style={{ fontSize: "10px", color: "#857560", fontFamily: "var(--font-sans)" }}>
+                          · maior {top.ticker} {top.pct.toFixed(1)}%
+                        </span>
+                      </div>
+                    );
+                  })()}
+                </div>
               </div>
-              <DonutChart data={distribution} />
+              <DonutChart
+                data={distribution}
+                totalCount={effectiveAssets.length}
+                unitLabel="ativos"
+              />
             </div>
 
             {/* ── Meus Ativos ── */}

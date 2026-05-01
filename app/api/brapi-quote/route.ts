@@ -11,6 +11,7 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const tickers = (searchParams.get("tickers") ?? "").trim();
   const dividends = searchParams.get("dividends") === "true";
+  const modules = (searchParams.get("modules") ?? "").trim();
 
   if (!tickers) {
     return NextResponse.json({ error: "Missing 'tickers' parameter" }, { status: 400 });
@@ -27,6 +28,7 @@ export async function GET(req: Request) {
 
   const params = new URLSearchParams();
   if (dividends) params.set("dividends", "true");
+  if (modules) params.set("modules", modules);
   const qs = params.toString();
   const url = `${BASE}/quote/${encodeURIComponent(tickerList.join(","))}${qs ? `?${qs}` : ""}`;
 
