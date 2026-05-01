@@ -97,6 +97,25 @@ const fmtK = (v: number) => v >= 1000000
   ? `R$ ${(v / 1000000).toFixed(1)}M`
   : v >= 1000 ? `R$ ${(v / 1000).toFixed(1)}k` : fmt(v);
 
+const WEEKDAYS_PT = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"];
+function fmtTxDate(iso: string, today: Date): { full: string; ago: string } {
+  const d = new Date(iso + "T12:00:00");
+  const full = `${WEEKDAYS_PT[d.getDay()]}, ${String(d.getDate()).padStart(2, "0")} ${MONTHS_PT[d.getMonth()].toLowerCase()} ${d.getFullYear()}`;
+  const diffDays = Math.floor((today.getTime() - d.getTime()) / 86_400_000);
+  let ago = "";
+  if (diffDays <= 0) ago = "hoje";
+  else if (diffDays === 1) ago = "ontem";
+  else if (diffDays < 30) ago = `há ${diffDays} dias`;
+  else if (diffDays < 365) {
+    const m = Math.floor(diffDays / 30);
+    ago = m === 1 ? "há 1 mês" : `há ${m} meses`;
+  } else {
+    const y = Math.floor(diffDays / 365);
+    ago = y === 1 ? "há 1 ano" : `há ${y} anos`;
+  }
+  return { full, ago };
+}
+
 // ─── Style helpers ────────────────────────────────────────────────────────────
 
 const inputStyle: React.CSSProperties = {
@@ -501,12 +520,18 @@ export default function CarteiraContent({ userEmail }: Props) {
     ]);
 
     const assetList = (aData ?? []) as Asset[];
+    const txList = (tData ?? []) as Transaction[];
     setAssets(assetList);
-    setTransactions((tData ?? []) as Transaction[]);
+    setTransactions(txList);
     setInsights((iData ?? []) as PortfolioInsight[]);
 
     // Fetch stock_data (Supabase) and brapi in parallel
-    const tickers = Array.from(new Set(assetList.map(a => a.name)));
+    // Include both asset tickers and transaction tickers so logos render
+    // even for tickers no longer held in the portfolio.
+    const tickers = Array.from(new Set([
+      ...assetList.map(a => a.name),
+      ...txList.map(t => t.ticker),
+    ].filter(Boolean)));
     if (tickers.length > 0) {
       const [{ data: sData }] = await Promise.all([
         supabase
@@ -995,32 +1020,112 @@ export default function CarteiraContent({ userEmail }: Props) {
                   Nenhuma transação registrada
                 </p>
               ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                  {transactions.slice(0, 12).map(t => (
-                    <div key={t.id} style={{ display: "flex", alignItems: "center", gap: "14px", padding: "12px 16px", background: "rgba(255,255,255,0.02)", borderRadius: "8px", border: "1px solid rgba(255,255,255,0.03)" }}>
-                      <div style={{ width: "36px", height: "36px", borderRadius: "8px", background: `${tickerColor(t.ticker)}18`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                        <span style={{ fontSize: "10px", fontWeight: 700, color: tickerColor(t.ticker), fontFamily: "var(--font-sans)" }}>{t.ticker.slice(0, 2)}</span>
-                      </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "2px" }}>
-                          <span style={{ fontSize: "13px", fontWeight: 700, color: "#e8dcc0", fontFamily: "var(--font-sans)" }}>{t.ticker}</span>
-                          <span style={{ fontSize: "10px", fontWeight: 600, padding: "2px 7px", borderRadius: "4px", fontFamily: "var(--font-sans)", background: t.type === "compra" ? "rgba(34,197,94,0.12)" : "rgba(248,113,113,0.12)", color: t.type === "compra" ? "#22c55e" : "#f87171" }}>
-                            {t.type.charAt(0).toUpperCase() + t.type.slice(1)}
+                <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                  {transactions.slice(0, 12).map(t => {
+                    const isBuy   = t.type === "compra";
+                    const txQty   = Number(t.quantity);
+                    const txPrice = Number(t.price);
+                    const txTotal = Number(t.total_value ?? txQty * txPrice);
+                    const live    = brapiData[t.ticker]?.regularMarketPrice ?? null;
+                    const curVal  = live != null ? live * txQty : null;
+                    const gain    = isBuy && curVal != null ? curVal - txTotal : null;
+                    const gainPct = gain != null && txTotal > 0 ? (gain / txTotal) * 100 : null;
+                    const gainPos = gain != null && gain >= 0;
+                    const color   = tickerColor(t.ticker);
+                    const logo    = brapiData[t.ticker]?.logourl;
+                    const { full: dateFull, ago: dateAgo } = fmtTxDate(t.transaction_date, now);
+
+                    return (
+                      <div key={t.id} style={{
+                        display: "flex", alignItems: "center", gap: "14px",
+                        padding: "13px 16px", background: "rgba(255,255,255,0.02)",
+                        borderRadius: "10px", border: "1px solid rgba(255,255,255,0.04)",
+                        borderLeft: `3px solid ${isBuy ? "rgba(34,197,94,0.4)" : "rgba(248,113,113,0.4)"}`,
+                      }}>
+                        {/* Logo / fallback */}
+                        <div style={{
+                          width: "40px", height: "40px", borderRadius: "10px",
+                          background: `${color}1c`, display: "flex", alignItems: "center",
+                          justifyContent: "center", flexShrink: 0, overflow: "hidden",
+                        }}>
+                          {logo ? (
+                            <img
+                              src={logo}
+                              alt={t.ticker}
+                              style={{ width: "40px", height: "40px", objectFit: "cover", borderRadius: "10px" }}
+                              onError={e => {
+                                (e.currentTarget as HTMLImageElement).style.display = "none";
+                                (e.currentTarget.nextSibling as HTMLElement).style.display = "flex";
+                              }}
+                            />
+                          ) : null}
+                          <span style={{
+                            fontSize: "11px", fontWeight: 700, color,
+                            fontFamily: "var(--font-sans)",
+                            display: logo ? "none" : "flex",
+                            alignItems: "center", justifyContent: "center",
+                            width: "100%", height: "100%",
+                          }}>
+                            {t.ticker.slice(0, 2)}
                           </span>
                         </div>
-                        <p style={{ fontSize: "11px", color: "#7a6a4a", fontFamily: "var(--font-sans)" }}>
-                          {Number(t.quantity).toLocaleString("pt-BR")} ações · Pré: {fmt(Number(t.price))}
-                          {t.notes && ` · ${t.notes}`}
-                        </p>
+
+                        {/* Middle */}
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "3px" }}>
+                            <span style={{ fontSize: "13px", fontWeight: 700, color: "#e8dcc0", fontFamily: "var(--font-sans)" }}>{t.ticker}</span>
+                            <span style={{
+                              display: "inline-flex", alignItems: "center", gap: "3px",
+                              fontSize: "10px", fontWeight: 600, padding: "2px 7px",
+                              borderRadius: "4px", fontFamily: "var(--font-sans)",
+                              background: isBuy ? "rgba(34,197,94,0.12)" : "rgba(248,113,113,0.12)",
+                              color: isBuy ? "#22c55e" : "#f87171",
+                            }}>
+                              {isBuy ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
+                              {isBuy ? "Compra" : "Venda"}
+                            </span>
+                            {live != null && (
+                              <span style={{ fontSize: "10px", color: "#5a4a2a", fontFamily: "var(--font-sans)" }}>
+                                · agora {fmt(live)}
+                              </span>
+                            )}
+                          </div>
+                          <p style={{ fontSize: "11px", color: "#857560", fontFamily: "var(--font-sans)", marginBottom: "2px" }}>
+                            {txQty.toLocaleString("pt-BR")} {txQty === 1 ? "cota" : "cotas"} × <span style={{ color: "#a09068", fontWeight: 600 }}>{fmt(txPrice)}</span>
+                            {t.notes && <span style={{ color: "#5a4a2a" }}> · {t.notes}</span>}
+                          </p>
+                          <p style={{ fontSize: "10px", color: "#5a4a2a", fontFamily: "var(--font-sans)" }}>
+                            {dateFull} · {dateAgo}
+                          </p>
+                        </div>
+
+                        {/* Right */}
+                        <div style={{ textAlign: "right", flexShrink: 0 }}>
+                          <p style={{ fontSize: "10px", color: "#5a4a2a", fontFamily: "var(--font-sans)", letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: "2px" }}>
+                            {isBuy ? "Investido" : "Recebido"}
+                          </p>
+                          <p style={{ fontSize: "15px", fontWeight: 700, color: "#e8dcc0", fontFamily: "var(--font-sans)", marginBottom: "3px" }}>
+                            {fmt(txTotal)}
+                          </p>
+                          {gain != null && gainPct != null ? (
+                            <p style={{
+                              fontSize: "11px", fontWeight: 600,
+                              color: gainPos ? "#22c55e" : "#f87171",
+                              fontFamily: "var(--font-sans)",
+                              display: "inline-flex", alignItems: "center", gap: "3px",
+                            }}>
+                              {gainPos ? <TrendingUp size={11} /> : <TrendingDown size={11} />}
+                              {gainPos ? "+" : ""}{fmt(gain)} ({gainPos ? "+" : ""}{gainPct.toFixed(2)}%)
+                            </p>
+                          ) : curVal != null && !isBuy ? (
+                            <p style={{ fontSize: "10px", color: "#7a6a4a", fontFamily: "var(--font-sans)" }}>
+                              hoje valeria {fmt(curVal)}
+                            </p>
+                          ) : null}
+                        </div>
                       </div>
-                      <div style={{ textAlign: "right", flexShrink: 0 }}>
-                        <p style={{ fontSize: "14px", fontWeight: 700, color: "#e8dcc0", fontFamily: "var(--font-sans)", marginBottom: "2px" }}>{fmt(Number(t.total_value ?? Number(t.quantity) * Number(t.price)))}</p>
-                        <p style={{ fontSize: "11px", color: "#7a6a4a", fontFamily: "var(--font-sans)" }}>
-                          {new Date(t.transaction_date + "T12:00:00").toLocaleDateString("pt-BR")}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                   {transactions.length > 12 && (
                     <p style={{ textAlign: "center", fontSize: "12px", color: "#7a6a4a", fontFamily: "var(--font-sans)", paddingTop: "8px" }}>
                       +{transactions.length - 12} transações anteriores
