@@ -518,20 +518,17 @@ export default function CarteiraContent({ userEmail }: Props) {
       (sData ?? []).forEach((s: StockInfo) => { map[s.ticker] = s; });
       setStockMap(map);
 
-      // Fetch real-time data from brapi (logo, DY, P/L)
+      // Fetch real-time data from brapi (logo, P/L) — basic endpoint, no token needed
       try {
-        const url = `https://brapi.dev/api/quote/${tickers.join(",")}?dividends=true`;
-        const res = await fetch(url);
+        const res = await fetch(
+          `https://brapi.dev/api/quote/${tickers.join(",")}`
+        );
         const json = await res.json();
-        console.log("[brapi] status:", res.status, "results:", json.results?.length);
-        json.results?.forEach((q: BrapiQuote) => {
-          console.log(`[brapi] ${q.symbol}: hasDividendsData=${!!q.dividendsData}, cashDividends=${q.dividendsData?.cashDividends?.length ?? "n/a"}`);
-        });
         const bMap: Record<string, BrapiQuote> = {};
         (json.results ?? []).forEach((q: BrapiQuote) => { bMap[q.symbol] = q; });
         setBrapiData(bMap);
-      } catch (err) {
-        console.error("[brapi] fetch error:", err);
+      } catch {
+        // silently fallback
       }
     }
 
