@@ -77,7 +77,14 @@ const NEWS_MOCK = [
 interface HomeContentProps {
   firstName: string;
   marketData: MarketItem[];
+  quickStats?: {
+    assetCount: number;
+    monthBalance: number;
+  };
 }
+
+const fmtBRL = (v: number) =>
+  v.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
 
 function getGreeting() {
   const h = new Date().getHours();
@@ -90,8 +97,9 @@ function capitalize(str: string) {
   return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
 }
 
-export default function HomeContent({ firstName, marketData }: HomeContentProps) {
+export default function HomeContent({ firstName, marketData, quickStats }: HomeContentProps) {
   const router = useRouter();
+  const stats = quickStats ?? { assetCount: 0, monthBalance: 0 };
 
   return (
     <div style={{ minHeight: "calc(100vh - 58px)", background: "#0a0806" }}>
@@ -304,7 +312,14 @@ export default function HomeContent({ firstName, marketData }: HomeContentProps)
               gap: "14px",
             }}
           >
-            {QUICK_ACCESS.map(({ label, sub, href, icon: Icon, gradient, glow }) => (
+            {QUICK_ACCESS.map(({ label, sub, href, icon: Icon, gradient, glow }) => {
+              const stat =
+                href === "/dashboard/carteira" && stats.assetCount > 0
+                  ? `${stats.assetCount} ${stats.assetCount === 1 ? "ativo" : "ativos"}`
+                  : href === "/dashboard/financas" && (stats.monthBalance !== 0)
+                  ? `${stats.monthBalance >= 0 ? "+" : ""}${fmtBRL(stats.monthBalance)} no mês`
+                  : null;
+              return (
               <button
                 key={href}
                 onClick={() => router.push(href)}
@@ -412,8 +427,27 @@ export default function HomeContent({ firstName, marketData }: HomeContentProps)
                 >
                   {sub}
                 </p>
+                {stat && (
+                  <p
+                    style={{
+                      marginTop: "8px",
+                      display: "inline-block",
+                      fontSize: "11px",
+                      fontWeight: 600,
+                      color: "#fff",
+                      background: "rgba(255,255,255,0.18)",
+                      padding: "3px 8px",
+                      borderRadius: "5px",
+                      fontFamily: "var(--font-sans)",
+                      letterSpacing: "0.01em",
+                    }}
+                  >
+                    {stat}
+                  </p>
+                )}
               </button>
-            ))}
+              );
+            })}
           </div>
         </section>
 
@@ -510,7 +544,12 @@ export default function HomeContent({ firstName, marketData }: HomeContentProps)
               marginBottom: "16px",
             }}
           >
-            <SectionTitle>Notícias</SectionTitle>
+            <div>
+              <SectionTitle>Comunidade Aurum</SectionTitle>
+              <p style={{ fontSize: "11px", color: "#7a6a4a", fontFamily: "var(--font-sans)", marginTop: "2px" }}>
+                Posts em destaque dos investidores
+              </p>
+            </div>
             <button
               onClick={() => router.push("/dashboard/comunidade")}
               style={{

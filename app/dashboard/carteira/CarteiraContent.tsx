@@ -146,7 +146,7 @@ const SECTOR_COLORS: Record<string, string> = {
   "Industrial":              "#ef4444", // red
   "Imobiliário":             "#a78bfa", // light violet
   "Comunicações":            "#0ea5e9", // sky
-  "Outros":                  "#7a6a4a", // muted
+  "Outros":                  "#a09068", // muted gold (legible on dark bg)
 };
 
 const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -293,16 +293,27 @@ function EvolutionChart({ data }: { data: { month: string; invested: number; val
       </svg>
       {hov !== null && (
         <Tooltip x={pos.x} y={Math.max(pos.y, 4)}>
-          <p style={{ fontSize: "11px", fontWeight: 700, color: "#C9A84C", fontFamily: "var(--font-sans)", marginBottom: "8px" }}>
-            {data[hov].month}
-          </p>
+          <div style={{ display: "flex", alignItems: "center", gap: "7px", marginBottom: "8px" }}>
+            <div style={{ width: "10px", height: "10px", borderRadius: "3px", background: "#22c55e" }} />
+            <span style={{ fontSize: "13px", fontWeight: 700, color: "#e8dcc0", fontFamily: "var(--font-sans)" }}>{data[hov].month}</span>
+          </div>
           <div style={{ display: "flex", justifyContent: "space-between", gap: "16px", marginBottom: "4px" }}>
             <span style={{ fontSize: "11px", color: "#a09068", fontFamily: "var(--font-sans)" }}>Investido</span>
-            <span style={{ fontSize: "12px", fontWeight: 700, color: "#22c55e", fontFamily: "var(--font-sans)" }}>{fmtK(data[hov].invested)}</span>
+            <span style={{ fontSize: "13px", fontWeight: 700, color: "#22c55e", fontFamily: "var(--font-sans)" }}>{fmt(data[hov].invested)}</span>
           </div>
-          <div style={{ display: "flex", justifyContent: "space-between", gap: "16px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: "16px", marginBottom: "4px" }}>
             <span style={{ fontSize: "11px", color: "#a09068", fontFamily: "var(--font-sans)" }}>Valor Est.</span>
-            <span style={{ fontSize: "12px", fontWeight: 700, color: "#4ade80", fontFamily: "var(--font-sans)" }}>{fmtK(data[hov].value)}</span>
+            <span style={{ fontSize: "13px", fontWeight: 700, color: "#C9A84C", fontFamily: "var(--font-sans)" }}>{fmt(data[hov].value)}</span>
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: "16px", paddingTop: "4px", borderTop: "1px solid rgba(255,255,255,0.06)", marginTop: "4px" }}>
+            <span style={{ fontSize: "11px", color: "#a09068", fontFamily: "var(--font-sans)" }}>Variação</span>
+            <span style={{
+              fontSize: "13px", fontWeight: 700,
+              color: data[hov].value - data[hov].invested >= 0 ? "#22c55e" : "#f87171",
+              fontFamily: "var(--font-sans)",
+            }}>
+              {data[hov].value - data[hov].invested >= 0 ? "+" : ""}{fmt(data[hov].value - data[hov].invested)}
+            </span>
           </div>
         </Tooltip>
       )}
@@ -704,6 +715,7 @@ export default function CarteiraContent({ userEmail }: Props) {
   const [brapiData, setBrapiData] = useState<Record<string, BrapiQuote>>({});
   const [loading, setLoading] = useState(true);
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
+  const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
   const [chartFilter, setChartFilter] = useState<"6m" | "12m" | "all">("6m");
   const [distView, setDistView] = useState<"ativo" | "setor" | "classe">("ativo");
 
@@ -1000,7 +1012,7 @@ export default function CarteiraContent({ userEmail }: Props) {
         value: fmt(totalGain),
         sub: `${totalGainPct >= 0 ? "+" : ""}${totalGainPct.toFixed(2)}%`,
         color: totalGain >= 0 ? "#22c55e" : "#f87171",
-        icon: DollarSign,
+        icon: totalGain >= 0 ? TrendingUp : TrendingDown,
       },
       {
         label: "Concentração da Carteira",
@@ -1216,32 +1228,81 @@ export default function CarteiraContent({ userEmail }: Props) {
               Gerencie seus investimentos
             </p>
           </div>
-          <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-            {[
-              { icon: Download,  label: "Exportar",  onClick: exportPortfolioCsv, disabled: false },
-              { icon: RefreshCw, label: "Atualizar", onClick: refreshPrices,      disabled: false },
-              { icon: Upload,    label: "Importar",  onClick: () => {},           disabled: true  },
-            ].map(({ icon: Icon, label, onClick, disabled }) => (
+          <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center" }}>
+            {/* Atualizar — primary secondary */}
+            <button
+              onClick={refreshPrices}
+              disabled={loading}
+              style={{
+                display: "flex", alignItems: "center", gap: "6px",
+                background: "#130f09", border: "1px solid #2a2010",
+                borderRadius: "8px", padding: "8px 14px",
+                color: "#9a8a6a",
+                fontSize: "12px", fontFamily: "var(--font-sans)",
+                cursor: loading ? "wait" : "pointer",
+                opacity: loading ? 0.7 : 1,
+              }}
+            >
+              <RefreshCw size={13} style={{ animation: loading ? "spin 1s linear infinite" : "none" }} />
+              {loading ? "Atualizando..." : "Atualizar"}
+            </button>
+
+            {/* •••  menu (Exportar / Importar) */}
+            <div
+              style={{ position: "relative" }}
+              onMouseLeave={() => setHeaderMenuOpen(false)}
+            >
               <button
-                key={label}
-                onClick={disabled ? undefined : onClick}
-                disabled={disabled}
-                title={disabled ? "Em breve — importação de extratos B3" : undefined}
+                onClick={() => setHeaderMenuOpen(o => !o)}
+                aria-label="Mais opções"
                 style={{
-                  display: "flex", alignItems: "center", gap: "6px",
+                  display: "flex", alignItems: "center", justifyContent: "center",
                   background: "#130f09", border: "1px solid #2a2010",
-                  borderRadius: "8px", padding: "8px 14px",
-                  color: disabled ? "#5a4a2a" : "#9a8a6a",
-                  fontSize: "12px", fontFamily: "var(--font-sans)",
-                  cursor: disabled ? "not-allowed" : "pointer",
-                  opacity: disabled ? 0.55 : 1,
-                }}>
-                <Icon size={13} /> {label}
-                {disabled && (
-                  <span style={{ fontSize: "9px", padding: "2px 5px", borderRadius: "4px", background: "rgba(201,168,76,0.1)", color: "#C9A84C", fontWeight: 600, marginLeft: "2px" }}>EM BREVE</span>
-                )}
+                  borderRadius: "8px", padding: "8px 10px",
+                  color: "#9a8a6a", cursor: "pointer", height: "33px",
+                }}
+              >
+                <MoreVertical size={14} />
               </button>
-            ))}
+              {headerMenuOpen && (
+                <div style={{
+                  position: "absolute", top: "calc(100% + 6px)", right: 0, zIndex: 40,
+                  background: "#1a1508", border: "1px solid #2a2010",
+                  borderRadius: "10px", padding: "6px", minWidth: "180px",
+                  boxShadow: "0 12px 32px rgba(0,0,0,0.7)",
+                }}>
+                  <button
+                    onClick={() => { setHeaderMenuOpen(false); exportPortfolioCsv(); }}
+                    style={{
+                      width: "100%", display: "flex", alignItems: "center", gap: "8px",
+                      background: "none", border: "none", borderRadius: "6px",
+                      padding: "9px 10px", cursor: "pointer",
+                      color: "#a09068", fontSize: "12px", fontFamily: "var(--font-sans)", textAlign: "left",
+                    }}
+                    onMouseEnter={e => (e.currentTarget.style.background = "rgba(201,168,76,0.08)")}
+                    onMouseLeave={e => (e.currentTarget.style.background = "none")}
+                  >
+                    <Download size={13} /> Exportar CSV
+                  </button>
+                  <button
+                    disabled
+                    title="Em breve — importação de extratos B3"
+                    style={{
+                      width: "100%", display: "flex", alignItems: "center", gap: "8px",
+                      background: "none", border: "none", borderRadius: "6px",
+                      padding: "9px 10px", cursor: "not-allowed",
+                      color: "#5a4a2a", fontSize: "12px", fontFamily: "var(--font-sans)", textAlign: "left",
+                      opacity: 0.7,
+                    }}
+                  >
+                    <Upload size={13} /> Importar
+                    <span style={{ marginLeft: "auto", fontSize: "9px", padding: "2px 5px", borderRadius: "4px", background: "rgba(201,168,76,0.1)", color: "#C9A84C", fontWeight: 600 }}>EM BREVE</span>
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Adicionar Ativo — primary CTA */}
             <button
               onClick={() => { setAssetForm({ name: "", type: "acoes", quantity: "", purchase_price: "", current_price: "", rf_indexer: "CDI", rf_rate: "", rf_amount: "", rf_maturity: "" }); setFormError(""); setModal("asset"); }}
               style={{
@@ -1288,7 +1349,7 @@ export default function CarteiraContent({ userEmail }: Props) {
             <div style={{ ...card, marginBottom: "20px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
                 <div>
-                  <p style={{ fontSize: "14px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-sans)", marginBottom: "3px" }}>Evolução do Patrimônio</p>
+                  <p style={{ fontSize: "15px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-display)", marginBottom: "3px" }}>Evolução do Patrimônio</p>
                   <p style={{ fontSize: "11px", color: "#7a6a4a", fontFamily: "var(--font-sans)" }}>Valor investido vs. valor estimado atual</p>
                 </div>
                 <div style={{ display: "flex", gap: "4px" }}>
@@ -1318,10 +1379,9 @@ export default function CarteiraContent({ userEmail }: Props) {
 
             {/* ── KPIs ── */}
             <div style={{ ...card, marginBottom: "20px" }}>
-              <p style={{ fontSize: "14px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-sans)", marginBottom: "16px" }}>KPIs Financeiros</p>
+              <p style={{ fontSize: "15px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-display)", marginBottom: "16px" }}>KPIs Financeiros</p>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "12px" }}>
-                {kpis.map(({ label, value, sub, color, icon: Icon, trend }) => {
-                  const trendUp = trend != null && trend.value >= 0;
+                {kpis.map(({ label, value, sub, color, icon: Icon }) => {
                   return (
                     <div key={label} style={{
                       position: "relative",
@@ -1331,20 +1391,6 @@ export default function CarteiraContent({ userEmail }: Props) {
                       padding: "14px 16px",
                       minHeight: "108px",
                     }}>
-                      {/* Trend pill — top right */}
-                      {trend && (
-                        <span style={{
-                          position: "absolute", top: "12px", right: "12px",
-                          display: "inline-flex", alignItems: "center", gap: "3px",
-                          fontSize: "10px", fontWeight: 600,
-                          color: trendUp ? "#22c55e" : "#f87171",
-                          fontFamily: "var(--font-sans)",
-                        }}>
-                          {trendUp ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
-                          {trendUp ? "+" : ""}{trend.value.toFixed(1)}{trend.suffix ?? ""}
-                        </span>
-                      )}
-
                       {/* Icon badge */}
                       <div style={{
                         width: "28px", height: "28px", borderRadius: "7px",
@@ -1390,7 +1436,7 @@ export default function CarteiraContent({ userEmail }: Props) {
                     <PieChart size={15} style={{ color: "#f59e0b" }} />
                   </div>
                   <div>
-                    <p style={{ fontSize: "14px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-sans)", marginBottom: "2px" }}>Distribuição por Ativo</p>
+                    <p style={{ fontSize: "15px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-display)", marginBottom: "2px" }}>Distribuição por Ativo</p>
                     <p style={{ fontSize: "11px", color: "#7a6a4a", fontFamily: "var(--font-sans)" }}>Percentual do valor total da carteira</p>
                   </div>
                 </div>
@@ -1593,7 +1639,7 @@ export default function CarteiraContent({ userEmail }: Props) {
             <div style={{ ...card, marginBottom: "24px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "18px" }}>
                 <div>
-                  <p style={{ fontSize: "14px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-sans)", marginBottom: "2px" }}>
+                  <p style={{ fontSize: "15px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-display)", marginBottom: "2px" }}>
                     Histórico de Transações
                   </p>
                   <p style={{ fontSize: "11px", color: "#7a6a4a", fontFamily: "var(--font-sans)" }}>
@@ -1608,9 +1654,23 @@ export default function CarteiraContent({ userEmail }: Props) {
               </div>
 
               {transactions.length === 0 ? (
-                <p style={{ fontSize: "13px", color: "#7a6a4a", fontFamily: "var(--font-sans)", textAlign: "center", padding: "24px 0" }}>
-                  Nenhuma transação registrada
-                </p>
+                <div style={{ textAlign: "center", padding: "32px 0 24px" }}>
+                  <p style={{ fontSize: "13px", color: "#7a6a4a", fontFamily: "var(--font-sans)", marginBottom: "14px" }}>
+                    Nenhuma transação registrada
+                  </p>
+                  <button
+                    onClick={() => { setTxForm({ ticker: "", type: "compra", quantity: "", price: "", transaction_date: now.toISOString().split("T")[0], notes: "" }); setFormError(""); setModal("tx"); }}
+                    style={{
+                      display: "inline-flex", alignItems: "center", gap: "6px",
+                      background: "rgba(201,168,76,0.1)", border: "1px solid rgba(201,168,76,0.2)",
+                      borderRadius: "8px", padding: "8px 16px",
+                      color: "#C9A84C", fontSize: "12px", fontWeight: 600,
+                      fontFamily: "var(--font-sans)", cursor: "pointer",
+                    }}
+                  >
+                    <Plus size={12} /> Registrar primeira transação
+                  </button>
+                </div>
               ) : (
                 <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
                   {transactions.slice(0, 12).map(t => {
@@ -1735,7 +1795,7 @@ export default function CarteiraContent({ userEmail }: Props) {
                     <Brain size={16} style={{ color: "#8b5cf6" }} />
                   </div>
                   <div>
-                    <p style={{ fontSize: "14px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-sans)", marginBottom: "2px" }}>Otimização IA</p>
+                    <p style={{ fontSize: "15px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-display)", marginBottom: "2px" }}>Otimização IA</p>
                     <p style={{ fontSize: "11px", color: "#7a6a4a", fontFamily: "var(--font-sans)" }}>Recomendações personalizadas para sua carteira</p>
                   </div>
                 </div>
@@ -1764,7 +1824,7 @@ export default function CarteiraContent({ userEmail }: Props) {
                   {insights.map(insight => (
                     <div key={insight.id} style={{ background: "rgba(139,92,246,0.06)", border: "1px solid rgba(139,92,246,0.12)", borderRadius: "10px", padding: "16px 20px" }}>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "8px" }}>
-                        <p style={{ fontSize: "13px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-sans)" }}>{insight.title}</p>
+                        <p style={{ fontSize: "14px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-display)" }}>{insight.title}</p>
                         {insight.confidence_score && (
                           <span style={{ fontSize: "10px", color: "#8b5cf6", fontFamily: "var(--font-sans)", background: "rgba(139,92,246,0.1)", padding: "2px 8px", borderRadius: "4px" }}>
                             {(Number(insight.confidence_score) * 100).toFixed(0)}% confiança

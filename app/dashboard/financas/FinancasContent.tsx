@@ -1006,13 +1006,21 @@ export default function FinancasContent({ userEmail }: Props) {
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "12px", marginBottom: "24px" }}>
                   <SummaryCard icon={TrendingUp}   label="Entradas"   value={fmt(income)}  color="#22c55e" bg="rgba(34,197,94,0.06)"   border="rgba(34,197,94,0.15)"   sub={`${transactions.filter(t => t.type === "entrada").length} transações`} />
                   <SummaryCard icon={TrendingDown}  label="Saídas"     value={fmt(expense)} color="#f87171" bg="rgba(248,113,113,0.06)" border="rgba(248,113,113,0.15)" sub={income > 0 ? `${((expense / income) * 100).toFixed(0)}% das entradas` : `${transactions.filter(t => t.type === "saida").length} transações`} />
-                  <SummaryCard icon={Wallet}        label="Saldo Livre" value={fmt(balance)} color="#8b5cf6" bg="rgba(139,92,246,0.06)"  border="rgba(139,92,246,0.15)"  sub="disponível para investir" />
+                  <SummaryCard
+                    icon={Wallet}
+                    label="Saldo Livre"
+                    value={fmt(balance)}
+                    color={balance >= 0 ? "#8b5cf6" : "#f87171"}
+                    bg={balance >= 0 ? "rgba(139,92,246,0.06)" : "rgba(248,113,113,0.06)"}
+                    border={balance >= 0 ? "rgba(139,92,246,0.15)" : "rgba(248,113,113,0.15)"}
+                    sub={balance > 0 ? "disponível para investir" : balance < 0 ? "déficit no mês" : "no equilíbrio"}
+                  />
                 </div>
 
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px", marginBottom: "20px" }}>
                   {/* Category chart */}
                   <div style={{ background: "#130f09", border: "1px solid rgba(201,168,76,0.08)", borderRadius: "12px", padding: "22px 24px" }}>
-                    <p style={{ fontSize: "13px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-sans)", marginBottom: "4px" }}>Gastos por Categoria</p>
+                    <p style={{ fontSize: "14px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-display)", marginBottom: "4px" }}>Gastos por Categoria</p>
                     <p style={{ fontSize: "11px", color: "#7a6a4a", fontFamily: "var(--font-sans)", marginBottom: "18px" }}>Distribuição mensal</p>
                     {byCategory.length === 0 ? (
                       <p style={{ fontSize: "13px", color: "#7a6a4a", fontFamily: "var(--font-sans)", textAlign: "center", padding: "24px 0" }}>Sem despesas este mês</p>
@@ -1035,7 +1043,7 @@ export default function FinancasContent({ userEmail }: Props) {
 
                   {/* Recent transactions */}
                   <div style={{ background: "#130f09", border: "1px solid rgba(201,168,76,0.08)", borderRadius: "12px", padding: "22px 24px" }}>
-                    <p style={{ fontSize: "13px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-sans)", marginBottom: "18px" }}>Movimentações Recentes</p>
+                    <p style={{ fontSize: "14px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-display)", marginBottom: "18px" }}>Movimentações Recentes</p>
                     {transactions.length === 0 ? (
                       <p style={{ fontSize: "13px", color: "#7a6a4a", fontFamily: "var(--font-sans)", textAlign: "center", padding: "24px 0" }}>Nenhuma transação este mês</p>
                     ) : (
@@ -1051,7 +1059,7 @@ export default function FinancasContent({ userEmail }: Props) {
                 {/* Full table */}
                 {transactions.length > 0 && (
                   <div style={{ background: "#130f09", border: "1px solid rgba(201,168,76,0.08)", borderRadius: "12px", padding: "22px 24px" }}>
-                    <p style={{ fontSize: "13px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-sans)", marginBottom: "18px" }}>
+                    <p style={{ fontSize: "14px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-display)", marginBottom: "18px" }}>
                       Transações — {MONTHS_PT[now.getMonth()]} {now.getFullYear()}
                     </p>
                     <table style={{ width: "100%", borderCollapse: "collapse" }}>
@@ -1064,7 +1072,7 @@ export default function FinancasContent({ userEmail }: Props) {
                       </thead>
                       <tbody>
                         {transactions.map(t => (
-                          <tr key={t.id} style={{ borderTop: "1px solid rgba(255,255,255,0.03)" }}>
+                          <tr key={t.id} className="aurum-zebra-row" style={{ borderTop: "1px solid rgba(255,255,255,0.03)", transition: "background 0.12s" }}>
                             <td style={{ padding: "10px 0", fontSize: "12px", color: "#9a8a6a", fontFamily: "var(--font-sans)" }}>
                               {new Date(t.transaction_date + "T12:00:00").toLocaleDateString("pt-BR")}
                             </td>
@@ -1098,7 +1106,7 @@ export default function FinancasContent({ userEmail }: Props) {
                 {/* Period selector */}
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px", gap: "12px", flexWrap: "wrap" }}>
                   <div>
-                    <p style={{ fontSize: "13px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-sans)", marginBottom: "2px" }}>
+                    <p style={{ fontSize: "14px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-display)", marginBottom: "2px" }}>
                       Período do relatório
                     </p>
                     <p style={{ fontSize: "11px", color: "#7a6a4a", fontFamily: "var(--font-sans)" }}>
@@ -1141,14 +1149,22 @@ export default function FinancasContent({ userEmail }: Props) {
                 {/* Top summary cards */}
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "12px", marginBottom: "20px" }}>
                   {[
-                    { label: "Entradas",       value: fmt(reportIncome),  color: "#22c55e", sub: `${reportTx.filter(t => t.type === "entrada").length} transações` },
-                    { label: "Gastos",         value: fmt(reportExpense), color: "#f87171", sub: `Média ${fmt(reportExpense / reportMonthsCount)}/mês` },
-                    { label: "Saldo",          value: fmt(reportBalance), color: reportBalance >= 0 ? "#8b5cf6" : "#f87171", sub: "Entradas − Gastos" },
-                    { label: "Taxa de Poupança", value: reportIncome > 0 ? `${((reportBalance / reportIncome) * 100).toFixed(1)}%` : "—", color: "#C9A84C", sub: "% economizado" },
-                  ].map(({ label, value, color, sub }) => (
+                    { label: "Entradas",         value: fmt(reportIncome),  color: "#22c55e", icon: TrendingUp,   sub: `${reportTx.filter(t => t.type === "entrada").length} transações` },
+                    { label: "Gastos",           value: fmt(reportExpense), color: "#f87171", icon: TrendingDown, sub: `Média ${fmt(reportExpense / reportMonthsCount)}/mês` },
+                    { label: "Saldo",            value: fmt(reportBalance), color: reportBalance >= 0 ? "#8b5cf6" : "#f87171", icon: Wallet, sub: "Entradas − Gastos" },
+                    { label: "Taxa de Poupança", value: reportIncome > 0 ? `${((reportBalance / reportIncome) * 100).toFixed(1)}%` : "—", color: "#C9A84C", icon: Target, sub: "% economizado" },
+                  ].map(({ label, value, color, icon: Icon, sub }) => (
                     <div key={label} style={{ background: "#130f09", border: `1px solid ${color}22`, borderRadius: "10px", padding: "16px 18px" }}>
-                      <p style={{ fontSize: "11px", color: "#a09068", fontFamily: "var(--font-sans)", marginBottom: "8px" }}>{label}</p>
-                      <p style={{ fontSize: "18px", fontWeight: 700, color, fontFamily: "var(--font-sans)", lineHeight: 1, marginBottom: "6px" }}>{value}</p>
+                      <div style={{
+                        width: "28px", height: "28px", borderRadius: "7px",
+                        background: `${color}1f`,
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        marginBottom: "10px",
+                      }}>
+                        <Icon size={14} style={{ color }} />
+                      </div>
+                      <p style={{ fontSize: "10px", color: "#857560", fontFamily: "var(--font-sans)", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: "6px" }}>{label}</p>
+                      <p style={{ fontSize: "18px", fontWeight: 700, color, fontFamily: "var(--font-sans)", lineHeight: 1, marginBottom: "4px" }}>{value}</p>
                       <p style={{ fontSize: "10px", color: "#7a6a4a", fontFamily: "var(--font-sans)" }}>{sub}</p>
                     </div>
                   ))}
@@ -1171,14 +1187,14 @@ export default function FinancasContent({ userEmail }: Props) {
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px", marginBottom: "20px" }}>
                   {/* Bar chart */}
                   <div style={{ background: "#130f09", border: "1px solid rgba(201,168,76,0.08)", borderRadius: "12px", padding: "20px 24px" }}>
-                    <p style={{ fontSize: "13px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-sans)", marginBottom: "4px" }}>Gastos por Categoria</p>
+                    <p style={{ fontSize: "14px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-display)", marginBottom: "4px" }}>Gastos por Categoria</p>
                     <p style={{ fontSize: "11px", color: "#7a6a4a", fontFamily: "var(--font-sans)", marginBottom: "16px" }}>{reportPeriodLabel}</p>
                     <BarChartSVG data={reportByCategory} />
                   </div>
 
                   {/* Line chart */}
                   <div style={{ background: "#130f09", border: "1px solid rgba(201,168,76,0.08)", borderRadius: "12px", padding: "20px 24px" }}>
-                    <p style={{ fontSize: "13px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-sans)", marginBottom: "4px" }}>Evolução de Gastos</p>
+                    <p style={{ fontSize: "14px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-display)", marginBottom: "4px" }}>Evolução de Gastos</p>
                     <p style={{ fontSize: "11px", color: "#7a6a4a", fontFamily: "var(--font-sans)", marginBottom: "16px" }}>{reportPeriodLabel}</p>
                     <LineChartSVG data={reportTrend} />
                     <div style={{ display: "flex", gap: "16px", marginTop: "8px" }}>
@@ -1194,14 +1210,14 @@ export default function FinancasContent({ userEmail }: Props) {
 
                 {/* Donut chart */}
                 <div style={{ background: "#130f09", border: "1px solid rgba(201,168,76,0.08)", borderRadius: "12px", padding: "20px 24px", marginBottom: "20px" }}>
-                  <p style={{ fontSize: "13px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-sans)", marginBottom: "4px" }}>Distribuição</p>
+                  <p style={{ fontSize: "14px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-display)", marginBottom: "4px" }}>Distribuição</p>
                   <p style={{ fontSize: "11px", color: "#7a6a4a", fontFamily: "var(--font-sans)", marginBottom: "20px" }}>% de cada categoria nas despesas — {reportPeriodLabel}</p>
                   <DonutChartSVG data={reportByCategory} total={reportExpense} />
                 </div>
 
                 {/* All transactions table */}
                 <div style={{ background: "#130f09", border: "1px solid rgba(201,168,76,0.08)", borderRadius: "12px", padding: "20px 24px" }}>
-                  <p style={{ fontSize: "13px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-sans)", marginBottom: "18px" }}>
+                  <p style={{ fontSize: "14px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-display)", marginBottom: "18px" }}>
                     Todas as transações
                     <span style={{ marginLeft: "8px", fontSize: "11px", color: "#857560", fontWeight: 400 }}>· {reportPeriodLabel}</span>
                     {selectedCategory !== "all" && (
@@ -1221,7 +1237,7 @@ export default function FinancasContent({ userEmail }: Props) {
                       </thead>
                       <tbody>
                         {reportFiltered.map(t => (
-                          <tr key={t.id} style={{ borderTop: "1px solid rgba(255,255,255,0.03)" }}>
+                          <tr key={t.id} className="aurum-zebra-row" style={{ borderTop: "1px solid rgba(255,255,255,0.03)", transition: "background 0.12s" }}>
                             <td style={{ padding: "10px 0", fontSize: "12px", color: "#9a8a6a", fontFamily: "var(--font-sans)", whiteSpace: "nowrap" }}>
                               {new Date(t.transaction_date + "T12:00:00").toLocaleDateString("pt-BR")}
                             </td>
@@ -1253,7 +1269,7 @@ export default function FinancasContent({ userEmail }: Props) {
                 <section style={{ marginBottom: "32px" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
                     <div>
-                      <p style={{ fontSize: "13px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-sans)", marginBottom: "2px" }}>Orçamentos do Mês</p>
+                      <p style={{ fontSize: "14px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-display)", marginBottom: "2px" }}>Orçamentos do Mês</p>
                       <p style={{ fontSize: "11px", color: "#7a6a4a", fontFamily: "var(--font-sans)" }}>Limites por categoria — {MONTHS_PT[now.getMonth()]}</p>
                     </div>
                     <button
@@ -1280,7 +1296,7 @@ export default function FinancasContent({ userEmail }: Props) {
                         return (
                           <div key={b.id} style={{ background: "#130f09", border: `1px solid ${over ? "rgba(248,113,113,0.2)" : "rgba(201,168,76,0.08)"}`, borderRadius: "10px", padding: "18px 20px" }}>
                             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "10px" }}>
-                              <span style={{ fontSize: "13px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-sans)" }}>{b.category}</span>
+                              <span style={{ fontSize: "14px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-display)" }}>{b.category}</span>
                               <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
                                 {over && <AlertCircle size={13} style={{ color: "#f87171" }} />}
                                 <button onClick={() => deleteBudget(b.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "#7a6a4a", padding: 0 }}>
@@ -1307,7 +1323,7 @@ export default function FinancasContent({ userEmail }: Props) {
                 <section>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
                     <div>
-                      <p style={{ fontSize: "13px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-sans)", marginBottom: "2px" }}>Metas Financeiras</p>
+                      <p style={{ fontSize: "14px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-display)", marginBottom: "2px" }}>Metas Financeiras</p>
                       <p style={{ fontSize: "11px", color: "#7a6a4a", fontFamily: "var(--font-sans)" }}>Objetivos de médio e longo prazo</p>
                     </div>
                     <button
@@ -1332,7 +1348,7 @@ export default function FinancasContent({ userEmail }: Props) {
                           <div key={g.id} style={{ background: "#130f09", border: "1px solid rgba(139,92,246,0.12)", borderRadius: "12px", padding: "20px 24px" }}>
                             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "12px" }}>
                               <div>
-                                <p style={{ fontSize: "14px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-sans)", marginBottom: "3px" }}>{g.title}</p>
+                                <p style={{ fontSize: "15px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-display)", marginBottom: "3px" }}>{g.title}</p>
                                 <p style={{ fontSize: "11px", color: "#a09068", fontFamily: "var(--font-sans)" }}>
                                   {g.category} · {daysLeft > 0 ? `${daysLeft} dias restantes` : "Prazo encerrado"}
                                 </p>
@@ -1392,7 +1408,7 @@ export default function FinancasContent({ userEmail }: Props) {
                   {/* Calendar grid */}
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: "2px" }}>
                     {Array.from({ length: firstDayOfWeek }).map((_, i) => (
-                      <div key={`e${i}`} style={{ height: "56px" }} />
+                      <div key={`e${i}`} style={{ height: "62px" }} />
                     ))}
                     {Array.from({ length: daysInMonth }).map((_, i) => {
                       const day = i + 1;
@@ -1403,19 +1419,49 @@ export default function FinancasContent({ userEmail }: Props) {
                         <div
                           key={day}
                           style={{
-                            height: "56px", borderRadius: "6px", padding: "4px 6px",
+                            height: "62px", borderRadius: "6px", padding: "4px 6px",
                             background: isToday ? "rgba(201,168,76,0.1)" : "rgba(255,255,255,0.01)",
                             border: `1px solid ${isToday ? "rgba(201,168,76,0.3)" : "rgba(255,255,255,0.03)"}`,
                           }}
                         >
-                          <span style={{ fontSize: "11px", color: isToday ? "#C9A84C" : "#a09068", fontFamily: "var(--font-sans)", fontWeight: isToday ? 700 : 400 }}>{day}</span>
-                          <div style={{ display: "flex", flexDirection: "column", gap: "1px", marginTop: "2px" }}>
-                            {dayEvts.slice(0, 2).map(e => (
-                              <div key={e.id} style={{ fontSize: "9px", color: "#0d0b07", background: EVENT_TYPE_COLORS[e.event_type] ?? "#C9A84C", borderRadius: "3px", padding: "1px 3px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontFamily: "var(--font-sans)" }}>
-                                {e.title}
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                            <span style={{ fontSize: "11px", color: isToday ? "#C9A84C" : "#a09068", fontFamily: "var(--font-sans)", fontWeight: isToday ? 700 : 400 }}>{day}</span>
+                            {dayEvts.length > 0 && (
+                              <div style={{ display: "flex", gap: "2px" }}>
+                                {Array.from(new Set(dayEvts.map(e => e.event_type))).slice(0, 3).map(t => (
+                                  <span
+                                    key={t}
+                                    title={t.charAt(0).toUpperCase() + t.slice(1)}
+                                    style={{ width: "5px", height: "5px", borderRadius: "50%", background: EVENT_TYPE_COLORS[t] ?? "#C9A84C" }}
+                                  />
+                                ))}
                               </div>
-                            ))}
-                            {dayEvts.length > 2 && <span style={{ fontSize: "9px", color: "#a09068" }}>+{dayEvts.length - 2}</span>}
+                            )}
+                          </div>
+                          <div style={{ display: "flex", flexDirection: "column", gap: "2px", marginTop: "3px" }}>
+                            {dayEvts.slice(0, 2).map(e => {
+                              const c = EVENT_TYPE_COLORS[e.event_type] ?? "#C9A84C";
+                              return (
+                                <div
+                                  key={e.id}
+                                  title={`${e.event_type.charAt(0).toUpperCase() + e.event_type.slice(1)} · ${e.title}`}
+                                  style={{
+                                    display: "flex", alignItems: "center", gap: "3px",
+                                    fontSize: "9px",
+                                    color: c,
+                                    background: `${c}1f`,
+                                    borderLeft: `2px solid ${c}`,
+                                    borderRadius: "3px",
+                                    padding: "1px 4px",
+                                    overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                                    fontFamily: "var(--font-sans)",
+                                  }}
+                                >
+                                  {e.title}
+                                </div>
+                              );
+                            })}
+                            {dayEvts.length > 2 && <span style={{ fontSize: "9px", color: "#a09068", fontFamily: "var(--font-sans)" }}>+{dayEvts.length - 2}</span>}
                           </div>
                         </div>
                       );
@@ -1426,7 +1472,7 @@ export default function FinancasContent({ userEmail }: Props) {
                 {/* Upcoming events list */}
                 <div style={{ background: "#130f09", border: "1px solid rgba(201,168,76,0.08)", borderRadius: "12px", padding: "24px" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "18px" }}>
-                    <p style={{ fontSize: "13px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-sans)" }}>Próximos Eventos</p>
+                    <p style={{ fontSize: "14px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-display)" }}>Próximos Eventos</p>
                     <button
                       onClick={() => { setEventForm({ title: "", event_type: "vencimento", event_date: now.toISOString().split("T")[0], amount: "", description: "", is_recurring: false, category: "" }); setFormError(""); setModal("event"); }}
                       style={{ display: "flex", alignItems: "center", gap: "6px", background: "rgba(6,182,212,0.1)", border: "1px solid rgba(6,182,212,0.2)", borderRadius: "8px", padding: "7px 14px", color: "#06b6d4", fontSize: "12px", fontWeight: 600, fontFamily: "var(--font-sans)", cursor: "pointer" }}

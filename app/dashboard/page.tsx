@@ -76,5 +76,30 @@ export default async function DashboardPage() {
 
   const marketData = await getMarketData();
 
-  return <HomeContent firstName={firstName} marketData={marketData} />;
+  // Quick stats for shortcut cards
+  const userEmail = user.email ?? "";
+  const today  = new Date();
+  const firstDay = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split("T")[0];
+  const lastDay  = new Date(today.getFullYear(), today.getMonth() + 1, 0).toISOString().split("T")[0];
+
+  const [assetsRes, txRes] = await Promise.all([
+    supabase.from("asset").select("id", { count: "exact", head: true }).eq("user_email", userEmail),
+    supabase.from("finance_transaction").select("type, amount").eq("user_email", userEmail).gte("transaction_date", firstDay).lte("transaction_date", lastDay),
+  ]);
+
+  const assetCount = assetsRes.count ?? 0;
+  let monthIncome = 0, monthExpense = 0;
+  for (const t of (txRes.data ?? []) as { type: string; amount: number }[]) {
+    if (t.type === "entrada") monthIncome += Number(t.amount);
+    else                      monthExpense += Number(t.amount);
+  }
+  const monthBalance = monthIncome - monthExpense;
+
+  return (
+    <HomeContent
+      firstName={firstName}
+      marketData={marketData}
+      quickStats={{ assetCount, monthBalance }}
+    />
+  );
 }
