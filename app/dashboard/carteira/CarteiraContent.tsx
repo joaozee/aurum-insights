@@ -569,20 +569,33 @@ function DonutChart({ data, totalCount, unitLabel }: { data: DistRow[]; totalCou
   );
 }
 
-// ─── Ticker Search with Brapi autocomplete ────────────────────────────────────
+// ─── Ticker Search with Brapi autocomplete (per-kind via server proxy) ────────
+
+type SearchKind = "stock" | "fund" | "crypto";
+
+interface SearchHit {
+  symbol: string;
+  name: string;
+  price: number | null;
+  change: number | null;
+  kind: SearchKind;
+  logo?: string;
+}
 
 function TickerSearch({
   value,
   onChange,
   onSelect,
   placeholder = "Digite o ticker...",
+  kind = "stock",
 }: {
   value: string;
   onChange: (v: string) => void;
   onSelect: (ticker: string, price: number, name: string) => void;
   placeholder?: string;
+  kind?: SearchKind;
 }) {
-  const [results, setResults] = useState<BrapiStock[]>([]);
+  const [results, setResults] = useState<SearchHit[]>([]);
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -596,18 +609,21 @@ function TickerSearch({
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
+  // Reset results when kind changes (avoid stale ações listings under FII tab, etc.)
+  useEffect(() => {
+    setResults([]);
+    setOpen(false);
+  }, [kind]);
+
   const search = async (q: string) => {
     if (q.length < 2) { setResults([]); setOpen(false); return; }
     setLoading(true);
     try {
-      // Fetch wider list, then drop B3 fractional tickers (suffix "F")
-      const res = await fetch(`https://brapi.dev/api/quote/list?search=${encodeURIComponent(q)}&limit=24`);
+      const res = await fetch(`/api/brapi-search?kind=${kind}&q=${encodeURIComponent(q)}`, { cache: "no-store" });
       const json = await res.json();
-      const stocks = ((json.stocks ?? []) as BrapiStock[])
-        .filter(s => !/F$/.test(s.stock))
-        .slice(0, 8);
-      setResults(stocks);
-      setOpen(stocks.length > 0);
+      const hits = (json.results ?? []) as SearchHit[];
+      setResults(hits);
+      setOpen(hits.length > 0);
     } catch {
       setResults([]);
     } finally {
@@ -622,11 +638,11 @@ function TickerSearch({
     timerRef.current = setTimeout(() => search(v), 300);
   };
 
-  const handleSelect = (s: BrapiStock) => {
-    onChange(s.stock);
+  const handleSelect = (hit: SearchHit) => {
+    onChange(hit.symbol);
     setOpen(false);
     setResults([]);
-    onSelect(s.stock, s.close ?? 0, s.name ?? "");
+    onSelect(hit.symbol, hit.price ?? 0, hit.name);
   };
 
   return (
@@ -655,10 +671,10 @@ function TickerSearch({
           zIndex: 300, boxShadow: "0 12px 32px rgba(0,0,0,0.8)", overflow: "hidden",
           maxHeight: "280px", overflowY: "auto",
         }}>
-          {results.map((s) => (
+          {results.map((hit) => (
             <button
-              key={s.stock}
-              onMouseDown={e => { e.preventDefault(); handleSelect(s); }}
+              key={hit.symbol}
+              onMouseDown={e => { e.preventDefault(); handleSelect(hit); }}
               style={{
                 width: "100%", background: "none", border: "none", cursor: "pointer",
                 padding: "10px 14px", display: "flex", alignItems: "center", gap: "10px",
@@ -669,39 +685,41 @@ function TickerSearch({
             >
               <div style={{
                 width: "34px", height: "34px", borderRadius: "8px",
-                background: `${tickerColor(s.stock)}20`,
+                background: `${tickerColor(hit.symbol)}20`,
                 display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
                 overflow: "hidden",
               }}>
-                <img
-                  src={`https://icons.brapi.dev/icons/${s.stock}.svg`}
-                  alt={s.stock}
-                  style={{ width: "34px", height: "34px", objectFit: "cover", borderRadius: "8px" }}
-                  onError={e => {
-                    (e.currentTarget as HTMLImageElement).style.display = "none";
-                    (e.currentTarget.nextSibling as HTMLElement).style.display = "flex";
-                  }}
-                />
+                {hit.logo ? (
+                  <img
+                    src={hit.logo}
+                    alt={hit.symbol}
+                    style={{ width: "34px", height: "34px", objectFit: "cover", borderRadius: "8px" }}
+                    onError={e => {
+                      (e.currentTarget as HTMLImageElement).style.display = "none";
+                      (e.currentTarget.nextSibling as HTMLElement).style.display = "flex";
+                    }}
+                  />
+                ) : null}
                 <span style={{
-                  fontSize: "11px", fontWeight: 700, color: tickerColor(s.stock),
-                  fontFamily: "var(--font-sans)", display: "none",
+                  fontSize: "11px", fontWeight: 700, color: tickerColor(hit.symbol),
+                  fontFamily: "var(--font-sans)", display: hit.logo ? "none" : "flex",
                   alignItems: "center", justifyContent: "center", width: "100%", height: "100%",
                 }}>
-                  {s.stock.slice(0, 2)}
+                  {hit.symbol.slice(0, 2)}
                 </span>
               </div>
               <div style={{ flex: 1, textAlign: "left", minWidth: 0 }}>
-                <p style={{ fontSize: "13px", fontWeight: 700, color: "#e8dcc0", fontFamily: "var(--font-sans)", marginBottom: "2px" }}>{s.stock}</p>
-                <p style={{ fontSize: "11px", color: "#7a6a4a", fontFamily: "var(--font-sans)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.name}</p>
+                <p style={{ fontSize: "13px", fontWeight: 700, color: "#e8dcc0", fontFamily: "var(--font-sans)", marginBottom: "2px" }}>{hit.symbol}</p>
+                <p style={{ fontSize: "11px", color: "#7a6a4a", fontFamily: "var(--font-sans)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{hit.name}</p>
               </div>
-              {s.close != null && s.close > 0 && (
+              {hit.price != null && hit.price > 0 && (
                 <div style={{ textAlign: "right", flexShrink: 0 }}>
                   <p style={{ fontSize: "13px", fontWeight: 700, color: "#C9A84C", fontFamily: "var(--font-sans)" }}>
-                    {s.close.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                    {hit.price.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
                   </p>
-                  {s.change != null && (
-                    <p style={{ fontSize: "10px", color: s.change >= 0 ? "#22c55e" : "#f87171", fontFamily: "var(--font-sans)" }}>
-                      {s.change >= 0 ? "+" : ""}{Number(s.change).toFixed(2)}%
+                  {hit.change != null && (
+                    <p style={{ fontSize: "10px", color: hit.change >= 0 ? "#22c55e" : "#f87171", fontFamily: "var(--font-sans)" }}>
+                      {hit.change >= 0 ? "+" : ""}{Number(hit.change).toFixed(2)}%
                     </p>
                   )}
                 </div>
@@ -1943,15 +1961,16 @@ export default function CarteiraContent({ userEmail }: Props) {
                 <>
                   <FormField label={assetForm.type === "fiis" ? "Ticker do FII (ex: HGLG11)" : "Ticker (ex: PETR4)"}>
                     <TickerSearch
+                      kind={assetForm.type === "fiis" ? "fund" : "stock"}
                       value={assetForm.name}
                       onChange={v => setAssetForm(p => ({ ...p, name: v }))}
                       onSelect={(ticker, price, _name) => {
-                        const autoType: AssetType = ticker.endsWith("11") ? "fiis" : "acoes";
+                        // Don't auto-flip type — user picked the tab on purpose;
+                        // the proxy already filters by kind.
                         setAssetForm(p => ({
                           ...p,
                           name: ticker,
                           current_price: price > 0 ? price.toFixed(2) : p.current_price,
-                          type: autoType,
                         }));
                       }}
                       placeholder={assetForm.type === "fiis" ? "Digite HGLG, MXRF, KNRI..." : "Digite PETR, BBAS, ITUB..."}
@@ -2032,15 +2051,22 @@ export default function CarteiraContent({ userEmail }: Props) {
                 </>
               )}
 
-              {/* Cripto — symbol + qty + price */}
+              {/* Cripto — search by symbol + qty + price */}
               {assetForm.type === "cripto" && (
                 <>
-                  <FormField label="Símbolo (ex: BTC, ETH, SOL)">
-                    <input
+                  <FormField label="Cripto (ex: BTC, ETH, SOL)">
+                    <TickerSearch
+                      kind="crypto"
                       value={assetForm.name}
-                      onChange={e => setAssetForm(p => ({ ...p, name: e.target.value.toUpperCase() }))}
-                      style={inputStyle}
-                      placeholder="BTC"
+                      onChange={v => setAssetForm(p => ({ ...p, name: v }))}
+                      onSelect={(symbol, price, _name) => {
+                        setAssetForm(p => ({
+                          ...p,
+                          name: symbol,
+                          current_price: price > 0 ? price.toFixed(2) : p.current_price,
+                        }));
+                      }}
+                      placeholder="Digite BTC, ETH, SOL..."
                     />
                   </FormField>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
