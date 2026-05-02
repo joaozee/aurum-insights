@@ -1119,11 +1119,13 @@ export default function CarteiraContent({ userEmail }: Props) {
     if (!txForm.ticker || !txForm.quantity || !txForm.price) {
       setFormError("Preencha todos os campos obrigatórios."); return;
     }
+    const qty = parseFloat(txForm.quantity.replace(",", "."));
+    const price = parseFloat(txForm.price.replace(",", "."));
+    if (!(qty > 0))   { setFormError("Quantidade deve ser maior que zero.");  return; }
+    if (!(price > 0)) { setFormError("Preço deve ser maior que zero.");       return; }
     setSaving(true);
     const supabase = createClient();
-    const qty = parseFloat(txForm.quantity);
-    const price = parseFloat(txForm.price.replace(",", "."));
-    await supabase.from("transaction").insert({
+    const { error } = await supabase.from("transaction").insert({
       user_email: userEmail,
       ticker: txForm.ticker.toUpperCase().trim(),
       type: txForm.type,
@@ -1133,14 +1135,64 @@ export default function CarteiraContent({ userEmail }: Props) {
       transaction_date: txForm.transaction_date,
       notes: txForm.notes,
     });
+    if (error) { setFormError("Erro ao salvar transação."); setSaving(false); return; }
     setModal(null); setSaving(false); fetchData();
   }
 
   async function deleteAsset(id: string) {
     const supabase = createClient();
     await supabase.from("asset").delete().eq("id", id);
-    setAssets(prev => prev.filter(a => a.id !== id));
     setActiveMenu(null);
+    fetchData();
+  }
+
+  function exportPortfolioCsv() {
+    const lines: string[] = [];
+    lines.push("# Carteira");
+    lines.push("Ticker,Tipo,Quantidade,Preço Médio,Preço Atual,Valor Investido,Valor Atual,Ganho,Ganho %");
+    for (const a of effectiveAssets) {
+      const invested = Number(a.quantity) * Number(a.purchase_price);
+      const current  = Number(a.quantity) * a.live_price;
+      const gain     = current - invested;
+      const gainPct  = invested > 0 ? (gain / invested) * 100 : 0;
+      const cells = [
+        a.name,
+        ASSET_LABELS[a.type] ?? a.type,
+        a.quantity,
+        Number(a.purchase_price).toFixed(2).replace(".", ","),
+        a.live_price.toFixed(2).replace(".", ","),
+        invested.toFixed(2).replace(".", ","),
+        current.toFixed(2).replace(".", ","),
+        gain.toFixed(2).replace(".", ","),
+        `${gainPct.toFixed(2).replace(".", ",")}%`,
+      ];
+      lines.push(cells.map(v => `"${String(v).replace(/"/g, '""')}"`).join(","));
+    }
+    lines.push("");
+    lines.push("# Transações");
+    lines.push("Data,Ticker,Tipo,Quantidade,Preço,Total,Notas");
+    for (const t of transactions) {
+      const cells = [
+        t.transaction_date,
+        t.ticker,
+        t.type === "compra" ? "Compra" : "Venda",
+        t.quantity,
+        Number(t.price).toFixed(2).replace(".", ","),
+        Number(t.total_value ?? Number(t.quantity) * Number(t.price)).toFixed(2).replace(".", ","),
+        t.notes ?? "",
+      ];
+      lines.push(cells.map(v => `"${String(v).replace(/"/g, '""')}"`).join(","));
+    }
+    const csv = "﻿" + lines.join("\r\n"); // BOM for Excel
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url  = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `aurum-carteira-${new Date().toISOString().split("T")[0]}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   }
 
   // ── Render ─────────────────────────────────────────────────────────────────
@@ -1166,17 +1218,28 @@ export default function CarteiraContent({ userEmail }: Props) {
           </div>
           <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
             {[
-              { icon: Download, label: "Exportar", onClick: () => {} },
-              { icon: RefreshCw, label: "Atualizar", onClick: refreshPrices },
-              { icon: Upload, label: "Importar", onClick: () => {} },
-            ].map(({ icon: Icon, label, onClick }) => (
-              <button key={label} onClick={onClick} style={{
-                display: "flex", alignItems: "center", gap: "6px",
-                background: "#130f09", border: "1px solid #2a2010",
-                borderRadius: "8px", padding: "8px 14px", color: "#9a8a6a",
-                fontSize: "12px", fontFamily: "var(--font-sans)", cursor: "pointer",
-              }}>
+              { icon: Download,  label: "Exportar",  onClick: exportPortfolioCsv, disabled: false },
+              { icon: RefreshCw, label: "Atualizar", onClick: refreshPrices,      disabled: false },
+              { icon: Upload,    label: "Importar",  onClick: () => {},           disabled: true  },
+            ].map(({ icon: Icon, label, onClick, disabled }) => (
+              <button
+                key={label}
+                onClick={disabled ? undefined : onClick}
+                disabled={disabled}
+                title={disabled ? "Em breve — importação de extratos B3" : undefined}
+                style={{
+                  display: "flex", alignItems: "center", gap: "6px",
+                  background: "#130f09", border: "1px solid #2a2010",
+                  borderRadius: "8px", padding: "8px 14px",
+                  color: disabled ? "#5a4a2a" : "#9a8a6a",
+                  fontSize: "12px", fontFamily: "var(--font-sans)",
+                  cursor: disabled ? "not-allowed" : "pointer",
+                  opacity: disabled ? 0.55 : 1,
+                }}>
                 <Icon size={13} /> {label}
+                {disabled && (
+                  <span style={{ fontSize: "9px", padding: "2px 5px", borderRadius: "4px", background: "rgba(201,168,76,0.1)", color: "#C9A84C", fontWeight: 600, marginLeft: "2px" }}>EM BREVE</span>
+                )}
               </button>
             ))}
             <button

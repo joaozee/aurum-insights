@@ -829,35 +829,43 @@ export default function FinancasContent({ userEmail }: Props) {
       description: txForm.description, amount, transaction_date: txForm.date,
     });
     if (error) { setFormError("Erro ao salvar."); setSaving(false); return; }
-    setModal(null); setSaving(false); fetchData();
+    setModal(null); setSaving(false);
+    fetchData();
+    fetchReportData();
   }
 
   async function saveBudget() {
     if (!budgetForm.category || !budgetForm.monthly_limit) { setFormError("Preencha todos os campos."); return; }
+    const limit = parseFloat(budgetForm.monthly_limit.replace(",", "."));
+    if (!(limit > 0)) { setFormError("Limite mensal inválido."); return; }
     setSaving(true);
     const supabase = createClient();
-    await supabase.from("budget").insert({
+    const { error } = await supabase.from("budget").insert({
       user_email: userEmail, account_type: accountType,
       category: budgetForm.category,
-      monthly_limit: parseFloat(budgetForm.monthly_limit),
-      alert_threshold: parseFloat(budgetForm.alert_threshold),
+      monthly_limit: limit,
+      alert_threshold: parseFloat(budgetForm.alert_threshold) || 80,
       month: now.getMonth() + 1, year: now.getFullYear(),
     });
+    if (error) { setFormError("Erro ao salvar orçamento."); setSaving(false); return; }
     setModal(null); setSaving(false); fetchData();
   }
 
   async function saveGoal() {
     if (!goalForm.title || !goalForm.target_amount || !goalForm.target_date) { setFormError("Preencha os campos obrigatórios."); return; }
+    const target = parseFloat(goalForm.target_amount.replace(",", "."));
+    if (!(target > 0)) { setFormError("Valor da meta inválido."); return; }
     setSaving(true);
     const supabase = createClient();
-    await supabase.from("financial_goal").insert({
+    const { error } = await supabase.from("financial_goal").insert({
       user_email: userEmail, title: goalForm.title,
       category: goalForm.category, description: goalForm.description,
-      target_amount: parseFloat(goalForm.target_amount),
-      current_amount: parseFloat(goalForm.current_amount) || 0,
+      target_amount: target,
+      current_amount: parseFloat(goalForm.current_amount.replace(",", ".")) || 0,
       target_date: goalForm.target_date,
-      monthly_contribution: parseFloat(goalForm.monthly_contribution) || 0,
+      monthly_contribution: parseFloat(goalForm.monthly_contribution.replace(",", ".")) || 0,
     });
+    if (error) { setFormError("Erro ao salvar meta."); setSaving(false); return; }
     setModal(null); setSaving(false); fetchData();
   }
 
@@ -865,14 +873,15 @@ export default function FinancasContent({ userEmail }: Props) {
     if (!eventForm.title || !eventForm.event_date) { setFormError("Preencha título e data."); return; }
     setSaving(true);
     const supabase = createClient();
-    await supabase.from("financial_event").insert({
+    const { error } = await supabase.from("financial_event").insert({
       user_email: userEmail, account_type: accountType,
       title: eventForm.title, event_type: eventForm.event_type,
       event_date: eventForm.event_date,
-      amount: eventForm.amount ? parseFloat(eventForm.amount) : null,
+      amount: eventForm.amount ? parseFloat(eventForm.amount.replace(",", ".")) : null,
       description: eventForm.description,
       is_recurring: eventForm.is_recurring, category: eventForm.category,
     });
+    if (error) { setFormError("Erro ao salvar evento."); setSaving(false); return; }
     setModal(null); setSaving(false); fetchData();
   }
 
@@ -880,6 +889,7 @@ export default function FinancasContent({ userEmail }: Props) {
     const supabase = createClient();
     await supabase.from("finance_transaction").delete().eq("id", id);
     setTransactions(prev => prev.filter(t => t.id !== id));
+    setReportTx(prev => prev.filter(t => t.id !== id));
   }
 
   async function deleteGoal(id: string) {
@@ -946,8 +956,13 @@ export default function FinancasContent({ userEmail }: Props) {
           >
             <Plus size={14} /> Nova Transação
           </button>
-          <button style={{ display: "flex", alignItems: "center", gap: "6px", background: "#130f09", border: "1px solid #2a2010", borderRadius: "8px", padding: "9px 18px", color: "#9a8a6a", fontSize: "13px", fontFamily: "var(--font-sans)", cursor: "pointer" }}>
+          <button
+            disabled
+            title="Em breve — leitura automática de extratos PDF"
+            style={{ display: "flex", alignItems: "center", gap: "6px", background: "#130f09", border: "1px solid #2a2010", borderRadius: "8px", padding: "9px 18px", color: "#5a4a2a", fontSize: "13px", fontFamily: "var(--font-sans)", cursor: "not-allowed", opacity: 0.6 }}
+          >
             <FileText size={14} /> Importar PDF
+            <span style={{ fontSize: "9px", padding: "2px 6px", borderRadius: "4px", background: "rgba(201,168,76,0.1)", color: "#C9A84C", fontWeight: 600, marginLeft: "2px" }}>EM BREVE</span>
           </button>
         </div>
 
@@ -990,7 +1005,7 @@ export default function FinancasContent({ userEmail }: Props) {
               <>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "12px", marginBottom: "24px" }}>
                   <SummaryCard icon={TrendingUp}   label="Entradas"   value={fmt(income)}  color="#22c55e" bg="rgba(34,197,94,0.06)"   border="rgba(34,197,94,0.15)"   sub={`${transactions.filter(t => t.type === "entrada").length} transações`} />
-                  <SummaryCard icon={TrendingDown}  label="Saídas"     value={fmt(expense)} color="#f87171" bg="rgba(248,113,113,0.06)" border="rgba(248,113,113,0.15)" sub={income > 0 ? `${((expense / income) * 100).toFixed(0)}% do orçamento` : "0 transações"} />
+                  <SummaryCard icon={TrendingDown}  label="Saídas"     value={fmt(expense)} color="#f87171" bg="rgba(248,113,113,0.06)" border="rgba(248,113,113,0.15)" sub={income > 0 ? `${((expense / income) * 100).toFixed(0)}% das entradas` : `${transactions.filter(t => t.type === "saida").length} transações`} />
                   <SummaryCard icon={Wallet}        label="Saldo Livre" value={fmt(balance)} color="#8b5cf6" bg="rgba(139,92,246,0.06)"  border="rgba(139,92,246,0.15)"  sub="disponível para investir" />
                 </div>
 

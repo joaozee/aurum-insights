@@ -543,6 +543,10 @@ export default function HomeContent({ firstName, marketData }: HomeContentProps)
             {NEWS_MOCK.map(({ id, author, time, content, likes, comments, shares }) => (
               <div
                 key={id}
+                onClick={() => router.push("/dashboard/comunidade")}
+                role="link"
+                tabIndex={0}
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") router.push("/dashboard/comunidade"); }}
                 style={{
                   background: "#130f09",
                   border: "1px solid rgba(201,168,76,0.08)",
@@ -637,27 +641,20 @@ export default function HomeContent({ firstName, marketData }: HomeContentProps)
                     { icon: MessageCircle, count: comments },
                     { icon: Share2, count: shares },
                   ].map(({ icon: Icon, count }, i) => (
-                    <button
+                    <span
                       key={i}
                       style={{
                         display: "flex",
                         alignItems: "center",
                         gap: "5px",
-                        background: "none",
-                        border: "none",
-                        cursor: "pointer",
                         color: "#4a3a1a",
                         fontSize: "12px",
                         fontFamily: "var(--font-sans)",
-                        padding: 0,
-                        transition: "color 0.15s",
                       }}
-                      onMouseEnter={(e) => { e.currentTarget.style.color = "#C9A84C"; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.color = "#4a3a1a"; }}
                     >
                       <Icon size={13} />
                       {count}
-                    </button>
+                    </span>
                   ))}
                 </div>
               </div>
