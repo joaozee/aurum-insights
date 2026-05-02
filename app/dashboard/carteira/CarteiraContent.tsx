@@ -81,6 +81,10 @@ interface BrapiQuote {
     sector?: string;
     industry?: string;
   };
+  defaultKeyStatistics?: {
+    trailingPE?: number | null;
+    forwardPE?: number | null;
+  };
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -92,6 +96,16 @@ const ASSET_LABELS: Record<string, string> = {
   acoes: "Ações", fiis: "FIIs", renda_fixa: "Renda Fixa", cripto: "Cripto",
   fundos: "Fundos", // legacy — keep for any pre-existing rows in the DB
 };
+
+// Long-form group titles for the grouped "Meus Ativos" list
+const ASSET_GROUP_LABELS: Record<string, string> = {
+  acoes:      "Ações",
+  fiis:       "Fundos Imobiliários",
+  renda_fixa: "Renda Fixa",
+  cripto:     "Cripto",
+  fundos:     "Fundos",
+};
+const ASSET_GROUP_ORDER: string[] = ["acoes", "fiis", "renda_fixa", "cripto", "fundos"];
 
 const RF_INDEXERS = ["CDI", "Prefixado", "IPCA+", "Selic"] as const;
 type RfIndexer = typeof RF_INDEXERS[number];
@@ -773,7 +787,7 @@ export default function CarteiraContent({ userEmail }: Props) {
       // Fetch real-time data from brapi via server proxy (logo, P/L, DY, sector)
       try {
         const res = await fetch(
-          `/api/brapi-quote?tickers=${encodeURIComponent(tickers.join(","))}&dividends=true&modules=summaryProfile`,
+          `/api/brapi-quote?tickers=${encodeURIComponent(tickers.join(","))}&dividends=true&modules=summaryProfile,defaultKeyStatistics`,
           { cache: "no-store" }
         );
         const json = await res.json();
@@ -807,8 +821,10 @@ export default function CarteiraContent({ userEmail }: Props) {
         .reduce((acc, d) => acc + d.rate, 0);
       return sum > 0 ? sum / bq.regularMarketPrice : null;
     })();
-    // priceEarnings is the P/E ratio
-    const livePE = bq?.priceEarnings != null ? Number(bq.priceEarnings) : null;
+    // priceEarnings comes back null when modules are requested — fall back
+    // to defaultKeyStatistics.trailingPE which has the same data.
+    const peRaw = bq?.priceEarnings ?? bq?.defaultKeyStatistics?.trailingPE ?? null;
+    const livePE = peRaw != null ? Number(peRaw) : null;
     return { ...a, live_price: livePrice, live_dy: liveDY, live_pe: livePE };
   }), [assets, brapiData]);
 
@@ -1523,9 +1539,47 @@ export default function CarteiraContent({ userEmail }: Props) {
                     <Plus size={13} style={{ display: "inline", marginRight: "6px" }} />Adicionar primeiro ativo
                   </button>
                 </div>
-              ) : (
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
-                  {effectiveAssets.map(a => {
+              ) : (() => {
+                // Group assets by type, keep the curated order, place
+                // any unknown type at the end.
+                const groups = new Map<string, typeof effectiveAssets>();
+                for (const a of effectiveAssets) {
+                  const arr = groups.get(a.type) ?? [];
+                  arr.push(a);
+                  groups.set(a.type, arr);
+                }
+                const orderedKeys: string[] = [
+                  ...ASSET_GROUP_ORDER.filter(k => groups.has(k)),
+                  ...Array.from(groups.keys()).filter(k => !ASSET_GROUP_ORDER.includes(k)),
+                ];
+
+                return (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+                    {orderedKeys.map(groupKey => {
+                      const groupAssets = groups.get(groupKey) ?? [];
+                      const groupLabel  = ASSET_GROUP_LABELS[groupKey] ?? groupKey;
+                      const groupValue  = groupAssets.reduce((s, a) => s + Number(a.quantity) * a.live_price, 0);
+                      return (
+                        <div key={groupKey}>
+                          <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: "10px", paddingLeft: "2px" }}>
+                            <p style={{
+                              fontSize: "12px", fontWeight: 600,
+                              color: "#a09068",
+                              fontFamily: "var(--font-sans)",
+                              letterSpacing: "0.08em",
+                              textTransform: "uppercase",
+                            }}>
+                              {groupLabel}
+                              <span style={{ marginLeft: "8px", fontSize: "11px", color: "#5a4a2a", fontWeight: 400, letterSpacing: 0, textTransform: "none" }}>
+                                · {groupAssets.length} {groupAssets.length === 1 ? "posição" : "posições"}
+                              </span>
+                            </p>
+                            <span style={{ fontSize: "11px", color: "#857560", fontFamily: "var(--font-sans)" }}>
+                              {fmt(groupValue)}
+                            </span>
+                          </div>
+                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+                            {groupAssets.map(a => {
                     const invested = Number(a.quantity) * Number(a.purchase_price);
                     const current  = Number(a.quantity) * a.live_price;
                     const gain     = current - invested;
@@ -1631,8 +1685,13 @@ export default function CarteiraContent({ userEmail }: Props) {
                       </div>
                     );
                   })}
-                </div>
-              )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
             </div>
 
             {/* ── Histórico de Compras ── */}
