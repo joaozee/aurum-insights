@@ -33,6 +33,25 @@ interface CryptoQuote {
   coinImageUrl?: string;
 }
 
+interface BrapiCurrency {
+  fromCurrency: string;
+  toCurrency: string;
+  name?: string;
+  bidPrice?: string;
+  askPrice?: string;
+  percentageChange?: string;
+  high?: string;
+  low?: string;
+  bidVariation?: string;
+  updatedAtDate?: string;
+}
+
+interface BrapiSeriesPoint {
+  date: string;
+  value: string;
+  epochDate?: number;
+}
+
 export interface OverviewMover {
   symbol: string;
   name: string;
@@ -88,12 +107,27 @@ async function safeJson(url: string, revalidate = 300): Promise<unknown> {
 }
 
 export async function GET() {
-  const [ibovData, gainersData, losersData, fxData, cryptoData] = await Promise.all([
+  // Datas para janela de 12 meses do IPCA (formato DD/MM/YYYY exigido pelo brapi)
+  const today = new Date();
+  const oneYearAgo = new Date(today);
+  oneYearAgo.setMonth(oneYearAgo.getMonth() - 13); // pega 13 meses pra garantir 12 valores fechados
+  const fmtBr = (d: Date) =>
+    `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
+
+  const [
+    ibovData, gainersData, losersData, fxData, cryptoData,
+    selicData, ipcaData,
+  ] = await Promise.all([
     safeJson(`${BASE}/quote/%5EBVSP?range=1d&interval=15m`),
     safeJson(`${BASE}/quote/list?type=stock&sortBy=change&sortOrder=desc&limit=10`),
     safeJson(`${BASE}/quote/list?type=stock&sortBy=change&sortOrder=asc&limit=10`),
-    safeJson(`${BASE}/quote/USDBRL=X,EURBRL=X,GBPBRL=X`),
+    safeJson(`${BASE}/v2/currency?currency=USD-BRL,EUR-BRL,GBP-BRL`),
     safeJson(`${BASE}/v2/crypto?coin=BTC,ETH,SOL&currency=BRL`, 60),
+    safeJson(`${BASE}/v2/prime-rate?country=brazil&sortBy=date&sortOrder=desc`, 3600),
+    safeJson(
+      `${BASE}/v2/inflation?historical=true&start=${fmtBr(oneYearAgo)}&end=${fmtBr(today)}&sortBy=date&sortOrder=desc`,
+      3600
+    ),
   ]);
 
   const ibov: OverviewIbov = (() => {
@@ -125,19 +159,22 @@ export async function GET() {
   const topGainers = mapMovers(gainersData);
   const topLosers = mapMovers(losersData);
 
-  const fxResults = (fxData as { results?: BrapiQuoteResult[] })?.results ?? [];
+  const fxResults = (fxData as { currency?: BrapiCurrency[] })?.currency ?? [];
   const fxLabels: Record<string, string> = {
-    "USDBRL=X": "Dólar Americano",
-    "EURBRL=X": "Euro",
-    "GBPBRL=X": "Libra",
+    "USD-BRL": "Dólar Americano",
+    "EUR-BRL": "Euro",
+    "GBP-BRL": "Libra",
   };
-  const currencies: OverviewCurrency[] = ["USDBRL=X", "EURBRL=X", "GBPBRL=X"].map((sym) => {
-    const r = fxResults.find((x) => x.symbol === sym);
+  const currencies: OverviewCurrency[] = ["USD-BRL", "EUR-BRL", "GBP-BRL"].map((sym) => {
+    const [from, to] = sym.split("-");
+    const r = fxResults.find((x) => x.fromCurrency === from && x.toCurrency === to);
+    const price = r?.bidPrice ? parseFloat(r.bidPrice) : null;
+    const changePct = r?.percentageChange ? parseFloat(r.percentageChange) : null;
     return {
       symbol: sym,
       label: fxLabels[sym],
-      price: r?.regularMarketPrice ?? null,
-      changePct: r?.regularMarketChangePercent ?? null,
+      price: Number.isFinite(price) ? price : null,
+      changePct: Number.isFinite(changePct) ? changePct : null,
     };
   });
 
@@ -154,12 +191,31 @@ export async function GET() {
     };
   });
 
-  // Índices fixos (Selic, CDI, IPCA) — brapi não retorna direto, valores típicos atuais.
-  // Em produção, plugar em endpoint do BCB.
+  // Selic (taxa básica de juros) — último valor da série
+  const selicSeries = (selicData as { "prime-rate"?: BrapiSeriesPoint[] })?.["prime-rate"] ?? [];
+  const selicLatest = selicSeries[0];
+  const selicValue = selicLatest?.value ? parseFloat(selicLatest.value) : null;
+
+  // IPCA acumulado 12 meses — composição multiplicativa dos últimos 12 valores mensais
+  const ipcaSeries = (ipcaData as { inflation?: BrapiSeriesPoint[] })?.inflation ?? [];
+  const last12 = ipcaSeries.slice(0, 12);
+  let ipcaAcc: number | null = null;
+  if (last12.length > 0) {
+    const factor = last12.reduce((acc, p) => {
+      const v = parseFloat(p.value);
+      return Number.isFinite(v) ? acc * (1 + v / 100) : acc;
+    }, 1);
+    ipcaAcc = (factor - 1) * 100;
+  }
+
+  // CDI ≈ Selic - 0,10pp (brapi não tem endpoint dedicado pro CDI;
+  // na prática o CDI segue a Meta Selic com spread fixo de 0,10pp)
+  const cdiValue = selicValue !== null ? selicValue - 0.1 : null;
+
   const indices: OverviewIndex[] = [
-    { label: "Selic", value: 14.75, unit: "% a.a." },
-    { label: "CDI", value: 14.65, unit: "% a.a." },
-    { label: "IPCA", value: 4.95, unit: "% a.a." },
+    { label: "Selic", value: selicValue ?? 0, unit: "% a.a." },
+    { label: "CDI", value: cdiValue ?? 0, unit: "% a.a." },
+    { label: "IPCA 12m", value: ipcaAcc ?? 0, unit: "% a.a." },
   ];
 
   const response: OverviewResponse = {
