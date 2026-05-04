@@ -86,7 +86,7 @@ export default function AcoesContent() {
 
   useEffect(() => { loadOverview(); }, [loadOverview]);
 
-  // Debounced search
+  // Debounced search — busca ações E FIIs em paralelo
   useEffect(() => {
     const q = query.trim();
     if (q.length < 2) {
@@ -97,12 +97,22 @@ export default function AcoesContent() {
     setSearchLoading(true);
     const timer = setTimeout(async () => {
       try {
-        const res = await fetch(`/api/brapi-search?q=${encodeURIComponent(q)}&kind=stock`);
-        if (res.ok) {
-          const data = await res.json();
-          setSearchResults(data.results ?? []);
-          setShowResults(true);
-        }
+        const [stockRes, fundRes] = await Promise.all([
+          fetch(`/api/brapi-search?q=${encodeURIComponent(q)}&kind=stock`),
+          fetch(`/api/brapi-search?q=${encodeURIComponent(q)}&kind=fund`),
+        ]);
+        const stockData = stockRes.ok ? await stockRes.json() : { results: [] };
+        const fundData = fundRes.ok ? await fundRes.json() : { results: [] };
+        const merged: SearchResult[] = [...(fundData.results ?? []), ...(stockData.results ?? [])];
+        // Dedupe por symbol e limitar a 10
+        const seen = new Set<string>();
+        const unique = merged.filter((r) => {
+          if (seen.has(r.symbol)) return false;
+          seen.add(r.symbol);
+          return true;
+        }).slice(0, 10);
+        setSearchResults(unique);
+        setShowResults(true);
       } catch (err) {
         console.error("[search]", err);
       } finally {
@@ -112,13 +122,20 @@ export default function AcoesContent() {
     return () => clearTimeout(timer);
   }, [query]);
 
+  function routeFor(symbol: string, kind?: string): string {
+    const isFII = kind === "fund" || /^[A-Z]{4}11$/.test(symbol);
+    return isFII
+      ? `/dashboard/acoes/fiis/${symbol}`
+      : `/dashboard/acoes/${symbol}`;
+  }
+
   function handlePesquisar() {
     const q = query.trim().toUpperCase();
     if (!q) return;
     if (searchResults.length > 0) {
-      router.push(`/dashboard/acoes/${searchResults[0].symbol}`);
+      router.push(routeFor(searchResults[0].symbol, searchResults[0].kind));
     } else {
-      router.push(`/dashboard/acoes/${q}`);
+      router.push(routeFor(q));
     }
   }
 
@@ -195,7 +212,7 @@ export default function AcoesContent() {
                     searchResults.map((r) => (
                       <button
                         key={r.symbol}
-                        onMouseDown={() => router.push(`/dashboard/acoes/${r.symbol}`)}
+                        onMouseDown={() => router.push(routeFor(r.symbol, r.kind))}
                         style={{
                           width: "100%",
                           display: "flex", alignItems: "center", gap: "10px",
