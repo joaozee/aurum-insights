@@ -7,7 +7,7 @@ export type ExperienceLevel = "iniciante" | "intermediario" | "avancado" | "espe
 
 export interface CommunityPost {
   id: string;
-  content: string;
+  content: string | null;
   author_name: string | null;
   author_email: string | null;
   author_avatar: string | null;
@@ -20,6 +20,23 @@ export interface CommunityPost {
   is_premium_only: boolean;
   likes_count: number;
   shares_count: number;
+  comments_count: number;
+  reposts_count: number;
+  repost_of_id: string | null;
+  created_at: string;
+}
+
+export interface PostComment {
+  id: string;
+  parent_type: string;
+  parent_id: string;
+  reply_to_id: string | null;
+  author_email: string;
+  author_name: string | null;
+  author_avatar: string | null;
+  content: string;
+  likes_count: number;
+  is_solution: boolean;
   created_at: string;
 }
 

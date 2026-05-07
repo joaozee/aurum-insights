@@ -4,13 +4,13 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import {
   Search, Image as ImageIcon, Sparkles, RefreshCw, Heart,
-  MessageCircle, Share2, Bookmark, Newspaper, TrendingUp,
+  MessageCircle, Repeat2, Bookmark, Newspaper, TrendingUp,
   Bookmark as BookmarkIcon, Users as UsersIcon, Settings2,
-  MessageSquare, X, ExternalLink,
+  MessageSquare, X, ExternalLink, Send,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import {
-  type CommunityPost, formatRelativeTime, initialFromName,
+  type CommunityPost, type PostComment, formatRelativeTime, initialFromName,
   TOPICOS_INTERESSE, FEED_ALGORITHMS, type FeedAlgorithm,
 } from "@/lib/comunidade";
 
@@ -33,6 +33,11 @@ export default function ComunidadeContent({ userEmail, userName }: Props) {
   const [followersCount, setFollowersCount] = useState(0);
   const [likedPosts, setLikedPosts] = useState<Set<string>>(new Set());
   const [savedPosts, setSavedPosts] = useState<Set<string>>(new Set());
+  const [myReposts, setMyReposts] = useState<Set<string>>(new Set());
+  const [originalPosts, setOriginalPosts] = useState<Map<string, CommunityPost>>(new Map());
+  const [commentsByPost, setCommentsByPost] = useState<Map<string, PostComment[]>>(new Map());
+  const [expandedComments, setExpandedComments] = useState<Set<string>>(new Set());
+  const [quoteTarget, setQuoteTarget] = useState<CommunityPost | null>(null);
   const [showFeedModal, setShowFeedModal] = useState(false);
 
   // Preferências do feed
@@ -48,9 +53,40 @@ export default function ComunidadeContent({ userEmail, userName }: Props) {
       .eq("moderation_status", "aprovado")
       .order("created_at", { ascending: false })
       .limit(50);
-    setPosts((data ?? []) as CommunityPost[]);
+    const list = (data ?? []) as CommunityPost[];
+    setPosts(list);
+
+    // Fetch original posts referenced by reposts (so we can render the embedded card)
+    const ids = Array.from(
+      new Set(list.map((p) => p.repost_of_id).filter((x): x is string => Boolean(x)))
+    );
+    if (ids.length > 0) {
+      const { data: origs } = await supabase.from("community_post").select("*").in("id", ids);
+      const m = new Map<string, CommunityPost>();
+      for (const p of (origs ?? []) as CommunityPost[]) m.set(p.id, p);
+      setOriginalPosts(m);
+    } else {
+      setOriginalPosts(new Map());
+    }
+
     setLoading(false);
   }, [supabase]);
+
+  const loadMyReposts = useCallback(async () => {
+    const { data } = await supabase
+      .from("community_post")
+      .select("repost_of_id, content")
+      .eq("author_email", userEmail)
+      .not("repost_of_id", "is", null)
+      .is("content", null);
+    setMyReposts(
+      new Set(
+        (data ?? [])
+          .map((r: { repost_of_id: string | null }) => r.repost_of_id)
+          .filter((x): x is string => Boolean(x))
+      )
+    );
+  }, [supabase, userEmail]);
 
   const loadConnections = useCallback(async () => {
     const [{ count: ing }, { count: ers }] = await Promise.all([
@@ -93,7 +129,8 @@ export default function ComunidadeContent({ userEmail, userName }: Props) {
     loadConnections();
     loadReactions();
     loadPreferences();
-  }, [loadPosts, loadConnections, loadReactions, loadPreferences]);
+    loadMyReposts();
+  }, [loadPosts, loadConnections, loadReactions, loadPreferences, loadMyReposts]);
 
   async function handlePost() {
     if (!composerText.trim() || posting) return;
@@ -150,6 +187,107 @@ export default function ComunidadeContent({ userEmail, userName }: Props) {
     }
   }
 
+  // Pure repost (no commentary). For posts that are themselves reposts,
+  // operate on the underlying original so the count belongs to the source.
+  async function toggleRepost(post: CommunityPost) {
+    const targetId = post.repost_of_id ?? post.id;
+    const already = myReposts.has(targetId);
+    if (already) {
+      setMyReposts((prev) => { const n = new Set(prev); n.delete(targetId); return n; });
+      setPosts((ps) =>
+        ps.map((p) => (p.id === targetId ? { ...p, reposts_count: Math.max(0, p.reposts_count - 1) } : p))
+      );
+      // Remove the repost row(s) created by this user for this target
+      await supabase
+        .from("community_post")
+        .delete()
+        .eq("author_email", userEmail)
+        .eq("repost_of_id", targetId)
+        .is("content", null);
+      loadPosts();
+    } else {
+      setMyReposts((prev) => new Set(prev).add(targetId));
+      setPosts((ps) =>
+        ps.map((p) => (p.id === targetId ? { ...p, reposts_count: p.reposts_count + 1 } : p))
+      );
+      await supabase.from("community_post").insert({
+        content: null,
+        author_email: userEmail,
+        author_name: userName,
+        author_avatar: null,
+        post_type: "text",
+        repost_of_id: targetId,
+        is_premium_only: false,
+      });
+      loadPosts();
+    }
+  }
+
+  async function quoteRepost(post: CommunityPost, text: string) {
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    const targetId = post.repost_of_id ?? post.id;
+    const { error } = await supabase.from("community_post").insert({
+      content: trimmed,
+      author_email: userEmail,
+      author_name: userName,
+      author_avatar: null,
+      post_type: "text",
+      repost_of_id: targetId,
+      is_premium_only: false,
+    });
+    if (!error) {
+      setQuoteTarget(null);
+      loadPosts();
+    }
+  }
+
+  async function toggleCommentsPanel(post: CommunityPost) {
+    const isOpen = expandedComments.has(post.id);
+    if (isOpen) {
+      setExpandedComments((prev) => { const n = new Set(prev); n.delete(post.id); return n; });
+      return;
+    }
+    setExpandedComments((prev) => new Set(prev).add(post.id));
+    if (!commentsByPost.has(post.id)) {
+      const { data } = await supabase
+        .from("post_comment")
+        .select("*")
+        .eq("parent_type", "community_post")
+        .eq("parent_id", post.id)
+        .order("created_at", { ascending: true });
+      setCommentsByPost((prev) => new Map(prev).set(post.id, (data ?? []) as PostComment[]));
+    }
+  }
+
+  async function addComment(post: CommunityPost, text: string) {
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    const { data, error } = await supabase
+      .from("post_comment")
+      .insert({
+        parent_type: "community_post",
+        parent_id: post.id,
+        author_email: userEmail,
+        author_name: userName,
+        author_avatar: null,
+        content: trimmed,
+      })
+      .select()
+      .single();
+    if (!error && data) {
+      const c = data as PostComment;
+      setCommentsByPost((prev) => {
+        const next = new Map(prev);
+        next.set(post.id, [...(next.get(post.id) ?? []), c]);
+        return next;
+      });
+      setPosts((ps) =>
+        ps.map((p) => (p.id === post.id ? { ...p, comments_count: p.comments_count + 1 } : p))
+      );
+    }
+  }
+
   async function savePreferences(novosTopicos: string[], novoAlgoritmo: FeedAlgorithm) {
     setTopicos(novosTopicos);
     setAlgoritmo(novoAlgoritmo);
@@ -164,7 +302,7 @@ export default function ComunidadeContent({ userEmail, userName }: Props) {
     if (!busca.trim()) return posts;
     const b = busca.toLowerCase();
     return posts.filter((p) =>
-      p.content.toLowerCase().includes(b) ||
+      (p.content ?? "").toLowerCase().includes(b) ||
       (p.author_name ?? "").toLowerCase().includes(b)
     );
   }, [posts, busca]);
@@ -360,16 +498,32 @@ export default function ComunidadeContent({ userEmail, userName }: Props) {
           ) : filteredPosts.length === 0 ? (
             <FeedEmpty text={busca ? "Nenhum post encontrado." : "Ainda não há posts. Seja o primeiro!"} />
           ) : (
-            filteredPosts.map((post) => (
-              <PostCard
-                key={post.id}
-                post={post}
-                liked={likedPosts.has(post.id)}
-                saved={savedPosts.has(post.id)}
-                onLike={() => toggleLike(post)}
-                onSave={() => toggleSave(post)}
-              />
-            ))
+            filteredPosts.map((post) => {
+              const original = post.repost_of_id ? originalPosts.get(post.repost_of_id) ?? null : null;
+              const isPureRepost = !!post.repost_of_id && !(post.content && post.content.trim());
+              const main = isPureRepost && original ? original : post;
+              return (
+                <PostCard
+                  key={post.id}
+                  post={post}
+                  main={main}
+                  original={original}
+                  isPureRepost={isPureRepost}
+                  liked={likedPosts.has(main.id)}
+                  saved={savedPosts.has(main.id)}
+                  reposted={myReposts.has(main.id)}
+                  comments={commentsByPost.get(main.id) ?? []}
+                  commentsExpanded={expandedComments.has(main.id)}
+                  currentUserName={userName}
+                  onLike={() => toggleLike(main)}
+                  onSave={() => toggleSave(main)}
+                  onRepost={() => toggleRepost(main)}
+                  onQuote={() => setQuoteTarget(main)}
+                  onToggleComments={() => toggleCommentsPanel(main)}
+                  onAddComment={(text: string) => addComment(main, text)}
+                />
+              );
+            })
           )}
         </div>
 
@@ -407,6 +561,17 @@ export default function ComunidadeContent({ userEmail, userName }: Props) {
           onClose={() => setShowFeedModal(false)}
         />
       )}
+
+      {/* Quote Repost Modal */}
+      {quoteTarget && (
+        <QuoteRepostModal
+          post={quoteTarget}
+          authorInitial={userInitial}
+          authorName={userName}
+          onClose={() => setQuoteTarget(null)}
+          onSubmit={(text) => quoteRepost(quoteTarget, text)}
+        />
+      )}
     </div>
   );
 }
@@ -414,16 +579,48 @@ export default function ComunidadeContent({ userEmail, userName }: Props) {
 // ─── PostCard ─────────────────────────────────────────────────────────────────
 
 function PostCard({
-  post, liked, saved, onLike, onSave,
+  post, main, original, isPureRepost,
+  liked, saved, reposted,
+  comments, commentsExpanded, currentUserName,
+  onLike, onSave, onRepost, onQuote, onToggleComments, onAddComment,
 }: {
-  post: CommunityPost;
+  post: CommunityPost;          // raw row from feed (could be a repost wrapper)
+  main: CommunityPost;          // post we visually render as the main card
+  original: CommunityPost | null; // original referenced by post.repost_of_id (if any)
+  isPureRepost: boolean;
   liked: boolean;
   saved: boolean;
+  reposted: boolean;
+  comments: PostComment[];
+  commentsExpanded: boolean;
+  currentUserName: string;
   onLike: () => void;
   onSave: () => void;
+  onRepost: () => void;
+  onQuote: () => void;
+  onToggleComments: () => void;
+  onAddComment: (text: string) => void;
 }) {
-  const initial = initialFromName(post.author_name);
-  const isNews = post.post_type === "news";
+  const [repostMenu, setRepostMenu] = useState(false);
+  const [commentDraft, setCommentDraft] = useState("");
+  const initial = initialFromName(main.author_name);
+  const isNews = main.post_type === "news";
+  const isQuoteRepost = !isPureRepost && !!post.repost_of_id;
+
+  // Pure repost referencing a deleted/missing original
+  if (isPureRepost && !original) {
+    return (
+      <div style={{
+        background: "#130f09",
+        border: "1px solid rgba(201,168,76,0.1)",
+        borderRadius: "12px", padding: "14px 18px",
+        color: "#7a6a4a", fontSize: "12px",
+        fontFamily: "var(--font-sans)",
+      }}>
+        Post original removido.
+      </div>
+    );
+  }
 
   return (
     <div style={{
@@ -431,20 +628,33 @@ function PostCard({
       border: "1px solid rgba(201,168,76,0.1)",
       borderRadius: "12px", padding: "16px 18px",
     }}>
+      {/* Repost banner */}
+      {isPureRepost && (
+        <div style={{
+          display: "flex", alignItems: "center", gap: "6px",
+          fontSize: "11px", color: "#7a6a4a",
+          fontFamily: "var(--font-sans)", marginBottom: "10px",
+        }}>
+          <Repeat2 size={11} />
+          <span>{post.author_name ?? "Alguém"} repostou</span>
+          <span style={{ color: "#5a4a2a" }}>· {formatRelativeTime(post.created_at)}</span>
+        </div>
+      )}
+
       {/* Header */}
       <div style={{ display: "flex", alignItems: "flex-start", gap: "10px", marginBottom: "10px" }}>
         <Avatar initial={initial} size={34} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
             <span style={{ fontSize: "13px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-sans)" }}>
-              {post.author_name ?? "Anônimo"}
+              {main.author_name ?? "Anônimo"}
             </span>
-            {post.is_premium_only && (
+            {main.is_premium_only && (
               <Sparkles size={10} style={{ color: "#C9A84C" }} fill="#C9A84C" />
             )}
           </div>
           <p style={{ fontSize: "11px", color: "#5a4a2a", fontFamily: "var(--font-sans)" }}>
-            {formatRelativeTime(post.created_at)}
+            {formatRelativeTime(main.created_at)}
           </p>
         </div>
         {isNews && (
@@ -461,18 +671,18 @@ function PostCard({
       </div>
 
       {/* News block */}
-      {isNews && post.news_title && (
+      {isNews && main.news_title && (
         <div style={{
           background: "#0d0b07",
           border: "1px solid rgba(59,130,246,0.15)",
           borderRadius: "10px", padding: "12px 14px", marginBottom: "10px",
         }}>
           <p style={{ fontSize: "13px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-sans)", marginBottom: "4px", lineHeight: 1.4 }}>
-            {post.news_title}
+            {main.news_title}
           </p>
-          {post.news_url && (
+          {main.news_url && (
             <a
-              href={post.news_url}
+              href={main.news_url}
               target="_blank"
               rel="noopener noreferrer"
               style={{
@@ -489,30 +699,32 @@ function PostCard({
       )}
 
       {/* Content */}
-      <p style={{
-        fontSize: "13px", color: "#c8b89a",
-        fontFamily: "var(--font-sans)", lineHeight: 1.6,
-        marginBottom: post.tags && post.tags.length > 0 ? "10px" : "12px",
-        whiteSpace: "pre-wrap", wordBreak: "break-word",
-      }}>
-        {post.content}
-      </p>
+      {main.content && (
+        <p style={{
+          fontSize: "13px", color: "#c8b89a",
+          fontFamily: "var(--font-sans)", lineHeight: 1.6,
+          marginBottom: main.tags && main.tags.length > 0 ? "10px" : "12px",
+          whiteSpace: "pre-wrap", wordBreak: "break-word",
+        }}>
+          {main.content}
+        </p>
+      )}
 
       {/* Image */}
-      {post.images && post.images.length > 0 && (
+      {main.images && main.images.length > 0 && (
         <div style={{
           marginBottom: "12px",
           borderRadius: "10px", overflow: "hidden",
           border: "1px solid rgba(201,168,76,0.08)",
         }}>
-          <img src={post.images[0]} alt="" style={{ width: "100%", display: "block" }} />
+          <img src={main.images[0]} alt="" style={{ width: "100%", display: "block" }} />
         </div>
       )}
 
       {/* Tags */}
-      {post.tags && post.tags.length > 0 && (
+      {main.tags && main.tags.length > 0 && (
         <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginBottom: "12px" }}>
-          {post.tags.map((tag) => (
+          {main.tags.map((tag) => (
             <span key={tag} style={{
               fontSize: "10px", fontWeight: 600, color: "#C9A84C",
               background: "rgba(201,168,76,0.1)",
@@ -525,20 +737,58 @@ function PostCard({
         </div>
       )}
 
+      {/* Embedded original (quote repost only) */}
+      {isQuoteRepost && original && (
+        <EmbeddedOriginal post={original} />
+      )}
+      {isQuoteRepost && !original && (
+        <div style={{
+          marginBottom: "12px",
+          borderRadius: "10px", border: "1px dashed rgba(201,168,76,0.15)",
+          padding: "12px 14px", color: "#7a6a4a",
+          fontSize: "12px", fontFamily: "var(--font-sans)",
+        }}>
+          Post original removido.
+        </div>
+      )}
+
       {/* Actions */}
       <div style={{
         display: "flex", gap: "16px", paddingTop: "10px",
         borderTop: "1px solid rgba(201,168,76,0.06)",
+        position: "relative",
       }}>
         <ActionBtn
           icon={<Heart size={13} fill={liked ? "#ef4444" : "none"} />}
-          count={post.likes_count}
+          count={main.likes_count}
           active={liked}
           activeColor="#ef4444"
           onClick={onLike}
         />
-        <ActionBtn icon={<MessageCircle size={13} />} count={0} />
-        <ActionBtn icon={<Share2 size={13} />} count={post.shares_count} />
+        <ActionBtn
+          icon={<MessageCircle size={13} />}
+          count={main.comments_count}
+          active={commentsExpanded}
+          activeColor="#C9A84C"
+          onClick={onToggleComments}
+        />
+        <div style={{ position: "relative" }}>
+          <ActionBtn
+            icon={<Repeat2 size={13} />}
+            count={main.reposts_count}
+            active={reposted}
+            activeColor="#10b981"
+            onClick={() => setRepostMenu((v) => !v)}
+          />
+          {repostMenu && (
+            <RepostMenu
+              reposted={reposted}
+              onRepost={() => { setRepostMenu(false); onRepost(); }}
+              onQuote={() => { setRepostMenu(false); onQuote(); }}
+              onClose={() => setRepostMenu(false)}
+            />
+          )}
+        </div>
         <div style={{ flex: 1 }} />
         <ActionBtn
           icon={<Bookmark size={13} fill={saved ? "#C9A84C" : "none"} />}
@@ -546,6 +796,341 @@ function PostCard({
           activeColor="#C9A84C"
           onClick={onSave}
         />
+      </div>
+
+      {/* Comments panel */}
+      {commentsExpanded && (
+        <div style={{
+          marginTop: "12px", paddingTop: "12px",
+          borderTop: "1px solid rgba(201,168,76,0.06)",
+        }}>
+          {comments.length === 0 ? (
+            <p style={{
+              fontSize: "12px", color: "#7a6a4a",
+              fontFamily: "var(--font-sans)", textAlign: "center",
+              padding: "8px 0 14px",
+            }}>
+              Nenhum comentário ainda. Seja o primeiro!
+            </p>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "12px" }}>
+              {comments.map((c) => (
+                <CommentRow key={c.id} comment={c} />
+              ))}
+            </div>
+          )}
+
+          <div style={{ display: "flex", gap: "8px", alignItems: "flex-start" }}>
+            <Avatar initial={initialFromName(currentUserName)} size={28} />
+            <div style={{
+              flex: 1,
+              display: "flex", alignItems: "center", gap: "6px",
+              background: "#0d0b07",
+              border: "1px solid rgba(201,168,76,0.1)",
+              borderRadius: "20px", padding: "4px 6px 4px 12px",
+            }}>
+              <input
+                value={commentDraft}
+                onChange={(e) => setCommentDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && commentDraft.trim()) {
+                    onAddComment(commentDraft);
+                    setCommentDraft("");
+                  }
+                }}
+                placeholder="Escreva um comentário..."
+                style={{
+                  flex: 1, background: "transparent", border: "none",
+                  outline: "none", color: "#e8dcc0",
+                  fontSize: "12px", fontFamily: "var(--font-sans)",
+                  padding: "4px 0",
+                }}
+              />
+              <button
+                aria-label="Enviar comentário"
+                disabled={!commentDraft.trim()}
+                onClick={() => {
+                  if (!commentDraft.trim()) return;
+                  onAddComment(commentDraft);
+                  setCommentDraft("");
+                }}
+                style={{
+                  background: commentDraft.trim()
+                    ? "linear-gradient(135deg, #8b5cf6, #6d28d9)"
+                    : "rgba(139,92,246,0.2)",
+                  border: "none", borderRadius: "50%",
+                  width: "28px", height: "28px",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  color: commentDraft.trim() ? "#fff" : "#7a6a8a",
+                  cursor: commentDraft.trim() ? "pointer" : "not-allowed",
+                  flexShrink: 0,
+                }}
+              >
+                <Send size={12} />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Repost Menu (popover) ────────────────────────────────────────────────────
+
+function RepostMenu({
+  reposted, onRepost, onQuote, onClose,
+}: {
+  reposted: boolean;
+  onRepost: () => void;
+  onQuote: () => void;
+  onClose: () => void;
+}) {
+  useEffect(() => {
+    const onClick = () => onClose();
+    // Defer so the opening click doesn't immediately dismiss
+    const t = setTimeout(() => document.addEventListener("click", onClick), 0);
+    return () => { clearTimeout(t); document.removeEventListener("click", onClick); };
+  }, [onClose]);
+
+  return (
+    <div
+      onClick={(e) => e.stopPropagation()}
+      style={{
+        position: "absolute", top: "calc(100% + 6px)", left: 0,
+        background: "#130f09",
+        border: "1px solid rgba(201,168,76,0.15)",
+        borderRadius: "10px", padding: "4px",
+        boxShadow: "0 8px 28px rgba(0,0,0,0.5)",
+        zIndex: 20, minWidth: "180px",
+      }}
+    >
+      <RepostMenuItem
+        icon={<Repeat2 size={13} />}
+        label={reposted ? "Desfazer repost" : "Repostar"}
+        onClick={onRepost}
+      />
+      <RepostMenuItem
+        icon={<MessageCircle size={13} />}
+        label="Repostar com comentário"
+        onClick={onQuote}
+      />
+    </div>
+  );
+}
+
+function RepostMenuItem({
+  icon, label, onClick,
+}: { icon: React.ReactNode; label: string; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        width: "100%", display: "flex", alignItems: "center", gap: "8px",
+        padding: "8px 10px", borderRadius: "6px",
+        background: "transparent", border: "none", cursor: "pointer",
+        color: "#c8b89a", fontSize: "12px",
+        fontFamily: "var(--font-sans)", textAlign: "left",
+        transition: "background 0.15s, color 0.15s",
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.background = "rgba(201,168,76,0.08)";
+        e.currentTarget.style.color = "#C9A84C";
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.background = "transparent";
+        e.currentTarget.style.color = "#c8b89a";
+      }}
+    >
+      {icon} {label}
+    </button>
+  );
+}
+
+// ─── Embedded Original (for quote reposts) ────────────────────────────────────
+
+function EmbeddedOriginal({ post }: { post: CommunityPost }) {
+  const initial = initialFromName(post.author_name);
+  return (
+    <div style={{
+      marginBottom: "12px",
+      background: "#0d0b07",
+      border: "1px solid rgba(201,168,76,0.1)",
+      borderRadius: "10px", padding: "12px 14px",
+    }}>
+      <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "6px" }}>
+        <Avatar initial={initial} size={24} />
+        <span style={{ fontSize: "12px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-sans)" }}>
+          {post.author_name ?? "Anônimo"}
+        </span>
+        <span style={{ fontSize: "10px", color: "#5a4a2a", fontFamily: "var(--font-sans)" }}>
+          · {formatRelativeTime(post.created_at)}
+        </span>
+      </div>
+      {post.content && (
+        <p style={{
+          fontSize: "12px", color: "#a89878",
+          fontFamily: "var(--font-sans)", lineHeight: 1.55,
+          whiteSpace: "pre-wrap", wordBreak: "break-word",
+        }}>
+          {post.content}
+        </p>
+      )}
+      {post.images && post.images.length > 0 && (
+        <div style={{
+          marginTop: "8px", borderRadius: "8px", overflow: "hidden",
+          border: "1px solid rgba(201,168,76,0.08)",
+        }}>
+          <img src={post.images[0]} alt="" style={{ width: "100%", display: "block" }} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Comment row ──────────────────────────────────────────────────────────────
+
+function CommentRow({ comment }: { comment: PostComment }) {
+  return (
+    <div style={{ display: "flex", gap: "8px", alignItems: "flex-start" }}>
+      <Avatar initial={initialFromName(comment.author_name)} size={28} />
+      <div style={{
+        flex: 1,
+        background: "#0d0b07",
+        border: "1px solid rgba(201,168,76,0.06)",
+        borderRadius: "10px", padding: "8px 12px",
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "2px" }}>
+          <span style={{ fontSize: "12px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-sans)" }}>
+            {comment.author_name ?? "Anônimo"}
+          </span>
+          <span style={{ fontSize: "10px", color: "#5a4a2a", fontFamily: "var(--font-sans)" }}>
+            · {formatRelativeTime(comment.created_at)}
+          </span>
+        </div>
+        <p style={{
+          fontSize: "12px", color: "#c8b89a",
+          fontFamily: "var(--font-sans)", lineHeight: 1.5,
+          whiteSpace: "pre-wrap", wordBreak: "break-word",
+        }}>
+          {comment.content}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ─── Quote Repost Modal ───────────────────────────────────────────────────────
+
+function QuoteRepostModal({
+  post, authorInitial, authorName, onClose, onSubmit,
+}: {
+  post: CommunityPost;
+  authorInitial: string;
+  authorName: string;
+  onClose: () => void;
+  onSubmit: (text: string) => void;
+}) {
+  const [text, setText] = useState("");
+  const canSubmit = text.trim().length > 0;
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)",
+        backdropFilter: "blur(4px)", zIndex: 100,
+        display: "flex", alignItems: "center", justifyContent: "center",
+        padding: "20px",
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          background: "#130f09",
+          border: "1px solid rgba(201,168,76,0.15)",
+          borderRadius: "14px",
+          width: "100%", maxWidth: "520px",
+          padding: "22px 24px", maxHeight: "90vh", overflowY: "auto",
+        }}
+      >
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+          <h2 style={{ fontSize: "16px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-display)" }}>
+            Repostar com comentário
+          </h2>
+          <button
+            onClick={onClose}
+            aria-label="Fechar"
+            style={{
+              background: "transparent", border: "none", cursor: "pointer",
+              color: "#7a6a4a", padding: "4px",
+              display: "flex", alignItems: "center",
+            }}
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        <div style={{ display: "flex", gap: "10px", marginBottom: "12px" }}>
+          <Avatar initial={authorInitial} size={36} />
+          <div style={{ flex: 1 }}>
+            <p style={{
+              fontSize: "12px", color: "#9a8a6a",
+              fontFamily: "var(--font-sans)", marginBottom: "6px",
+            }}>
+              {authorName}
+            </p>
+            <textarea
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              placeholder="Adicione um comentário..."
+              autoFocus
+              rows={3}
+              style={{
+                width: "100%", background: "transparent",
+                border: "none", outline: "none",
+                color: "#e8dcc0", fontSize: "14px",
+                fontFamily: "var(--font-sans)", resize: "none",
+                lineHeight: 1.5,
+              }}
+            />
+          </div>
+        </div>
+
+        <EmbeddedOriginal post={post} />
+
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
+          <button
+            onClick={onClose}
+            style={{
+              background: "transparent",
+              border: "1px solid rgba(201,168,76,0.15)",
+              borderRadius: "8px", padding: "9px 18px",
+              color: "#9a8a6a", fontSize: "12px", fontWeight: 500,
+              fontFamily: "var(--font-sans)", cursor: "pointer",
+            }}
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={() => onSubmit(text)}
+            disabled={!canSubmit}
+            style={{
+              background: canSubmit
+                ? "linear-gradient(135deg, #8b5cf6, #6d28d9)"
+                : "rgba(139,92,246,0.2)",
+              border: "none", borderRadius: "8px",
+              padding: "9px 18px",
+              color: canSubmit ? "#fff" : "#7a6a8a",
+              fontSize: "12px", fontWeight: 600,
+              fontFamily: "var(--font-sans)",
+              cursor: canSubmit ? "pointer" : "not-allowed",
+              boxShadow: canSubmit ? "0 2px 12px rgba(139,92,246,0.3)" : "none",
+            }}
+          >
+            Repostar
+          </button>
+        </div>
       </div>
     </div>
   );
