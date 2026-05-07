@@ -761,8 +761,6 @@ export default function FinancasContent({ userEmail }: Props) {
     return Object.entries(map).sort((a, b) => b[1] - a[1]);
   }, [transactions]);
 
-  const maxCategory = byCategory[0]?.[1] ?? 1;
-
   const calEvents = useMemo(() => {
     const map: Record<string, FinancialEvent[]> = {};
     events.forEach(e => {
@@ -1025,19 +1023,7 @@ export default function FinancasContent({ userEmail }: Props) {
                     {byCategory.length === 0 ? (
                       <p style={{ fontSize: "13px", color: "#7a6a4a", fontFamily: "var(--font-sans)", textAlign: "center", padding: "24px 0" }}>Sem despesas este mês</p>
                     ) : (
-                      <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                        {byCategory.map(([cat, val]) => (
-                          <div key={cat}>
-                            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "5px" }}>
-                              <span style={{ fontSize: "12px", color: "#9a8a6a", fontFamily: "var(--font-sans)" }}>{cat}</span>
-                              <span style={{ fontSize: "12px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-sans)" }}>{fmt(val)}</span>
-                            </div>
-                            <div style={{ height: "6px", background: "rgba(255,255,255,0.05)", borderRadius: "3px", overflow: "hidden" }}>
-                              <div style={{ height: "100%", width: `${(val / maxCategory) * 100}%`, background: CATEGORY_COLORS[cat] ?? "#C9A84C", borderRadius: "3px" }} />
-                            </div>
-                          </div>
-                        ))}
-                      </div>
+                      <DonutChartSVG data={byCategory} total={expense} />
                     )}
                   </div>
 
