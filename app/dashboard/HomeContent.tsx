@@ -250,24 +250,38 @@ export default function HomeContent({ firstName, marketData, quickStats }: HomeC
               </span>
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: "13px" }}>
-              {marketData.map(({ label, value, positive }) => (
+              {marketData.map(({ label, value, price, positive }) => (
                 <div
                   key={label}
                   style={{
                     display: "flex",
                     justifyContent: "space-between",
                     alignItems: "center",
+                    gap: "10px",
                   }}
                 >
-                  <span
-                    style={{
-                      fontSize: "13px",
-                      color: "#7a6a4a",
-                      fontFamily: "var(--font-sans)",
-                    }}
-                  >
-                    {label}
-                  </span>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "2px", minWidth: 0 }}>
+                    <span
+                      style={{
+                        fontSize: "13px",
+                        color: "#7a6a4a",
+                        fontFamily: "var(--font-sans)",
+                      }}
+                    >
+                      {label}
+                    </span>
+                    <span
+                      style={{
+                        fontSize: "12px",
+                        color: "#e8dcc0",
+                        fontFamily: "var(--font-sans)",
+                        fontWeight: 600,
+                        letterSpacing: "-0.01em",
+                      }}
+                    >
+                      {price}
+                    </span>
+                  </div>
                   <span
                     style={{
                       fontSize: "13px",
@@ -282,6 +296,7 @@ export default function HomeContent({ firstName, marketData, quickStats }: HomeC
                         : "rgba(248,113,113,0.08)",
                       padding: "3px 8px",
                       borderRadius: "6px",
+                      flexShrink: 0,
                     }}
                   >
                     {positive ? <TrendingUp size={11} /> : <TrendingDown size={11} />}

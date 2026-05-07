@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 export interface MarketItem {
   label: string;
   value: string;
+  price: string;
   raw: number;
   positive: boolean;
 }
@@ -14,6 +15,17 @@ function brapiHeaders(): HeadersInit {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
+function formatPrice(symbol: string, price: number): string {
+  if (price === 0 || !Number.isFinite(price)) return "--";
+  if (symbol === "USDBRL=X") {
+    return price.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  }
+  if (symbol === "^BVSP") {
+    return price.toLocaleString("pt-BR", { maximumFractionDigits: 0 }) + " pts";
+  }
+  return price.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
 async function fetchQuotes(): Promise<MarketItem[]> {
   const headers = brapiHeaders();
 
@@ -23,10 +35,12 @@ async function fetchQuotes(): Promise<MarketItem[]> {
     next: { revalidate: 300 },
   });
   const data = await res.json();
-  const quotes: Record<string, number> = {};
+  const pcts: Record<string, number> = {};
+  const prices: Record<string, number> = {};
 
   for (const r of data?.results ?? []) {
-    quotes[r.symbol] = r.regularMarketChangePercent ?? 0;
+    pcts[r.symbol] = r.regularMarketChangePercent ?? 0;
+    prices[r.symbol] = r.regularMarketPrice ?? 0;
   }
 
   const map: { label: string; symbol: string }[] = [
@@ -36,11 +50,13 @@ async function fetchQuotes(): Promise<MarketItem[]> {
   ];
 
   return map.map(({ label, symbol }) => {
-    const pct = quotes[symbol] ?? 0;
+    const pct = pcts[symbol] ?? 0;
+    const price = prices[symbol] ?? 0;
     return {
       label,
       raw: pct,
       value: `${pct >= 0 ? "+" : ""}${pct.toFixed(2)}%`,
+      price: formatPrice(symbol, price),
       positive: pct >= 0,
     };
   });
