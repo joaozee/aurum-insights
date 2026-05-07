@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   Search, Image as ImageIcon, Sparkles, RefreshCw, Heart,
   MessageCircle, Repeat2, Bookmark, Newspaper, TrendingUp,
@@ -636,7 +637,8 @@ function PostCard({
           fontFamily: "var(--font-sans)", marginBottom: "10px",
         }}>
           <Repeat2 size={11} />
-          <span>{post.author_name ?? "Alguém"} repostou</span>
+          <AuthorLink email={post.author_email} name={post.author_name} fallback="Alguém" inline />
+          <span>repostou</span>
           <span style={{ color: "#5a4a2a" }}>· {formatRelativeTime(post.created_at)}</span>
         </div>
       )}
@@ -646,9 +648,7 @@ function PostCard({
         <Avatar initial={initial} size={34} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-            <span style={{ fontSize: "13px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-sans)" }}>
-              {main.author_name ?? "Anônimo"}
-            </span>
+            <AuthorLink email={main.author_email} name={main.author_name} />
             {main.is_premium_only && (
               <Sparkles size={10} style={{ color: "#C9A84C" }} fill="#C9A84C" />
             )}
@@ -960,9 +960,7 @@ function EmbeddedOriginal({ post }: { post: CommunityPost }) {
     }}>
       <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "6px" }}>
         <Avatar initial={initial} size={24} />
-        <span style={{ fontSize: "12px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-sans)" }}>
-          {post.author_name ?? "Anônimo"}
-        </span>
+        <AuthorLink email={post.author_email} name={post.author_name} small />
         <span style={{ fontSize: "10px", color: "#5a4a2a", fontFamily: "var(--font-sans)" }}>
           · {formatRelativeTime(post.created_at)}
         </span>
@@ -1001,9 +999,7 @@ function CommentRow({ comment }: { comment: PostComment }) {
         borderRadius: "10px", padding: "8px 12px",
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "2px" }}>
-          <span style={{ fontSize: "12px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-sans)" }}>
-            {comment.author_name ?? "Anônimo"}
-          </span>
+          <AuthorLink email={comment.author_email} name={comment.author_name} small />
           <span style={{ fontSize: "10px", color: "#5a4a2a", fontFamily: "var(--font-sans)" }}>
             · {formatRelativeTime(comment.created_at)}
           </span>
@@ -1312,6 +1308,32 @@ function PersonalizarFeedModal({
 }
 
 // ─── Subcomponents ────────────────────────────────────────────────────────────
+
+function AuthorLink({
+  email, name, fallback = "Anônimo", small, inline,
+}: { email: string | null; name: string | null; fallback?: string; small?: boolean; inline?: boolean }) {
+  const text = name ?? fallback;
+  const fontSize = small ? "12px" : "13px";
+  const baseStyle: React.CSSProperties = {
+    fontSize,
+    fontWeight: 600,
+    color: "#e8dcc0",
+    fontFamily: "var(--font-sans)",
+    textDecoration: "none",
+    transition: "color 0.15s",
+  };
+  if (!email) return <span style={baseStyle}>{text}</span>;
+  return (
+    <Link
+      href={`/dashboard/perfil/${encodeURIComponent(email)}`}
+      style={{ ...baseStyle, cursor: "pointer", display: inline ? "inline" : undefined }}
+      onMouseEnter={(e) => { e.currentTarget.style.color = "#C9A84C"; }}
+      onMouseLeave={(e) => { e.currentTarget.style.color = "#e8dcc0"; }}
+    >
+      {text}
+    </Link>
+  );
+}
 
 function Avatar({ initial, size }: { initial: string; size: number }) {
   return (

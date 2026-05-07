@@ -226,6 +226,27 @@ export default function Navbar({ userName, userInitial }: NavbarProps) {
                   </p>
                 </div>
                 <button
+                  onClick={() => { setMenuOpen(false); router.push("/dashboard/perfil"); }}
+                  style={{
+                    width: "100%",
+                    background: "transparent",
+                    border: "none",
+                    color: "#e8dcc0",
+                    fontSize: "13px",
+                    fontFamily: "var(--font-sans)",
+                    padding: "7px 10px",
+                    textAlign: "left",
+                    cursor: "pointer",
+                    borderRadius: "5px",
+                    transition: "background 0.15s",
+                    marginBottom: "4px",
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(201,168,76,0.08)"; e.currentTarget.style.color = "#C9A84C"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "#e8dcc0"; }}
+                >
+                  Meu Perfil
+                </button>
+                <button
                   onClick={handleSignOut}
                   style={{
                     width: "100%",
