@@ -753,6 +753,33 @@ export default function FinancasContent({ userEmail }: Props) {
   const expense = useMemo(() => transactions.filter(t => t.type === "saida").reduce((s, t) => s + Number(t.amount), 0), [transactions]);
   const balance = income - expense;
 
+  const projection = useMemo(() => {
+    const dayOfMonth   = now.getDate();
+    const daysInMonth  = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    const daysLeft     = Math.max(0, daysInMonth - dayOfMonth);
+    if (expense === 0) {
+      return { projectedExpense: 0, projectedBalance: income, daysLeft, daysInMonth };
+    }
+    const projectedExpense = (expense / dayOfMonth) * daysInMonth;
+    const projectedBalance = income - projectedExpense;
+    return { projectedExpense, projectedBalance, daysLeft, daysInMonth };
+  }, [expense, income]);
+
+  const monthCompare = useMemo(() => {
+    if (monthlyTrend.length < 2) return null;
+    const prev = monthlyTrend[monthlyTrend.length - 2];
+    if (!prev || prev.expense === 0) return null;
+    const diff = expense - prev.expense;
+    const pct  = (diff / prev.expense) * 100;
+    const prevDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    return {
+      pct,
+      diffAbs: Math.abs(diff),
+      prevMonthName: MONTHS_PT[prevDate.getMonth()].toLowerCase(),
+      direction: diff > 0 ? "up" : diff < 0 ? "down" : "flat",
+    } as const;
+  }, [expense, monthlyTrend]);
+
   const byCategory = useMemo(() => {
     const map: Record<string, number> = {};
     transactions.filter(t => t.type === "saida").forEach(t => {
@@ -1001,7 +1028,7 @@ export default function FinancasContent({ userEmail }: Props) {
             {/* ══════════════════ PAINEL ══════════════════ */}
             {tab === "painel" && (
               <>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "12px", marginBottom: "24px" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "12px", marginBottom: "12px" }}>
                   <SummaryCard icon={TrendingUp}   label="Entradas"   value={fmt(income)}  color="#22c55e" bg="rgba(34,197,94,0.06)"   border="rgba(34,197,94,0.15)"   sub={`${transactions.filter(t => t.type === "entrada").length} transações`} />
                   <SummaryCard icon={TrendingDown}  label="Saídas"     value={fmt(expense)} color="#f87171" bg="rgba(248,113,113,0.06)" border="rgba(248,113,113,0.15)" sub={income > 0 ? `${((expense / income) * 100).toFixed(0)}% das entradas` : `${transactions.filter(t => t.type === "saida").length} transações`} />
                   <SummaryCard
@@ -1013,6 +1040,108 @@ export default function FinancasContent({ userEmail }: Props) {
                     border={balance >= 0 ? "rgba(139,92,246,0.15)" : "rgba(248,113,113,0.15)"}
                     sub={balance > 0 ? "disponível para investir" : balance < 0 ? "déficit no mês" : "no equilíbrio"}
                   />
+                </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "24px" }}>
+                  {/* Projeção do mês */}
+                  <div style={{
+                    background: "#130f09",
+                    border: "1px solid rgba(201,168,76,0.1)",
+                    borderRadius: "12px", padding: "18px 22px",
+                  }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "10px" }}>
+                      <div>
+                        <p style={{ fontSize: "11px", color: "#7a6a4a", fontFamily: "var(--font-sans)", letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: "2px" }}>
+                          Projeção do mês
+                        </p>
+                        <p style={{ fontSize: "12px", color: "#9a8a6a", fontFamily: "var(--font-sans)" }}>
+                          Faltam {projection.daysLeft} {projection.daysLeft === 1 ? "dia" : "dias"} até dia {projection.daysInMonth}
+                        </p>
+                      </div>
+                      <div style={{ width: "32px", height: "32px", borderRadius: "8px", background: "rgba(201,168,76,0.08)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        <Calendar size={14} style={{ color: "#C9A84C" }} />
+                      </div>
+                    </div>
+                    {expense === 0 ? (
+                      <p style={{ fontSize: "13px", color: "#7a6a4a", fontFamily: "var(--font-sans)" }}>
+                        Sem despesas este mês — projeção indisponível.
+                      </p>
+                    ) : (
+                      <>
+                        <div style={{ display: "flex", alignItems: "baseline", gap: "6px", marginBottom: "8px" }}>
+                          <span style={{ fontSize: "10px", color: "#7a6a4a", fontFamily: "var(--font-sans)", letterSpacing: "0.04em" }}>Gastos projetados:</span>
+                          <span style={{ fontSize: "18px", fontWeight: 700, color: "#f87171", fontFamily: "var(--font-display)" }}>{fmt(projection.projectedExpense)}</span>
+                        </div>
+                        <div style={{ display: "flex", alignItems: "baseline", gap: "6px" }}>
+                          <span style={{ fontSize: "10px", color: "#7a6a4a", fontFamily: "var(--font-sans)", letterSpacing: "0.04em" }}>
+                            {projection.projectedBalance >= 0 ? "Vai sobrar:" : "Vai faltar:"}
+                          </span>
+                          <span style={{
+                            fontSize: "18px", fontWeight: 700,
+                            color: projection.projectedBalance >= 0 ? "#22c55e" : "#f87171",
+                            fontFamily: "var(--font-display)",
+                          }}>
+                            {fmt(Math.abs(projection.projectedBalance))}
+                          </span>
+                        </div>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Comparativo mês anterior */}
+                  <div style={{
+                    background: "#130f09",
+                    border: "1px solid rgba(201,168,76,0.1)",
+                    borderRadius: "12px", padding: "18px 22px",
+                  }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "10px" }}>
+                      <div>
+                        <p style={{ fontSize: "11px", color: "#7a6a4a", fontFamily: "var(--font-sans)", letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: "2px" }}>
+                          Comparativo mensal
+                        </p>
+                        <p style={{ fontSize: "12px", color: "#9a8a6a", fontFamily: "var(--font-sans)" }}>
+                          {monthCompare ? `vs. ${monthCompare.prevMonthName}` : "Aguardando histórico"}
+                        </p>
+                      </div>
+                      <div style={{ width: "32px", height: "32px", borderRadius: "8px", background: "rgba(201,168,76,0.08)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        <BarChart2 size={14} style={{ color: "#C9A84C" }} />
+                      </div>
+                    </div>
+                    {!monthCompare ? (
+                      <p style={{ fontSize: "13px", color: "#7a6a4a", fontFamily: "var(--font-sans)" }}>
+                        Sem dados do mês anterior para comparar.
+                      </p>
+                    ) : monthCompare.direction === "flat" ? (
+                      <p style={{ fontSize: "13px", color: "#9a8a6a", fontFamily: "var(--font-sans)" }}>
+                        Gastos iguais a {monthCompare.prevMonthName}.
+                      </p>
+                    ) : (
+                      <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                        <div style={{
+                          width: "38px", height: "38px", borderRadius: "10px",
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                          background: monthCompare.direction === "down" ? "rgba(34,197,94,0.1)" : "rgba(248,113,113,0.1)",
+                          color: monthCompare.direction === "down" ? "#22c55e" : "#f87171",
+                          flexShrink: 0,
+                        }}>
+                          {monthCompare.direction === "down"
+                            ? <TrendingDown size={18} />
+                            : <TrendingUp size={18} />}
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <p style={{ fontSize: "15px", fontWeight: 700, color: "#e8dcc0", fontFamily: "var(--font-display)", marginBottom: "2px", letterSpacing: "-0.01em" }}>
+                            <span style={{ color: monthCompare.direction === "down" ? "#22c55e" : "#f87171" }}>
+                              {Math.abs(monthCompare.pct).toFixed(0)}%
+                            </span>{" "}
+                            {monthCompare.direction === "down" ? "menores" : "maiores"} que {monthCompare.prevMonthName}
+                          </p>
+                          <p style={{ fontSize: "11px", color: "#7a6a4a", fontFamily: "var(--font-sans)" }}>
+                            {monthCompare.direction === "down" ? "−" : "+"}{fmt(monthCompare.diffAbs)} no total
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px", marginBottom: "20px" }}>
