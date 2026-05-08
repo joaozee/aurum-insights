@@ -81,8 +81,8 @@ export default function ProfileContent({ mode, currentUserEmail, currentUserName
   const initial = (profile.user_name || profile.user_email).charAt(0).toUpperCase();
   const profileUrl =
     typeof window !== "undefined"
-      ? `${window.location.origin}/dashboard/perfil/${encodeURIComponent(profile.user_email)}`
-      : `/dashboard/perfil/${encodeURIComponent(profile.user_email)}`;
+      ? `${window.location.origin}/dashboard/perfil/${encodeURIComponent(profile.username)}`
+      : `/dashboard/perfil/${encodeURIComponent(profile.username)}`;
 
   // Check follow status (public mode only)
   useEffect(() => {
@@ -264,7 +264,7 @@ export default function ProfileContent({ mode, currentUserEmail, currentUserName
                   <HeaderBtn
                     icon={<MessageSquare size={13} />}
                     label="Mensagem"
-                    onClick={() => router.push(`/dashboard/comunidade/mensagens?to=${encodeURIComponent(profile.user_email)}`)}
+                    onClick={() => router.push(`/dashboard/comunidade/mensagens?to=${encodeURIComponent(profile.username)}`)}
                   />
                 </>
               )}
@@ -427,8 +427,8 @@ export default function ProfileContent({ mode, currentUserEmail, currentUserName
 
                 <div style={{ display: "flex", flexWrap: "wrap", gap: "16px 18px", fontSize: "12px", color: "#7a6a4a", fontFamily: "var(--font-sans)" }}>
                   <span style={{ display: "inline-flex", alignItems: "center", gap: "5px" }}>
-                    <span style={{ color: "#5a4a2a" }}>✉</span>
-                    {profile.user_email}
+                    <span style={{ color: "#5a4a2a" }}>{isSelf ? "✉" : "@"}</span>
+                    {isSelf ? profile.user_email : profile.username}
                   </span>
                   <span style={{ display: "inline-flex", alignItems: "center", gap: "5px" }}>
                     <Calendar size={11} />

@@ -10,6 +10,7 @@ export interface CommunityPost {
   content: string | null;
   author_name: string | null;
   author_email: string | null;
+  author_username: string | null;
   author_avatar: string | null;
   post_type: PostType;
   images: string[] | null;
@@ -33,6 +34,7 @@ export interface PostComment {
   reply_to_id: string | null;
   author_email: string;
   author_name: string | null;
+  author_username: string | null;
   author_avatar: string | null;
   content: string;
   likes_count: number;

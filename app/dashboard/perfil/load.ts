@@ -4,6 +4,7 @@ export interface ProfileRow {
   id: string;
   user_email: string;
   user_name: string;
+  username: string;
   bio: string | null;
   avatar_url: string | null;
   banner_url: string | null;
@@ -113,22 +114,25 @@ type SB = SupabaseClient<any, any, any>;
 
 export async function fetchProfileBundle(
   supabase: SB,
-  email: string,
+  emailOrUsername: string,
   fallbackName: string,
-  isSelf: boolean
+  isSelf: boolean,
+  lookupBy: "email" | "username" = "email"
 ): Promise<ProfileBundle> {
   // 1. Profile (auto-create for self if missing)
-  let { data: profile } = await supabase
-    .from("user_profile")
-    .select("*")
-    .eq("user_email", email)
-    .maybeSingle<ProfileRow>();
+  const profileQuery = supabase.from("user_profile").select("*");
+  const filtered =
+    lookupBy === "username"
+      ? profileQuery.eq("username", emailOrUsername)
+      : profileQuery.eq("user_email", emailOrUsername);
 
-  if (!profile && isSelf) {
+  let { data: profile } = await filtered.maybeSingle<ProfileRow>();
+
+  if (!profile && isSelf && lookupBy === "email") {
     const { data: created } = await supabase
       .from("user_profile")
       .insert({
-        user_email: email,
+        user_email: emailOrUsername,
         user_name: fallbackName,
         joined_date: new Date().toISOString().split("T")[0],
       })
@@ -136,6 +140,8 @@ export async function fetchProfileBundle(
       .single<ProfileRow>();
     profile = created;
   }
+
+  const email = profile?.user_email ?? (lookupBy === "email" ? emailOrUsername : "");
 
   if (!profile) {
     return {

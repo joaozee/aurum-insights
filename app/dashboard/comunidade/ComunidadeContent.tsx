@@ -644,7 +644,7 @@ function PostCard({
           fontFamily: "var(--font-sans)", marginBottom: "10px",
         }}>
           <Repeat2 size={11} />
-          <AuthorLink email={post.author_email} name={post.author_name} fallback="Alguém" inline />
+          <AuthorLink username={post.author_username} name={post.author_name} fallback="Alguém" inline />
           <span>repostou</span>
           <span style={{ color: "#5a4a2a" }}>· {formatRelativeTime(post.created_at)}</span>
         </div>
@@ -655,7 +655,7 @@ function PostCard({
         <Avatar initial={initial} size={34} url={main.author_avatar} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-            <AuthorLink email={main.author_email} name={main.author_name} />
+            <AuthorLink username={main.author_username} name={main.author_name} />
             {main.is_premium_only && (
               <Sparkles size={10} style={{ color: "#C9A84C" }} fill="#C9A84C" />
             )}
@@ -967,7 +967,7 @@ function EmbeddedOriginal({ post }: { post: CommunityPost }) {
     }}>
       <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "6px" }}>
         <Avatar initial={initial} size={24} url={post.author_avatar} />
-        <AuthorLink email={post.author_email} name={post.author_name} small />
+        <AuthorLink username={post.author_username} name={post.author_name} small />
         <span style={{ fontSize: "10px", color: "#5a4a2a", fontFamily: "var(--font-sans)" }}>
           · {formatRelativeTime(post.created_at)}
         </span>
@@ -1006,7 +1006,7 @@ function CommentRow({ comment }: { comment: PostComment }) {
         borderRadius: "10px", padding: "8px 12px",
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "2px" }}>
-          <AuthorLink email={comment.author_email} name={comment.author_name} small />
+          <AuthorLink username={comment.author_username} name={comment.author_name} small />
           <span style={{ fontSize: "10px", color: "#5a4a2a", fontFamily: "var(--font-sans)" }}>
             · {formatRelativeTime(comment.created_at)}
           </span>
@@ -1318,8 +1318,8 @@ function PersonalizarFeedModal({
 // ─── Subcomponents ────────────────────────────────────────────────────────────
 
 function AuthorLink({
-  email, name, fallback = "Anônimo", small, inline,
-}: { email: string | null; name: string | null; fallback?: string; small?: boolean; inline?: boolean }) {
+  username, name, fallback = "Anônimo", small, inline,
+}: { username: string | null; name: string | null; fallback?: string; small?: boolean; inline?: boolean }) {
   const text = name ?? fallback;
   const fontSize = small ? "12px" : "13px";
   const baseStyle: React.CSSProperties = {
@@ -1330,10 +1330,10 @@ function AuthorLink({
     textDecoration: "none",
     transition: "color 0.15s",
   };
-  if (!email) return <span style={baseStyle}>{text}</span>;
+  if (!username) return <span style={baseStyle}>{text}</span>;
   return (
     <Link
-      href={`/dashboard/perfil/${encodeURIComponent(email)}`}
+      href={`/dashboard/perfil/${encodeURIComponent(username)}`}
       style={{ ...baseStyle, cursor: "pointer", display: inline ? "inline" : undefined }}
       onMouseEnter={(e) => { e.currentTarget.style.color = "#C9A84C"; }}
       onMouseLeave={(e) => { e.currentTarget.style.color = "#e8dcc0"; }}

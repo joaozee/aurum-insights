@@ -5,12 +5,12 @@ import ProfileContent from "../ProfileContent";
 import { fetchProfileBundle } from "../load";
 
 interface RouteProps {
-  params: Promise<{ email: string }>;
+  params: Promise<{ username: string }>;
 }
 
 export async function generateMetadata({ params }: RouteProps): Promise<Metadata> {
-  const { email } = await params;
-  return { title: `${decodeURIComponent(email)} | Aurum Investimentos` };
+  const { username } = await params;
+  return { title: `@${decodeURIComponent(username)} | Aurum Investimentos` };
 }
 
 export default async function PublicProfilePage({ params }: RouteProps) {
@@ -20,17 +20,17 @@ export default async function PublicProfilePage({ params }: RouteProps) {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const { email: rawParam } = await params;
-  const targetEmail = decodeURIComponent(rawParam);
+  const { username: rawParam } = await params;
+  const targetUsername = decodeURIComponent(rawParam);
   const myEmail = user.email ?? "";
 
+  const bundle = await fetchProfileBundle(supabase, targetUsername, "", false, "username");
+  if (!bundle.profile) notFound();
+
   // Visiting own profile via public URL → redirect to canonical /dashboard/perfil
-  if (targetEmail.toLowerCase() === myEmail.toLowerCase()) {
+  if (bundle.profile.user_email.toLowerCase() === myEmail.toLowerCase()) {
     redirect("/dashboard/perfil");
   }
-
-  const bundle = await fetchProfileBundle(supabase, targetEmail, "", false);
-  if (!bundle.profile) notFound();
 
   const myFullName: string =
     user.user_metadata?.full_name || myEmail.split("@")[0] || "Usuário";
