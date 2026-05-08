@@ -18,9 +18,10 @@ import {
 interface Props {
   userEmail: string;
   userName: string;
+  userAvatar: string | null;
 }
 
-export default function ComunidadeContent({ userEmail, userName }: Props) {
+export default function ComunidadeContent({ userEmail, userName, userAvatar }: Props) {
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
 
@@ -140,7 +141,7 @@ export default function ComunidadeContent({ userEmail, userName }: Props) {
       content: composerText.trim(),
       author_name: userName,
       author_email: userEmail,
-      author_avatar: null,
+      author_avatar: userAvatar,
       post_type: "text",
       is_premium_only: isPremium,
     });
@@ -215,7 +216,7 @@ export default function ComunidadeContent({ userEmail, userName }: Props) {
         content: null,
         author_email: userEmail,
         author_name: userName,
-        author_avatar: null,
+        author_avatar: userAvatar,
         post_type: "text",
         repost_of_id: targetId,
         is_premium_only: false,
@@ -232,7 +233,7 @@ export default function ComunidadeContent({ userEmail, userName }: Props) {
       content: trimmed,
       author_email: userEmail,
       author_name: userName,
-      author_avatar: null,
+      author_avatar: userAvatar,
       post_type: "text",
       repost_of_id: targetId,
       is_premium_only: false,
@@ -271,7 +272,7 @@ export default function ComunidadeContent({ userEmail, userName }: Props) {
         parent_id: post.id,
         author_email: userEmail,
         author_name: userName,
-        author_avatar: null,
+        author_avatar: userAvatar,
         content: trimmed,
       })
       .select()
@@ -342,13 +343,16 @@ export default function ComunidadeContent({ userEmail, userName }: Props) {
           }}>
             <div style={{
               width: "56px", height: "56px", borderRadius: "50%",
-              background: "linear-gradient(135deg, #8b5cf6, #6d28d9)",
+              background: userAvatar
+                ? `url(${userAvatar}) center/cover no-repeat`
+                : "linear-gradient(135deg, #8b5cf6, #6d28d9)",
               display: "flex", alignItems: "center", justifyContent: "center",
               color: "#fff", fontSize: "20px", fontWeight: 700,
               fontFamily: "var(--font-sans)", marginBottom: "10px",
               border: "2px solid rgba(139,92,246,0.4)",
+              overflow: "hidden",
             }}>
-              {userInitial}
+              {!userAvatar && userInitial}
             </div>
             <p style={{
               fontSize: "13px", fontWeight: 600, color: "#e8dcc0",
@@ -409,7 +413,7 @@ export default function ComunidadeContent({ userEmail, userName }: Props) {
             borderRadius: "12px", padding: "16px",
           }}>
             <div style={{ display: "flex", gap: "10px", marginBottom: "12px" }}>
-              <Avatar initial={userInitial} size={36} />
+              <Avatar initial={userInitial} size={36} url={userAvatar} />
               <textarea
                 value={composerText}
                 onChange={(e) => setComposerText(e.target.value)}
@@ -516,6 +520,7 @@ export default function ComunidadeContent({ userEmail, userName }: Props) {
                   comments={commentsByPost.get(main.id) ?? []}
                   commentsExpanded={expandedComments.has(main.id)}
                   currentUserName={userName}
+                  currentUserAvatar={userAvatar}
                   onLike={() => toggleLike(main)}
                   onSave={() => toggleSave(main)}
                   onRepost={() => toggleRepost(main)}
@@ -569,6 +574,7 @@ export default function ComunidadeContent({ userEmail, userName }: Props) {
           post={quoteTarget}
           authorInitial={userInitial}
           authorName={userName}
+          authorAvatar={userAvatar}
           onClose={() => setQuoteTarget(null)}
           onSubmit={(text) => quoteRepost(quoteTarget, text)}
         />
@@ -582,7 +588,7 @@ export default function ComunidadeContent({ userEmail, userName }: Props) {
 function PostCard({
   post, main, original, isPureRepost,
   liked, saved, reposted,
-  comments, commentsExpanded, currentUserName,
+  comments, commentsExpanded, currentUserName, currentUserAvatar,
   onLike, onSave, onRepost, onQuote, onToggleComments, onAddComment,
 }: {
   post: CommunityPost;          // raw row from feed (could be a repost wrapper)
@@ -595,6 +601,7 @@ function PostCard({
   comments: PostComment[];
   commentsExpanded: boolean;
   currentUserName: string;
+  currentUserAvatar: string | null;
   onLike: () => void;
   onSave: () => void;
   onRepost: () => void;
@@ -645,7 +652,7 @@ function PostCard({
 
       {/* Header */}
       <div style={{ display: "flex", alignItems: "flex-start", gap: "10px", marginBottom: "10px" }}>
-        <Avatar initial={initial} size={34} />
+        <Avatar initial={initial} size={34} url={main.author_avatar} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
             <AuthorLink email={main.author_email} name={main.author_name} />
@@ -821,7 +828,7 @@ function PostCard({
           )}
 
           <div style={{ display: "flex", gap: "8px", alignItems: "flex-start" }}>
-            <Avatar initial={initialFromName(currentUserName)} size={28} />
+            <Avatar initial={initialFromName(currentUserName)} size={28} url={currentUserAvatar} />
             <div style={{
               flex: 1,
               display: "flex", alignItems: "center", gap: "6px",
@@ -959,7 +966,7 @@ function EmbeddedOriginal({ post }: { post: CommunityPost }) {
       borderRadius: "10px", padding: "12px 14px",
     }}>
       <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "6px" }}>
-        <Avatar initial={initial} size={24} />
+        <Avatar initial={initial} size={24} url={post.author_avatar} />
         <AuthorLink email={post.author_email} name={post.author_name} small />
         <span style={{ fontSize: "10px", color: "#5a4a2a", fontFamily: "var(--font-sans)" }}>
           · {formatRelativeTime(post.created_at)}
@@ -991,7 +998,7 @@ function EmbeddedOriginal({ post }: { post: CommunityPost }) {
 function CommentRow({ comment }: { comment: PostComment }) {
   return (
     <div style={{ display: "flex", gap: "8px", alignItems: "flex-start" }}>
-      <Avatar initial={initialFromName(comment.author_name)} size={28} />
+      <Avatar initial={initialFromName(comment.author_name)} size={28} url={comment.author_avatar} />
       <div style={{
         flex: 1,
         background: "#0d0b07",
@@ -1019,11 +1026,12 @@ function CommentRow({ comment }: { comment: PostComment }) {
 // ─── Quote Repost Modal ───────────────────────────────────────────────────────
 
 function QuoteRepostModal({
-  post, authorInitial, authorName, onClose, onSubmit,
+  post, authorInitial, authorName, authorAvatar, onClose, onSubmit,
 }: {
   post: CommunityPost;
   authorInitial: string;
   authorName: string;
+  authorAvatar: string | null;
   onClose: () => void;
   onSubmit: (text: string) => void;
 }) {
@@ -1068,7 +1076,7 @@ function QuoteRepostModal({
         </div>
 
         <div style={{ display: "flex", gap: "10px", marginBottom: "12px" }}>
-          <Avatar initial={authorInitial} size={36} />
+          <Avatar initial={authorInitial} size={36} url={authorAvatar} />
           <div style={{ flex: 1 }}>
             <p style={{
               fontSize: "12px", color: "#9a8a6a",
@@ -1335,16 +1343,19 @@ function AuthorLink({
   );
 }
 
-function Avatar({ initial, size }: { initial: string; size: number }) {
+function Avatar({ initial, size, url }: { initial: string; size: number; url?: string | null }) {
   return (
     <div style={{
       width: `${size}px`, height: `${size}px`, borderRadius: "50%",
-      background: "linear-gradient(135deg, #8b5cf6, #6d28d9)",
+      background: url
+        ? `url(${url}) center/cover no-repeat`
+        : "linear-gradient(135deg, #8b5cf6, #6d28d9)",
       display: "flex", alignItems: "center", justifyContent: "center",
       color: "#fff", fontSize: `${Math.round(size * 0.4)}px`, fontWeight: 700,
       fontFamily: "var(--font-sans)", flexShrink: 0,
+      overflow: "hidden",
     }}>
-      {initial}
+      {!url && initial}
     </div>
   );
 }

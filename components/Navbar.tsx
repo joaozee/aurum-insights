@@ -26,9 +26,10 @@ const NAV_ITEMS = [
 interface NavbarProps {
   userName: string;
   userInitial: string;
+  userAvatar?: string | null;
 }
 
-export default function Navbar({ userName, userInitial }: NavbarProps) {
+export default function Navbar({ userName, userInitial, userAvatar }: NavbarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -181,7 +182,9 @@ export default function Navbar({ userName, userInitial }: NavbarProps) {
                 width: "34px",
                 height: "34px",
                 borderRadius: "50%",
-                background: "linear-gradient(135deg, #C9A84C, #8B6914)",
+                background: userAvatar
+                  ? `url(${userAvatar}) center/cover no-repeat`
+                  : "linear-gradient(135deg, #C9A84C, #8B6914)",
                 border: "2px solid rgba(201,168,76,0.3)",
                 cursor: "pointer",
                 display: "flex",
@@ -192,6 +195,7 @@ export default function Navbar({ userName, userInitial }: NavbarProps) {
                 fontWeight: 700,
                 fontFamily: "var(--font-sans)",
                 transition: "border-color 0.2s",
+                overflow: "hidden",
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.borderColor = "rgba(201,168,76,0.7)";
@@ -200,7 +204,7 @@ export default function Navbar({ userName, userInitial }: NavbarProps) {
                 e.currentTarget.style.borderColor = "rgba(201,168,76,0.3)";
               }}
             >
-              {userInitial}
+              {!userAvatar && userInitial}
             </button>
 
             {menuOpen && (

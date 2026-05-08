@@ -17,5 +17,17 @@ export default async function ComunidadePage() {
     user.email?.split("@")[0] ||
     "Usuário";
 
-  return <ComunidadeContent userEmail={user.email!} userName={userName} />;
+  const { data: profile } = await supabase
+    .from("user_profile")
+    .select("avatar_url")
+    .eq("user_email", user.email!)
+    .maybeSingle();
+
+  return (
+    <ComunidadeContent
+      userEmail={user.email!}
+      userName={userName}
+      userAvatar={profile?.avatar_url ?? null}
+    />
+  );
 }

@@ -21,9 +21,19 @@ export default async function DashboardLayout({
 
   const userInitial = fullName.charAt(0).toUpperCase();
 
+  const { data: profile } = await supabase
+    .from("user_profile")
+    .select("avatar_url")
+    .eq("user_email", user.email!)
+    .maybeSingle();
+
   return (
     <div style={{ minHeight: "100vh", background: "#0d0b07" }}>
-      <Navbar userName={fullName} userInitial={userInitial} />
+      <Navbar
+        userName={fullName}
+        userInitial={userInitial}
+        userAvatar={profile?.avatar_url ?? null}
+      />
       <main>{children}</main>
     </div>
   );
