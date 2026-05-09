@@ -129,6 +129,47 @@
 }
 
 /* ────────────────────────────────────────────────────────────────────────────
+   Hover utilities — convertem os ~1000 onMouseEnter inline JS espalhados pelo
+   app pra CSS :hover puro. Funcionam em mobile (graceful no-op em touch),
+   funcionam em teclado via :focus-visible, sem re-render React, respeitam
+   prefers-reduced-motion via base layer. Usar !important porque os elementos
+   tem inline styles que ganhariam por specificity.
+   ──────────────────────────────────────────────────────────────────────────── */
+
+.aurum-hover-transition {
+  transition:
+    color 150ms cubic-bezier(0.16, 1, 0.3, 1),
+    background-color 150ms cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 150ms cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 150ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Color: muted -> gold (links, nav items, footer ctas) */
+.aurum-hover-gold:hover,
+.aurum-hover-gold:focus-visible {
+  color: var(--gold) !important;
+}
+
+/* Border: faint -> emphasis (cards) */
+.aurum-hover-border:hover,
+.aurum-hover-border:focus-visible {
+  border-color: var(--border-emphasis) !important;
+}
+
+/* Background: subtle tint on hover (list rows, dropdowns) */
+.aurum-hover-bg:hover,
+.aurum-hover-bg:focus-visible {
+  background-color: rgba(201, 168, 76, 0.08) !important;
+}
+
+/* Combo: tinted bg + emphasis border (interactive cards/rows) */
+.aurum-hover-row:hover,
+.aurum-hover-row:focus-visible {
+  background-color: rgba(201, 168, 76, 0.05) !important;
+  border-color: var(--border-emphasis) !important;
+}
+
+/* ────────────────────────────────────────────────────────────────────────────
    Responsive overrides
    O app foi escrito majoritariamente com inline styles e larguras fixas em px.
    Em telas <= 768px essas regras forçam grids/sidebars de 1 coluna, escondem

@@ -129,6 +129,7 @@ export default function Navbar({ userName, userInitial, userAvatar, userEmail }:
               <button
                 key={href}
                 onClick={() => router.push(href)}
+                className={isActive ? undefined : "aurum-hover-gold aurum-hover-bg aurum-hover-transition"}
                 style={{
                   display: "flex",
                   alignItems: "center",
@@ -140,7 +141,6 @@ export default function Navbar({ userName, userInitial, userAvatar, userEmail }:
                   fontSize: "13px",
                   fontFamily: "var(--font-sans)",
                   fontWeight: isActive ? 600 : 400,
-                  transition: "all 0.2s",
                   background: isActive
                     ? "linear-gradient(135deg, #C9A84C 0%, #A07820 100%)"
                     : "transparent",
@@ -148,18 +148,6 @@ export default function Navbar({ userName, userInitial, userAvatar, userEmail }:
                   boxShadow: isActive
                     ? "0 2px 12px rgba(201,168,76,0.3)"
                     : "none",
-                }}
-                onMouseEnter={(e) => {
-                  if (!isActive) {
-                    e.currentTarget.style.color = "#C9A84C";
-                    e.currentTarget.style.background = "rgba(201,168,76,0.08)";
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (!isActive) {
-                    e.currentTarget.style.color = "#9a8a6a";
-                    e.currentTarget.style.background = "transparent";
-                  }
                 }}
               >
                 <Icon size={13} />
@@ -184,6 +172,7 @@ export default function Navbar({ userName, userInitial, userAvatar, userEmail }:
             <button
               onClick={() => setMenuOpen((v) => !v)}
               aria-label="Menu do usuário"
+              className="aurum-hover-border aurum-hover-transition"
               style={{
                 width: "34px",
                 height: "34px",
@@ -200,14 +189,7 @@ export default function Navbar({ userName, userInitial, userAvatar, userEmail }:
                 fontSize: "13px",
                 fontWeight: 700,
                 fontFamily: "var(--font-sans)",
-                transition: "border-color 0.2s",
                 overflow: "hidden",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = "rgba(201,168,76,0.7)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = "rgba(201,168,76,0.3)";
               }}
             >
               {!userAvatar && userInitial}
@@ -237,6 +219,7 @@ export default function Navbar({ userName, userInitial, userAvatar, userEmail }:
                 </div>
                 <button
                   onClick={() => { setMenuOpen(false); router.push("/dashboard/perfil"); }}
+                  className="aurum-hover-gold aurum-hover-bg aurum-hover-transition"
                   style={{
                     width: "100%",
                     background: "transparent",
@@ -248,16 +231,14 @@ export default function Navbar({ userName, userInitial, userAvatar, userEmail }:
                     textAlign: "left",
                     cursor: "pointer",
                     borderRadius: "5px",
-                    transition: "background 0.15s",
                     marginBottom: "4px",
                   }}
-                  onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(201,168,76,0.08)"; e.currentTarget.style.color = "#C9A84C"; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "#e8dcc0"; }}
                 >
                   Meu Perfil
                 </button>
                 <button
                   onClick={() => { setMenuOpen(false); router.push("/dashboard/configuracoes"); }}
+                  className="aurum-hover-gold aurum-hover-bg aurum-hover-transition"
                   style={{
                     width: "100%",
                     background: "transparent",
@@ -269,31 +250,26 @@ export default function Navbar({ userName, userInitial, userAvatar, userEmail }:
                     textAlign: "left",
                     cursor: "pointer",
                     borderRadius: "5px",
-                    transition: "background 0.15s",
                     marginBottom: "4px",
                   }}
-                  onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(201,168,76,0.08)"; e.currentTarget.style.color = "#C9A84C"; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "#e8dcc0"; }}
                 >
                   Configurações
                 </button>
                 <button
                   onClick={handleSignOut}
+                  className="aurum-hover-transition hover:bg-[var(--negative-bg)]"
                   style={{
                     width: "100%",
                     background: "transparent",
                     border: "none",
-                    color: "rgba(248,113,113,0.75)",
+                    color: "rgba(248,113,113,0.85)",
                     fontSize: "13px",
                     fontFamily: "var(--font-sans)",
                     padding: "7px 10px",
                     textAlign: "left",
                     cursor: "pointer",
                     borderRadius: "5px",
-                    transition: "background 0.15s",
                   }}
-                  onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(248,113,113,0.08)"; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
                 >
                   Sair
                 </button>
@@ -319,6 +295,7 @@ function NavIconBtn({
     <button
       aria-label={label}
       onClick={onClick}
+      className="aurum-hover-gold aurum-hover-bg aurum-hover-transition"
       style={{
         width: "34px",
         height: "34px",
@@ -330,15 +307,6 @@ function NavIconBtn({
         alignItems: "center",
         justifyContent: "center",
         color: "#a09068",
-        transition: "all 0.15s",
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.background = "rgba(201,168,76,0.08)";
-        e.currentTarget.style.color = "#C9A84C";
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.background = "transparent";
-        e.currentTarget.style.color = "#a09068";
       }}
     >
       {children}
