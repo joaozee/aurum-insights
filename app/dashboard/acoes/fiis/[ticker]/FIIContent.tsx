@@ -141,7 +141,7 @@ export default function FIIContent({ ticker }: { ticker: string }) {
   if (loading) {
     return (
       <div style={{ minHeight: "calc(100vh - 58px)", background: "#0a0806", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <p style={{ color: "#7a6a4a", fontSize: "13px", fontFamily: "var(--font-sans)" }}>
+        <p style={{ color: "#a09068", fontSize: "13px", fontFamily: "var(--font-sans)" }}>
           Carregando análise de {ticker}...
         </p>
       </div>
@@ -162,7 +162,7 @@ export default function FIIContent({ ticker }: { ticker: string }) {
             <p style={{ fontSize: "15px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-sans)", marginBottom: "6px" }}>
               FII não encontrado
             </p>
-            <p style={{ fontSize: "12px", color: "#7a6a4a", fontFamily: "var(--font-sans)" }}>
+            <p style={{ fontSize: "12px", color: "#a09068", fontFamily: "var(--font-sans)" }}>
               Não foi possível carregar dados para <strong>{ticker}</strong>. Verifique o ticker.
             </p>
           </div>
@@ -281,7 +281,7 @@ export default function FIIContent({ ticker }: { ticker: string }) {
         {composition.total > 0 && (
           <Section>
             <SectionHeader title="Composição Patrimonial">
-              <span style={{ fontSize: "10px", color: "#5a4a2a", fontFamily: "var(--font-sans)" }}>
+              <span style={{ fontSize: "10px", color: "#9a8a6a", fontFamily: "var(--font-sans)" }}>
                 Ref: {formatRefDate(lastReport?.referenceDate)}
               </span>
             </SectionHeader>
@@ -470,12 +470,12 @@ function BackButton({ onClick }: { onClick: () => void }) {
       style={{
         display: "flex", alignItems: "center", gap: "6px",
         background: "none", border: "none", cursor: "pointer",
-        color: "#7a6a4a", fontSize: "13px",
+        color: "#a09068", fontSize: "13px",
         fontFamily: "var(--font-sans)", padding: 0, marginBottom: "16px",
         transition: "color 0.15s",
       }}
       onMouseEnter={(e) => { e.currentTarget.style.color = "#C9A84C"; }}
-      onMouseLeave={(e) => { e.currentTarget.style.color = "#7a6a4a"; }}
+      onMouseLeave={(e) => { e.currentTarget.style.color = "#a09068"; }}
     >
       <ChevronLeft size={15} /> Voltar para análise
     </button>
@@ -539,7 +539,7 @@ function MetricChip({ color, label, value, sub }: { color: string; label: string
       }}>
         {value}
       </p>
-      <p style={{ fontSize: "10px", color: "#5a4a2a", fontFamily: "var(--font-sans)" }}>
+      <p style={{ fontSize: "10px", color: "#9a8a6a", fontFamily: "var(--font-sans)" }}>
         {sub}
       </p>
     </div>
@@ -549,7 +549,7 @@ function MetricChip({ color, label, value, sub }: { color: string; label: string
 function MiniStat({ label, value, color }: { label: string; value: string; color: string }) {
   return (
     <div>
-      <p style={{ fontSize: "10px", color: "#5a4a2a", fontFamily: "var(--font-sans)", marginBottom: "3px", letterSpacing: "0.04em", textTransform: "uppercase" }}>
+      <p style={{ fontSize: "10px", color: "#9a8a6a", fontFamily: "var(--font-sans)", marginBottom: "3px", letterSpacing: "0.04em", textTransform: "uppercase" }}>
         {label}
       </p>
       <p style={{ fontSize: "14px", fontWeight: 600, color, fontFamily: "var(--font-display)" }}>
@@ -567,7 +567,7 @@ function Indicator({ label, value }: { label: string; value: string }) {
       borderRadius: "8px", padding: "10px 12px",
     }}>
       <p style={{
-        fontSize: "9px", fontWeight: 600, color: "#7a6a4a",
+        fontSize: "9px", fontWeight: 600, color: "#a09068",
         fontFamily: "var(--font-sans)", letterSpacing: "0.05em",
         marginBottom: "6px", textTransform: "uppercase",
       }}>
@@ -603,7 +603,7 @@ function CompositionPie({ data }: { data: CompoSlice[] }) {
         const path = `M${x1},${y1} A${r},${r} 0 ${largeArc} 1 ${x2},${y2} L${x3},${y3} A${rInner},${rInner} 0 ${largeArc} 0 ${x4},${y4} Z`;
         return <path key={s.label} d={path} fill={s.color} stroke="#0d0b07" strokeWidth={1.5} />;
       })}
-      <text x={cx} y={cy - 4} textAnchor="middle" fontSize={10} fill="#7a6a4a" fontFamily="var(--font-sans)">
+      <text x={cx} y={cy - 4} textAnchor="middle" fontSize={10} fill="#a09068" fontFamily="var(--font-sans)">
         Total
       </text>
       <text x={cx} y={cy + 12} textAnchor="middle" fontSize={14} fontWeight={700} fill="#e8dcc0" fontFamily="var(--font-display)">
@@ -621,7 +621,7 @@ function CompositionRow({ slice, total }: { slice: CompoSlice; total: number }) 
       <span style={{ flex: 1, fontSize: "12px", color: "#c8b89a", fontFamily: "var(--font-sans)" }}>
         {slice.label}
       </span>
-      <span style={{ fontSize: "11px", color: "#7a6a4a", fontFamily: "var(--font-sans)" }}>
+      <span style={{ fontSize: "11px", color: "#a09068", fontFamily: "var(--font-sans)" }}>
         {pct.toFixed(1)}%
       </span>
       <span style={{ fontSize: "12px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-sans)", minWidth: "100px", textAlign: "right" }}>
@@ -700,7 +700,7 @@ function MonthlyReturnsChart({ data }: { data: MonthlyReturn[] }) {
                 width={barW} height={Math.abs((d.patrim >= 0 ? yPatr : yPatrNeg) - zeroY)}
                 fill="#06b6d4" rx={2} opacity={d.patrim >= 0 ? 1 : 0.7} />
               {showLabel && (
-                <text x={cx} y={h - 8} textAnchor="middle" fontSize={9} fill="#7a6a4a" fontFamily="var(--font-sans)">
+                <text x={cx} y={h - 8} textAnchor="middle" fontSize={9} fill="#a09068" fontFamily="var(--font-sans)">
                   {formatShortDate(d.date)}
                 </text>
               )}
@@ -731,7 +731,7 @@ function YieldChart({ data }: { data: MonthlyYield[] }) {
               {showLabel && (
                 <>
                   <text x={x + barW / 2} y={h - 8} textAnchor="middle"
-                    fontSize={9} fill="#7a6a4a" fontFamily="var(--font-sans)">
+                    fontSize={9} fill="#a09068" fontFamily="var(--font-sans)">
                     {formatShortDate(d.date)}
                   </text>
                   <text x={x + barW / 2} y={y - 4} textAnchor="middle"
@@ -768,7 +768,7 @@ function DivRow({ dividend }: { dividend: FIIDividend }) {
         }}>
           {tipo}
         </span>
-        <p style={{ fontSize: "11px", color: "#7a6a4a", fontFamily: "var(--font-sans)" }}>
+        <p style={{ fontSize: "11px", color: "#a09068", fontFamily: "var(--font-sans)" }}>
           {dividend.approvedOn && `aviso: ${formatDate(dividend.approvedOn)}`}
           {dividend.approvedOn && dividend.paymentDate && " · "}
           {dividend.paymentDate && `pgto: ${formatDate(dividend.paymentDate)}`}
@@ -832,7 +832,7 @@ function DataRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0",
       borderBottom: "1px solid rgba(201,168,76,0.05)" }}>
-      <span style={{ fontSize: "11px", color: "#7a6a4a", fontFamily: "var(--font-sans)" }}>{label}</span>
+      <span style={{ fontSize: "11px", color: "#a09068", fontFamily: "var(--font-sans)" }}>{label}</span>
       <span style={{ fontSize: "12px", color: "#e8dcc0", fontFamily: "var(--font-sans)", fontWeight: 500, textAlign: "right" }}>{value}</span>
     </div>
   );
@@ -851,7 +851,7 @@ function Empty({ text }: { text: string }) {
   return (
     <div style={{
       padding: "24px", textAlign: "center",
-      color: "#7a6a4a", fontSize: "12px",
+      color: "#a09068", fontSize: "12px",
       fontFamily: "var(--font-sans)",
     }}>
       {text}

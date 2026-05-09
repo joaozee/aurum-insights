@@ -4,8 +4,58 @@
 
 @layer base {
   :root {
+    /* ─── Type ────────────────────────────────────────────────── */
     --font-display: "Playfair Display", Georgia, serif;
     --font-sans: "Inter", system-ui, sans-serif;
+
+    /* ─── Surface (warm dark, gold-tinted) ────────────────────── */
+    --bg-page: #0a0806;
+    --bg-shell: #0d0b07;
+    --bg-card: #130f09;
+    --bg-card-hover: #1a1410;
+    --bg-input: #1a1508;
+
+    /* ─── Borders ─────────────────────────────────────────────── */
+    --border-faint: rgba(201, 168, 76, 0.08);
+    --border-soft: rgba(201, 168, 76, 0.12);
+    --border-emphasis: rgba(201, 168, 76, 0.25);
+    --border-strong: rgba(201, 168, 76, 0.4);
+
+    /* ─── Text — every step passes WCAG AA on --bg-page ───────── */
+    --text-strong: #f0e8d0;   /* ~12:1   headings, hero */
+    --text-default: #e8dcc0;  /* ~10.5:1 body strong */
+    --text-body: #c8b89a;     /* ~7.8:1  body */
+    --text-muted: #a09068;    /* ~5.7:1  secondary */
+    --text-faint: #9a8a6a;    /* ~5.3:1  tertiary (lowest legible) */
+
+    /* ─── Brand gold ──────────────────────────────────────────── */
+    --gold: #C9A84C;
+    --gold-light: #E8C96A;
+    --gold-dim: #9B7A29;
+
+    /* ─── Status (single hue per role) ────────────────────────── */
+    --positive: #34d399;
+    --positive-bg: rgba(52, 211, 153, 0.1);
+    --negative: #f87171;
+    --negative-bg: rgba(248, 113, 113, 0.1);
+
+    /* ─── Aurum chart palette: 8 hues, same lightness band ────── */
+    /* Use these for category/ticker/sector coloring. Never mix with */
+    /* Tailwind 500 vibrant defaults. */
+    --chart-1: #C9A84C;  /* gold        — anchor */
+    --chart-2: #C58A3D;  /* amber       — warm */
+    --chart-3: #B85C3A;  /* terracotta  — earth */
+    --chart-4: #A4485E;  /* dusky rose  — depth */
+    --chart-5: #8B5470;  /* mauve       — cool warm */
+    --chart-6: #5E6B8C;  /* slate blue  — cool */
+    --chart-7: #4F8A82;  /* desat teal  — cool earth */
+    --chart-8: #6E8C4A;  /* olive green — earth cool */
+
+    /* ─── Motion ──────────────────────────────────────────────── */
+    --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+    --duration-fast: 150ms;
+    --duration-normal: 200ms;
+    --duration-slow: 300ms;
   }
 
   *,
@@ -20,14 +70,36 @@
   }
 
   body {
-    background-color: #0a0a0a;
-    color: #e8e8e8;
+    background-color: var(--bg-page);
+    color: var(--text-default);
     font-family: var(--font-sans);
   }
 
   ::selection {
     background-color: rgba(201, 168, 76, 0.25);
-    color: #e8c96a;
+    color: var(--gold-light);
+  }
+
+  /* Focus visible — gold ring, never browser default */
+  :focus-visible {
+    outline: 2px solid var(--gold);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+  :focus:not(:focus-visible) {
+    outline: none;
+  }
+
+  /* Respect reduced motion preference */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
   }
 }
 

@@ -112,10 +112,10 @@ export default function NotificationsBell({ userEmail }: Props) {
           width: "34px", height: "34px", borderRadius: "8px",
           background: "transparent", border: "none", cursor: "pointer",
           display: "flex", alignItems: "center", justifyContent: "center",
-          color: "#7a6a4a", transition: "all 0.15s", position: "relative",
+          color: "#a09068", transition: "all 0.15s", position: "relative",
         }}
         onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(201,168,76,0.08)"; e.currentTarget.style.color = "#C9A84C"; }}
-        onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "#7a6a4a"; }}
+        onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "#a09068"; }}
       >
         <Bell size={16} />
         {unread > 0 && (
@@ -171,7 +171,7 @@ export default function NotificationsBell({ userEmail }: Props) {
 
           <div style={{ flex: 1, overflowY: "auto" }}>
             {items.length === 0 ? (
-              <p style={{ padding: "30px 16px", textAlign: "center", color: "#7a6a4a", fontSize: "12px", fontFamily: "var(--font-sans)" }}>
+              <p style={{ padding: "30px 16px", textAlign: "center", color: "#a09068", fontSize: "12px", fontFamily: "var(--font-sans)" }}>
                 Sem notificações ainda.
               </p>
             ) : (
@@ -210,7 +210,7 @@ export default function NotificationsBell({ userEmail }: Props) {
                     </p>
                     {n.message && (
                       <p style={{
-                        fontSize: "11px", color: "#7a6a4a",
+                        fontSize: "11px", color: "#a09068",
                         fontFamily: "var(--font-sans)", lineHeight: 1.4,
                         marginBottom: "2px",
                         overflow: "hidden", textOverflow: "ellipsis",
@@ -219,7 +219,7 @@ export default function NotificationsBell({ userEmail }: Props) {
                         {n.message}
                       </p>
                     )}
-                    <p style={{ fontSize: "10px", color: "#5a4a2a", fontFamily: "var(--font-sans)" }}>
+                    <p style={{ fontSize: "10px", color: "#9a8a6a", fontFamily: "var(--font-sans)" }}>
                       {relativeTime(n.created_at)}
                     </p>
                   </div>

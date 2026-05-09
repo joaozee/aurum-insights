@@ -19,38 +19,41 @@ import type { MarketItem } from "@/app/api/market/route";
 import { createClient } from "@/lib/supabase/client";
 import { formatRelativeTime, initialFromName } from "@/lib/comunidade";
 
+// Cards do Acesso Rápido usam a paleta Aurum (lib/aurum-colors.ts) em vez
+// dos gradientes vibrantes Tailwind-500 que brigavam com a identidade
+// dourada do app.
 const QUICK_ACCESS = [
   {
     label: "Minhas Finanças",
     sub: "Controle completo",
     href: "/dashboard/financas",
     icon: Wallet,
-    gradient: "linear-gradient(135deg, #1d4ed8 0%, #3b82f6 100%)",
-    glow: "rgba(59,130,246,0.25)",
+    accent: "#5E6B8C", // chart-6 slate blue
+    glow: "rgba(94,107,140,0.25)",
   },
   {
     label: "Minha Carteira",
     sub: "Acompanhe ativos",
     href: "/dashboard/carteira",
     icon: BarChart2,
-    gradient: "linear-gradient(135deg, #0e7490 0%, #06b6d4 100%)",
-    glow: "rgba(6,182,212,0.25)",
+    accent: "#4F8A82", // chart-7 desat teal
+    glow: "rgba(79,138,130,0.25)",
   },
   {
     label: "Aprender",
     sub: "Cursos e conteúdos",
     href: "/dashboard/cursos",
     icon: BookOpen,
-    gradient: "linear-gradient(135deg, #6d28d9 0%, #8b5cf6 100%)",
-    glow: "rgba(139,92,246,0.25)",
+    accent: "#B85C3A", // chart-3 terracotta
+    glow: "rgba(184,92,58,0.25)",
   },
   {
     label: "Comunidade",
     sub: "Conecte-se",
     href: "/dashboard/comunidade",
     icon: Users,
-    gradient: "linear-gradient(135deg, #047857 0%, #10b981 100%)",
-    glow: "rgba(16,185,129,0.25)",
+    accent: "#6E8C4A", // chart-8 olive green
+    glow: "rgba(110,140,74,0.25)",
   },
 ];
 
@@ -199,15 +202,7 @@ export default function HomeContent({ firstName, marketData, quickStats }: HomeC
               }}
             >
               {getGreeting()},{" "}
-              <span
-                style={{
-                  background:
-                    "linear-gradient(135deg, #E8C96A 0%, #C9A84C 50%, #A07820 100%)",
-                  WebkitBackgroundClip: "text",
-                  WebkitTextFillColor: "transparent",
-                  backgroundClip: "text",
-                }}
-              >
+              <span style={{ color: "#E8C96A" }}>
                 {capitalize(firstName)}
               </span>
             </h1>
@@ -215,7 +210,7 @@ export default function HomeContent({ firstName, marketData, quickStats }: HomeC
             <p
               style={{
                 fontSize: "15px",
-                color: "#6a5a3a",
+                color: "#a09068",
                 fontFamily: "var(--font-sans)",
                 lineHeight: 1.75,
                 maxWidth: "460px",
@@ -275,7 +270,7 @@ export default function HomeContent({ firstName, marketData, quickStats }: HomeC
                     <span
                       style={{
                         fontSize: "13px",
-                        color: "#7a6a4a",
+                        color: "#a09068",
                         fontFamily: "var(--font-sans)",
                       }}
                     >
@@ -338,7 +333,7 @@ export default function HomeContent({ firstName, marketData, quickStats }: HomeC
               gap: "14px",
             }}
           >
-            {QUICK_ACCESS.map(({ label, sub, href, icon: Icon, gradient, glow }) => {
+            {QUICK_ACCESS.map(({ label, sub, href, icon: Icon, accent, glow }) => {
               const stat =
                 href === "/dashboard/carteira" && stats.assetCount > 0
                   ? `${stats.assetCount} ${stats.assetCount === 1 ? "ativo" : "ativos"}`
@@ -350,51 +345,27 @@ export default function HomeContent({ firstName, marketData, quickStats }: HomeC
                 key={href}
                 onClick={() => router.push(href)}
                 style={{
-                  background: gradient,
-                  border: "none",
+                  background: "#130f09",
+                  border: `1px solid ${accent}24`,
                   borderRadius: "12px",
                   padding: "22px 20px 20px",
                   cursor: "pointer",
                   textAlign: "left",
                   position: "relative",
                   overflow: "hidden",
-                  transition: "transform 0.18s ease, box-shadow 0.18s ease",
+                  transition: "transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease",
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = "translateY(-3px)";
-                  e.currentTarget.style.boxShadow = `0 12px 32px ${glow}`;
+                  e.currentTarget.style.transform = "translateY(-2px)";
+                  e.currentTarget.style.borderColor = `${accent}55`;
+                  e.currentTarget.style.boxShadow = `0 8px 28px ${glow}`;
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.transform = "translateY(0)";
+                  e.currentTarget.style.borderColor = `${accent}24`;
                   e.currentTarget.style.boxShadow = "none";
                 }}
               >
-                {/* Decorative circles */}
-                <div
-                  style={{
-                    position: "absolute",
-                    bottom: "-24px",
-                    right: "-24px",
-                    width: "100px",
-                    height: "100px",
-                    borderRadius: "50%",
-                    background: "rgba(255,255,255,0.08)",
-                    pointerEvents: "none",
-                  }}
-                />
-                <div
-                  style={{
-                    position: "absolute",
-                    bottom: "-10px",
-                    right: "30px",
-                    width: "60px",
-                    height: "60px",
-                    borderRadius: "50%",
-                    background: "rgba(255,255,255,0.05)",
-                    pointerEvents: "none",
-                  }}
-                />
-
                 <div
                   style={{
                     display: "flex",
@@ -408,35 +379,23 @@ export default function HomeContent({ firstName, marketData, quickStats }: HomeC
                       width: "36px",
                       height: "36px",
                       borderRadius: "10px",
-                      background: "rgba(255,255,255,0.2)",
+                      background: `${accent}1f`,
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
-                      color: "#fff",
+                      color: accent,
                     }}
                   >
                     <Icon size={18} />
                   </div>
-                  <div
-                    style={{
-                      width: "24px",
-                      height: "24px",
-                      borderRadius: "50%",
-                      background: "rgba(255,255,255,0.15)",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                    }}
-                  >
-                    <ChevronRight size={12} style={{ color: "#fff" }} />
-                  </div>
+                  <ChevronRight size={14} style={{ color: "#a09068" }} />
                 </div>
 
                 <p
                   style={{
                     fontSize: "15px",
-                    fontWeight: 700,
-                    color: "#fff",
+                    fontWeight: 600,
+                    color: "#e8dcc0",
                     fontFamily: "var(--font-sans)",
                     marginBottom: "4px",
                     letterSpacing: "-0.01em",
@@ -447,7 +406,7 @@ export default function HomeContent({ firstName, marketData, quickStats }: HomeC
                 <p
                   style={{
                     fontSize: "12px",
-                    color: "rgba(255,255,255,0.6)",
+                    color: "#a09068",
                     fontFamily: "var(--font-sans)",
                   }}
                 >
@@ -456,12 +415,12 @@ export default function HomeContent({ firstName, marketData, quickStats }: HomeC
                 {stat && (
                   <p
                     style={{
-                      marginTop: "8px",
+                      marginTop: "10px",
                       display: "inline-block",
                       fontSize: "11px",
                       fontWeight: 600,
-                      color: "#fff",
-                      background: "rgba(255,255,255,0.18)",
+                      color: accent,
+                      background: `${accent}14`,
                       padding: "3px 8px",
                       borderRadius: "5px",
                       fontFamily: "var(--font-sans)",
@@ -534,7 +493,7 @@ export default function HomeContent({ firstName, marketData, quickStats }: HomeC
               <p
                 style={{
                   fontSize: "13px",
-                  color: "#6a5a3a",
+                  color: "#a09068",
                   fontFamily: "var(--font-sans)",
                   lineHeight: 1.5,
                 }}
@@ -572,7 +531,7 @@ export default function HomeContent({ firstName, marketData, quickStats }: HomeC
           >
             <div>
               <SectionTitle>Comunidade Aurum</SectionTitle>
-              <p style={{ fontSize: "11px", color: "#7a6a4a", fontFamily: "var(--font-sans)", marginTop: "2px" }}>
+              <p style={{ fontSize: "11px", color: "#a09068", fontFamily: "var(--font-sans)", marginTop: "2px" }}>
                 Posts em destaque dos investidores
               </p>
             </div>
@@ -618,7 +577,7 @@ export default function HomeContent({ firstName, marketData, quickStats }: HomeC
                   padding: "30px 20px",
                   cursor: "pointer",
                   textAlign: "center",
-                  color: "#7a6a4a",
+                  color: "#a09068",
                   fontSize: "13px",
                   fontFamily: "var(--font-sans)",
                 }}
@@ -679,7 +638,7 @@ export default function HomeContent({ firstName, marketData, quickStats }: HomeC
                         <p style={{ fontSize: "13px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-sans)", lineHeight: 1.3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                           {p.author_name ?? "Anônimo"}
                         </p>
-                        <p style={{ fontSize: "11px", color: "#4a3a1a", fontFamily: "var(--font-sans)" }}>
+                        <p style={{ fontSize: "11px", color: "#9a8a6a", fontFamily: "var(--font-sans)" }}>
                           {formatRelativeTime(p.created_at)}
                         </p>
                       </div>
@@ -713,7 +672,7 @@ export default function HomeContent({ firstName, marketData, quickStats }: HomeC
                             display: "flex",
                             alignItems: "center",
                             gap: "5px",
-                            color: "#4a3a1a",
+                            color: "#9a8a6a",
                             fontSize: "12px",
                             fontFamily: "var(--font-sans)",
                           }}

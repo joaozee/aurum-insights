@@ -171,12 +171,12 @@ export default function MensagensContent({ userEmail, userName }: Props) {
           style={{
             display: "flex", alignItems: "center", gap: "6px",
             background: "none", border: "none", cursor: "pointer",
-            color: "#7a6a4a", fontSize: "13px",
+            color: "#a09068", fontSize: "13px",
             fontFamily: "var(--font-sans)", padding: 0, marginBottom: "16px",
             transition: "color 0.15s",
           }}
           onMouseEnter={(e) => { e.currentTarget.style.color = "#C9A84C"; }}
-          onMouseLeave={(e) => { e.currentTarget.style.color = "#7a6a4a"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.color = "#a09068"; }}
         >
           <ChevronLeft size={15} /> Voltar para comunidade
         </button>
@@ -216,7 +216,7 @@ export default function MensagensContent({ userEmail, userName }: Props) {
 
             {/* Search */}
             <div style={{ padding: "0 16px 12px", position: "relative" }}>
-              <Search size={12} style={{ position: "absolute", left: "26px", top: "50%", transform: "translateY(-50%)", color: "#5a4a2a" }} />
+              <Search size={12} style={{ position: "absolute", left: "26px", top: "50%", transform: "translateY(-50%)", color: "#9a8a6a" }} />
               <input
                 value={busca}
                 onChange={(e) => setBusca(e.target.value)}
@@ -245,7 +245,7 @@ export default function MensagensContent({ userEmail, userName }: Props) {
               {filteredConversas.length === 0 ? (
                 <div style={{
                   display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-                  padding: "32px 16px", color: "#5a4a2a", textAlign: "center",
+                  padding: "32px 16px", color: "#9a8a6a", textAlign: "center",
                 }}>
                   <MessageSquare size={28} style={{ marginBottom: "10px", opacity: 0.4 }} />
                   <p style={{ fontSize: "12px", fontFamily: "var(--font-sans)" }}>
@@ -287,7 +287,7 @@ export default function MensagensContent({ userEmail, userName }: Props) {
                   <p style={{ fontSize: "13px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-sans)" }}>
                     {activeConv?.otherName ?? activeOtherEmail.split("@")[0]}
                   </p>
-                  <p style={{ fontSize: "10px", color: "#6a5a3a", fontFamily: "var(--font-sans)" }}>
+                  <p style={{ fontSize: "10px", color: "#a09068", fontFamily: "var(--font-sans)" }}>
                     {activeOtherEmail}
                   </p>
                 </div>
@@ -301,7 +301,7 @@ export default function MensagensContent({ userEmail, userName }: Props) {
                 {activeMessages.length === 0 ? (
                   <div style={{
                     margin: "auto", textAlign: "center",
-                    color: "#5a4a2a", fontSize: "12px",
+                    color: "#9a8a6a", fontSize: "12px",
                     fontFamily: "var(--font-sans)",
                   }}>
                     Nenhuma mensagem ainda. Comece a conversa!
@@ -356,7 +356,7 @@ export default function MensagensContent({ userEmail, userName }: Props) {
             <div style={{
               display: "flex", flexDirection: "column",
               alignItems: "center", justifyContent: "center",
-              color: "#5a4a2a", textAlign: "center", padding: "40px",
+              color: "#9a8a6a", textAlign: "center", padding: "40px",
             }}>
               <MessageSquare size={42} style={{ marginBottom: "14px", opacity: 0.4 }} />
               <p style={{ fontSize: "15px", color: "#9a8a6a", fontWeight: 600, fontFamily: "var(--font-sans)", marginBottom: "4px" }}>
@@ -455,7 +455,7 @@ function TabBtn({ children, active, onClick }: { children: React.ReactNode; acti
         border: "1px solid",
         borderColor: active ? "rgba(201,168,76,0.3)" : "transparent",
         background: active ? "rgba(201,168,76,0.05)" : "transparent",
-        color: active ? "#C9A84C" : "#7a6a4a",
+        color: active ? "#C9A84C" : "#a09068",
         fontSize: "11px", fontWeight: active ? 600 : 500,
         fontFamily: "var(--font-sans)", cursor: "pointer",
         transition: "all 0.15s",
@@ -512,13 +512,13 @@ function ConversaItem({
           }}>
             {conversa.otherName}
           </p>
-          <span style={{ fontSize: "10px", color: "#5a4a2a", fontFamily: "var(--font-sans)", flexShrink: 0 }}>
+          <span style={{ fontSize: "10px", color: "#9a8a6a", fontFamily: "var(--font-sans)", flexShrink: 0 }}>
             {formatRelativeTime(conversa.lastAt)}
           </span>
         </div>
         <p style={{
           fontSize: "11px",
-          color: conversa.unread > 0 ? "#C9A84C" : "#7a6a4a",
+          color: conversa.unread > 0 ? "#C9A84C" : "#a09068",
           fontFamily: "var(--font-sans)",
           fontWeight: conversa.unread > 0 ? 500 : 400,
           overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
@@ -570,7 +570,7 @@ function Bubble({ message, mine }: { message: DirectMessage; mine: boolean }) {
         </p>
         <p style={{
           fontSize: "9px",
-          color: mine ? "rgba(255,255,255,0.6)" : "#5a4a2a",
+          color: mine ? "rgba(255,255,255,0.6)" : "#9a8a6a",
           fontFamily: "var(--font-sans)",
           marginTop: "3px", textAlign: "right",
         }}>

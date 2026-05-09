@@ -135,7 +135,7 @@ export default function LoginForm() {
             <label
               htmlFor="email"
               className="block font-sans uppercase tracking-[0.18em] mb-2"
-              style={{ fontSize: "10px", color: "#7a6a4a" }}
+              style={{ fontSize: "10px", color: "#a09068" }}
             >
               E-mail
             </label>
@@ -174,7 +174,7 @@ export default function LoginForm() {
             <label
               htmlFor="password"
               className="block font-sans uppercase tracking-[0.18em] mb-2"
-              style={{ fontSize: "10px", color: "#7a6a4a" }}
+              style={{ fontSize: "10px", color: "#a09068" }}
             >
               Senha
             </label>
@@ -298,7 +298,7 @@ export default function LoginForm() {
           <div style={{ flex: 1, height: "1px", background: "#2a2010" }} />
           <span
             className="font-sans"
-            style={{ fontSize: "11px", color: "#5a4a2a", letterSpacing: "0.1em" }}
+            style={{ fontSize: "11px", color: "#9a8a6a", letterSpacing: "0.1em" }}
           >
             OU
           </span>

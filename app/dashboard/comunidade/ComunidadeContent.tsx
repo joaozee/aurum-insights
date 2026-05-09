@@ -472,7 +472,7 @@ export default function ComunidadeContent({ userEmail, userName, userAvatar }: P
         <aside style={{ display: "flex", flexDirection: "column", gap: "12px", position: "sticky", top: "78px" }}>
           {/* Search */}
           <div style={{ position: "relative" }}>
-            <Search size={13} style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "#5a4a2a" }} />
+            <Search size={13} style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "#9a8a6a" }} />
             <input
               value={busca}
               onChange={(e) => setBusca(e.target.value)}
@@ -545,7 +545,7 @@ export default function ComunidadeContent({ userEmail, userName, userAvatar }: P
             borderRadius: "12px", padding: "16px",
           }}>
             <p style={{
-              fontSize: "11px", fontWeight: 600, color: "#7a6a4a",
+              fontSize: "11px", fontWeight: 600, color: "#a09068",
               fontFamily: "var(--font-sans)", letterSpacing: "0.06em",
               marginBottom: "12px", textTransform: "uppercase",
             }}>
@@ -628,7 +628,7 @@ export default function ComunidadeContent({ userEmail, userName, userAvatar }: P
                     border: "1px solid",
                     borderColor: isPremium ? "rgba(201,168,76,0.4)" : "rgba(201,168,76,0.1)",
                     background: isPremium ? "rgba(201,168,76,0.08)" : "transparent",
-                    color: isPremium ? "#C9A84C" : "#7a6a4a",
+                    color: isPremium ? "#C9A84C" : "#a09068",
                     fontSize: "11px", fontWeight: 500,
                     fontFamily: "var(--font-sans)", cursor: "pointer",
                     transition: "all 0.15s",
@@ -670,12 +670,12 @@ export default function ComunidadeContent({ userEmail, userName, userAvatar }: P
               aria-label="Atualizar feed"
               style={{
                 background: "transparent", border: "none", cursor: "pointer",
-                color: "#7a6a4a", padding: "4px",
+                color: "#a09068", padding: "4px",
                 display: "flex", alignItems: "center",
                 transition: "color 0.15s",
               }}
               onMouseEnter={(e) => { e.currentTarget.style.color = "#C9A84C"; }}
-              onMouseLeave={(e) => { e.currentTarget.style.color = "#7a6a4a"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = "#a09068"; }}
             >
               <RefreshCw size={14} />
             </button>
@@ -721,7 +721,7 @@ export default function ComunidadeContent({ userEmail, userName, userAvatar }: P
         <aside style={{ display: "flex", flexDirection: "column", gap: "12px", position: "sticky", top: "78px" }}>
           <RightCard title="Maiores altas hoje" icon={<Newspaper size={13} />}>
             {topMovers.length === 0 ? (
-              <p style={{ fontSize: "11px", color: "#7a6a4a", fontFamily: "var(--font-sans)" }}>
+              <p style={{ fontSize: "11px", color: "#a09068", fontFamily: "var(--font-sans)" }}>
                 Carregando dados do mercado...
               </p>
             ) : (
@@ -737,7 +737,7 @@ export default function ComunidadeContent({ userEmail, userName, userAvatar }: P
 
           <RightCard title="Top investidores" icon={<TrendingUp size={13} />}>
             {topInvestors.length === 0 ? (
-              <p style={{ fontSize: "11px", color: "#7a6a4a", fontFamily: "var(--font-sans)" }}>
+              <p style={{ fontSize: "11px", color: "#a09068", fontFamily: "var(--font-sans)" }}>
                 Sem ranking ainda.
               </p>
             ) : (
@@ -813,7 +813,7 @@ function PostCard({
         background: "#130f09",
         border: "1px solid rgba(201,168,76,0.1)",
         borderRadius: "12px", padding: "14px 18px",
-        color: "#7a6a4a", fontSize: "12px",
+        color: "#a09068", fontSize: "12px",
         fontFamily: "var(--font-sans)",
       }}>
         Post original removido.
@@ -831,13 +831,13 @@ function PostCard({
       {isPureRepost && (
         <div style={{
           display: "flex", alignItems: "center", gap: "6px",
-          fontSize: "11px", color: "#7a6a4a",
+          fontSize: "11px", color: "#a09068",
           fontFamily: "var(--font-sans)", marginBottom: "10px",
         }}>
           <Repeat2 size={11} />
           <AuthorLink username={post.author_username} name={post.author_name} fallback="Alguém" inline />
           <span>repostou</span>
-          <span style={{ color: "#5a4a2a" }}>· {formatRelativeTime(post.created_at)}</span>
+          <span style={{ color: "#9a8a6a" }}>· {formatRelativeTime(post.created_at)}</span>
         </div>
       )}
 
@@ -851,7 +851,7 @@ function PostCard({
               <Sparkles size={10} style={{ color: "#C9A84C" }} fill="#C9A84C" />
             )}
           </div>
-          <p style={{ fontSize: "11px", color: "#5a4a2a", fontFamily: "var(--font-sans)" }}>
+          <p style={{ fontSize: "11px", color: "#9a8a6a", fontFamily: "var(--font-sans)" }}>
             {formatRelativeTime(main.created_at)}
           </p>
         </div>
@@ -943,7 +943,7 @@ function PostCard({
         <div style={{
           marginBottom: "12px",
           borderRadius: "10px", border: "1px dashed rgba(201,168,76,0.15)",
-          padding: "12px 14px", color: "#7a6a4a",
+          padding: "12px 14px", color: "#a09068",
           fontSize: "12px", fontFamily: "var(--font-sans)",
         }}>
           Post original removido.
@@ -1004,7 +1004,7 @@ function PostCard({
         }}>
           {comments.length === 0 ? (
             <p style={{
-              fontSize: "12px", color: "#7a6a4a",
+              fontSize: "12px", color: "#a09068",
               fontFamily: "var(--font-sans)", textAlign: "center",
               padding: "8px 0 14px",
             }}>
@@ -1159,7 +1159,7 @@ function EmbeddedOriginal({ post }: { post: CommunityPost }) {
       <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "6px" }}>
         <Avatar initial={initial} size={24} url={post.author_avatar} />
         <AuthorLink username={post.author_username} name={post.author_name} small />
-        <span style={{ fontSize: "10px", color: "#5a4a2a", fontFamily: "var(--font-sans)" }}>
+        <span style={{ fontSize: "10px", color: "#9a8a6a", fontFamily: "var(--font-sans)" }}>
           · {formatRelativeTime(post.created_at)}
         </span>
       </div>
@@ -1198,7 +1198,7 @@ function CommentRow({ comment }: { comment: PostComment }) {
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "2px" }}>
           <AuthorLink username={comment.author_username} name={comment.author_name} small />
-          <span style={{ fontSize: "10px", color: "#5a4a2a", fontFamily: "var(--font-sans)" }}>
+          <span style={{ fontSize: "10px", color: "#9a8a6a", fontFamily: "var(--font-sans)" }}>
             · {formatRelativeTime(comment.created_at)}
           </span>
         </div>
@@ -1258,7 +1258,7 @@ function QuoteRepostModal({
             aria-label="Fechar"
             style={{
               background: "transparent", border: "none", cursor: "pointer",
-              color: "#7a6a4a", padding: "4px",
+              color: "#a09068", padding: "4px",
               display: "flex", alignItems: "center",
             }}
           >
@@ -1378,7 +1378,7 @@ function PersonalizarFeedModal({
             onClick={onClose}
             style={{
               background: "transparent", border: "none", cursor: "pointer",
-              color: "#7a6a4a", padding: "4px",
+              color: "#a09068", padding: "4px",
               display: "flex", alignItems: "center",
             }}
           >
@@ -1391,7 +1391,7 @@ function PersonalizarFeedModal({
           <p style={{ fontSize: "13px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-sans)", marginBottom: "6px" }}>
             Tópicos de Interesse
           </p>
-          <p style={{ fontSize: "11px", color: "#7a6a4a", fontFamily: "var(--font-sans)", marginBottom: "12px" }}>
+          <p style={{ fontSize: "11px", color: "#a09068", fontFamily: "var(--font-sans)", marginBottom: "12px" }}>
             Selecione os tópicos que mais te interessam
           </p>
           <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
@@ -1450,7 +1450,7 @@ function PersonalizarFeedModal({
                     }}>
                       {a.label}
                     </p>
-                    <p style={{ fontSize: "11px", color: "#6a5a3a", fontFamily: "var(--font-sans)" }}>
+                    <p style={{ fontSize: "11px", color: "#a09068", fontFamily: "var(--font-sans)" }}>
                       {a.description}
                     </p>
                   </div>
@@ -1581,7 +1581,7 @@ function ComposerIconBtn({ icon, label, onClick }: { icon: React.ReactNode; labe
         padding: "5px 10px", borderRadius: "6px",
         background: "transparent",
         border: "1px solid rgba(201,168,76,0.1)",
-        color: "#7a6a4a", fontSize: "11px", fontWeight: 500,
+        color: "#a09068", fontSize: "11px", fontWeight: 500,
         fontFamily: "var(--font-sans)", cursor: "pointer",
         transition: "all 0.15s",
       }}
@@ -1591,7 +1591,7 @@ function ComposerIconBtn({ icon, label, onClick }: { icon: React.ReactNode; labe
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.borderColor = "rgba(201,168,76,0.1)";
-        e.currentTarget.style.color = "#7a6a4a";
+        e.currentTarget.style.color = "#a09068";
       }}
     >
       {icon} {label}
@@ -1615,7 +1615,7 @@ function ActionBtn({
         display: "flex", alignItems: "center", gap: "5px",
         background: "transparent", border: "none",
         cursor: onClick ? "pointer" : "default",
-        color: active && activeColor ? activeColor : "#7a6a4a",
+        color: active && activeColor ? activeColor : "#a09068",
         fontSize: "12px", fontFamily: "var(--font-sans)",
         padding: "4px 6px", borderRadius: "4px",
         transition: "all 0.15s",
@@ -1624,7 +1624,7 @@ function ActionBtn({
         if (onClick && !active) e.currentTarget.style.color = "#C9A84C";
       }}
       onMouseLeave={(e) => {
-        if (onClick && !active) e.currentTarget.style.color = "#7a6a4a";
+        if (onClick && !active) e.currentTarget.style.color = "#a09068";
       }}
     >
       {icon} {count !== undefined && <span>{count}</span>}
@@ -1638,7 +1638,7 @@ function FeedEmpty({ text }: { text: string }) {
       background: "#130f09",
       border: "1px solid rgba(201,168,76,0.08)",
       borderRadius: "12px", padding: "40px 24px",
-      textAlign: "center", color: "#7a6a4a", fontSize: "13px",
+      textAlign: "center", color: "#a09068", fontSize: "13px",
       fontFamily: "var(--font-sans)",
     }}>
       {text}
@@ -1660,7 +1660,7 @@ function RightCard({ title, icon, children }: { title: string; icon: React.React
             {title}
           </span>
         </div>
-        <RefreshCw size={11} style={{ color: "#5a4a2a", cursor: "pointer" }} />
+        <RefreshCw size={11} style={{ color: "#9a8a6a", cursor: "pointer" }} />
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>{children}</div>
     </div>
@@ -1680,7 +1680,7 @@ function RightItem({ label, meta }: { label: string; meta: string }) {
       }}>
         {label}
       </p>
-      <p style={{ fontSize: "10px", color: "#5a4a2a", fontFamily: "var(--font-sans)" }}>
+      <p style={{ fontSize: "10px", color: "#9a8a6a", fontFamily: "var(--font-sans)" }}>
         {meta}
       </p>
     </div>

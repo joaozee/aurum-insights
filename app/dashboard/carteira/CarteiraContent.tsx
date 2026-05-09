@@ -9,6 +9,12 @@ import {
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
+import {
+  CHART_PALETTE,
+  tickerColor,
+  ASSET_CLASS_COLORS,
+  SECTOR_COLORS,
+} from "@/lib/aurum-colors";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -119,49 +125,10 @@ function fmtRfRate(indexer: RfIndexer, rate: string): string {
     case "Selic":     return `${r}% da Selic`;
   }
 }
-// Curated palette: hue-spaced, 10 colors, no near-duplicates.
-const PALETTE = [
-  "#8b5cf6", // violet
-  "#3b82f6", // blue
-  "#0ea5e9", // sky
-  "#06b6d4", // cyan
-  "#14b8a6", // teal
-  "#22c55e", // green
-  "#eab308", // gold
-  "#f97316", // orange
-  "#ef4444", // red
-  "#ec4899", // pink
-];
-
-function tickerColor(ticker: string): string {
-  let h = 0;
-  for (const c of ticker) h = (h * 31 + c.charCodeAt(0)) & 0xffffff;
-  return PALETTE[Math.abs(h) % PALETTE.length];
-}
-
-// Fixed colors for asset classes (4 distinct anchors)
-const CLASS_COLORS: Record<string, string> = {
-  acoes:      "#3b82f6", // blue
-  fiis:       "#f97316", // orange
-  renda_fixa: "#22c55e", // green
-  cripto:     "#eab308", // gold
-  fundos:     "#a78bfa", // light violet (legacy)
-};
-
-// Curated colors for common Brazilian B3 sectors (brapi summaryProfile.sector)
-const SECTOR_COLORS: Record<string, string> = {
-  "Serviços Financeiros":    "#3b82f6", // blue
-  "Energia":                 "#f97316", // orange
-  "Materiais":               "#14b8a6", // teal
-  "Bens de Consumo":         "#ec4899", // pink
-  "Saúde":                   "#22c55e", // green
-  "Tecnologia":              "#06b6d4", // cyan
-  "Utilidade Pública":       "#eab308", // gold
-  "Industrial":              "#ef4444", // red
-  "Imobiliário":             "#a78bfa", // light violet
-  "Comunicações":            "#0ea5e9", // sky
-  "Outros":                  "#a09068", // muted gold (legible on dark bg)
-};
+// Aurum chart palette + ticker/class/sector mappings live in lib/aurum-colors.ts.
+// Local alias for legacy in-file references that still call CLASS_COLORS.
+const PALETTE = CHART_PALETTE;
+const CLASS_COLORS = ASSET_CLASS_COLORS;
 
 const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const fmtK = (v: number) => v >= 1000000
@@ -202,7 +169,7 @@ function ModalHeader({ title, onClose }: { title: string; onClose: () => void })
   return (
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
       <h2 style={{ fontSize: "17px", fontWeight: 600, color: "#f0e8d0", fontFamily: "var(--font-display)" }}>{title}</h2>
-      <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: "#5a4a2a", padding: 0 }}>
+      <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: "#9a8a6a", padding: 0 }}>
         <X size={18} />
       </button>
     </div>
@@ -212,7 +179,7 @@ function ModalHeader({ title, onClose }: { title: string; onClose: () => void })
 function FormField({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <label style={{ fontSize: "10px", color: "#7a6a4a", fontFamily: "var(--font-sans)", letterSpacing: "0.12em", textTransform: "uppercase", display: "block", marginBottom: "6px" }}>
+      <label style={{ fontSize: "10px", color: "#a09068", fontFamily: "var(--font-sans)", letterSpacing: "0.12em", textTransform: "uppercase", display: "block", marginBottom: "6px" }}>
         {label}
       </label>
       {children}
@@ -265,7 +232,7 @@ function EvolutionChart({ data }: { data: { month: string; invested: number; val
 
   if (data.length === 0) return (
     <div style={{ height: "200px", display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <span style={{ color: "#6a5a3a", fontSize: "13px", fontFamily: "var(--font-sans)" }}>Sem transações registradas</span>
+      <span style={{ color: "#a09068", fontSize: "13px", fontFamily: "var(--font-sans)" }}>Sem transações registradas</span>
     </div>
   );
 
@@ -368,7 +335,7 @@ function DonutChart({ data, totalCount, unitLabel }: { data: DistRow[]; totalCou
 
   if (data.length === 0 || total === 0) return (
     <div style={{ height: "160px", display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <span style={{ color: "#6a5a3a", fontSize: "13px", fontFamily: "var(--font-sans)" }}>Sem ativos</span>
+      <span style={{ color: "#a09068", fontSize: "13px", fontFamily: "var(--font-sans)" }}>Sem ativos</span>
     </div>
   );
 
@@ -658,7 +625,7 @@ function TickerSearch({
         />
         <div style={{
           position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)",
-          color: loading ? "#C9A84C" : "#5a4a2a", fontSize: "13px", pointerEvents: "none",
+          color: loading ? "#C9A84C" : "#9a8a6a", fontSize: "13px", pointerEvents: "none",
         }}>
           {loading ? "⟳" : "⌕"}
         </div>
@@ -710,7 +677,7 @@ function TickerSearch({
               </div>
               <div style={{ flex: 1, textAlign: "left", minWidth: 0 }}>
                 <p style={{ fontSize: "13px", fontWeight: 700, color: "#e8dcc0", fontFamily: "var(--font-sans)", marginBottom: "2px" }}>{hit.symbol}</p>
-                <p style={{ fontSize: "11px", color: "#7a6a4a", fontFamily: "var(--font-sans)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{hit.name}</p>
+                <p style={{ fontSize: "11px", color: "#a09068", fontFamily: "var(--font-sans)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{hit.name}</p>
               </div>
               {hit.price != null && hit.price > 0 && (
                 <div style={{ textAlign: "right", flexShrink: 0 }}>
@@ -1017,7 +984,7 @@ export default function CarteiraContent({ userEmail }: Props) {
       {
         label: "Crescimento da Renda (YoY)",
         value: yoyGrowthPct == null ? "—" : `${yoyGrowthPct >= 0 ? "+" : ""}${yoyGrowthPct.toFixed(1)}%`,
-        color: yoyGrowthPct == null ? "#7a6a4a" : yoyGrowthPct >= 0 ? "#22c55e" : "#f87171",
+        color: yoyGrowthPct == null ? "#a09068" : yoyGrowthPct >= 0 ? "#22c55e" : "#f87171",
         icon: TrendingUp,
         trend: yoyGrowthPct != null ? { value: yoyGrowthPct, suffix: "%" } : null,
       },
@@ -1325,7 +1292,7 @@ export default function CarteiraContent({ userEmail }: Props) {
                       width: "100%", display: "flex", alignItems: "center", gap: "8px",
                       background: "none", border: "none", borderRadius: "6px",
                       padding: "9px 10px", cursor: "not-allowed",
-                      color: "#5a4a2a", fontSize: "12px", fontFamily: "var(--font-sans)", textAlign: "left",
+                      color: "#9a8a6a", fontSize: "12px", fontFamily: "var(--font-sans)", textAlign: "left",
                       opacity: 0.7,
                     }}
                   >
@@ -1358,7 +1325,7 @@ export default function CarteiraContent({ userEmail }: Props) {
         )}
 
         {loading ? (
-          <div style={{ textAlign: "center", padding: "80px 0", color: "#7a6a4a", fontFamily: "var(--font-sans)", fontSize: "13px" }}>
+          <div style={{ textAlign: "center", padding: "80px 0", color: "#a09068", fontFamily: "var(--font-sans)", fontSize: "13px" }}>
             Carregando carteira...
           </div>
         ) : (
@@ -1389,7 +1356,7 @@ export default function CarteiraContent({ userEmail }: Props) {
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
                 <div>
                   <p style={{ fontSize: "15px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-display)", marginBottom: "3px" }}>Evolução do Patrimônio</p>
-                  <p style={{ fontSize: "11px", color: "#7a6a4a", fontFamily: "var(--font-sans)" }}>Valor investido vs. valor estimado atual</p>
+                  <p style={{ fontSize: "11px", color: "#a09068", fontFamily: "var(--font-sans)" }}>Valor investido vs. valor estimado atual</p>
                 </div>
                 <div style={{ display: "flex", gap: "4px" }}>
                   {(["6m", "12m", "all"] as const).map(f => (
@@ -1397,7 +1364,7 @@ export default function CarteiraContent({ userEmail }: Props) {
                       background: chartFilter === f ? "rgba(201,168,76,0.15)" : "transparent",
                       border: `1px solid ${chartFilter === f ? "rgba(201,168,76,0.3)" : "#2a2010"}`,
                       borderRadius: "6px", padding: "5px 12px",
-                      color: chartFilter === f ? "#C9A84C" : "#7a6a4a",
+                      color: chartFilter === f ? "#C9A84C" : "#a09068",
                       fontSize: "11px", fontFamily: "var(--font-sans)", cursor: "pointer",
                     }}>
                       {f === "6m" ? "6 meses" : f === "12m" ? "12 meses" : "Tudo"}
@@ -1441,7 +1408,7 @@ export default function CarteiraContent({ userEmail }: Props) {
                       </div>
 
                       <p style={{
-                        fontSize: "10px", color: "#7a6a4a", fontFamily: "var(--font-sans)",
+                        fontSize: "10px", color: "#a09068", fontFamily: "var(--font-sans)",
                         letterSpacing: "0.08em", textTransform: "uppercase",
                         marginBottom: "6px", lineHeight: 1.3,
                       }}>
@@ -1476,7 +1443,7 @@ export default function CarteiraContent({ userEmail }: Props) {
                   </div>
                   <div>
                     <p style={{ fontSize: "15px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-display)", marginBottom: "2px" }}>Distribuição por Ativo</p>
-                    <p style={{ fontSize: "11px", color: "#7a6a4a", fontFamily: "var(--font-sans)" }}>Percentual do valor total da carteira</p>
+                    <p style={{ fontSize: "11px", color: "#a09068", fontFamily: "var(--font-sans)" }}>Percentual do valor total da carteira</p>
                   </div>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
@@ -1551,12 +1518,12 @@ export default function CarteiraContent({ userEmail }: Props) {
             <div id="ativos" style={{ marginBottom: "24px", scrollMarginTop: "120px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
                 <p style={{ fontSize: "16px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-display)" }}>Meus Ativos</p>
-                <span style={{ fontSize: "12px", color: "#7a6a4a", fontFamily: "var(--font-sans)" }}>{effectiveAssets.length} {effectiveAssets.length === 1 ? "posição" : "posições"}</span>
+                <span style={{ fontSize: "12px", color: "#a09068", fontFamily: "var(--font-sans)" }}>{effectiveAssets.length} {effectiveAssets.length === 1 ? "posição" : "posições"}</span>
               </div>
 
               {effectiveAssets.length === 0 ? (
                 <div style={{ ...card, textAlign: "center", padding: "48px" }}>
-                  <p style={{ fontSize: "13px", color: "#7a6a4a", fontFamily: "var(--font-sans)", marginBottom: "12px" }}>Nenhum ativo cadastrado</p>
+                  <p style={{ fontSize: "13px", color: "#a09068", fontFamily: "var(--font-sans)", marginBottom: "12px" }}>Nenhum ativo cadastrado</p>
                   <button onClick={() => { setAssetForm({ name: "", type: "acoes", quantity: "", purchase_price: "", current_price: "", rf_indexer: "CDI", rf_rate: "", rf_amount: "", rf_maturity: "" }); setFormError(""); setModal("asset"); }}
                     style={{ background: "rgba(201,168,76,0.1)", border: "1px solid rgba(201,168,76,0.2)", borderRadius: "8px", padding: "9px 18px", color: "#C9A84C", fontSize: "13px", fontFamily: "var(--font-sans)", cursor: "pointer" }}>
                     <Plus size={13} style={{ display: "inline", marginRight: "6px" }} />Adicionar primeiro ativo
@@ -1593,7 +1560,7 @@ export default function CarteiraContent({ userEmail }: Props) {
                               textTransform: "uppercase",
                             }}>
                               {groupLabel}
-                              <span style={{ marginLeft: "8px", fontSize: "11px", color: "#5a4a2a", fontWeight: 400, letterSpacing: 0, textTransform: "none" }}>
+                              <span style={{ marginLeft: "8px", fontSize: "11px", color: "#9a8a6a", fontWeight: 400, letterSpacing: 0, textTransform: "none" }}>
                                 · {groupAssets.length} {groupAssets.length === 1 ? "posição" : "posições"}
                               </span>
                             </p>
@@ -1633,14 +1600,14 @@ export default function CarteiraContent({ userEmail }: Props) {
                             </div>
                             <div>
                               <p style={{ fontSize: "16px", fontWeight: 700, color: "#f0e8d0", fontFamily: "var(--font-sans)", marginBottom: "2px" }}>{a.name}</p>
-                              <p style={{ fontSize: "11px", color: "#7a6a4a", fontFamily: "var(--font-sans)" }}>
+                              <p style={{ fontSize: "11px", color: "#a09068", fontFamily: "var(--font-sans)" }}>
                                 {Number(a.quantity).toLocaleString("pt-BR")} ações · {ASSET_LABELS[a.type] ?? a.type}
                               </p>
                             </div>
                           </div>
                           <div style={{ position: "relative" }}>
                             <button onClick={() => setActiveMenu(isMenu ? null : a.id)}
-                              style={{ background: "none", border: "none", cursor: "pointer", color: "#5a4a2a", padding: "4px" }}>
+                              style={{ background: "none", border: "none", cursor: "pointer", color: "#9a8a6a", padding: "4px" }}>
                               <MoreVertical size={16} />
                             </button>
                             {isMenu && (
@@ -1660,7 +1627,7 @@ export default function CarteiraContent({ userEmail }: Props) {
                             { label: "Preço Atual", value: fmt(a.live_price), highlight: gain >= 0 },
                           ].map(({ label, value, highlight }) => (
                             <div key={label} style={{ background: "#0d0a06", borderRadius: "8px", padding: "10px 12px" }}>
-                              <p style={{ fontSize: "10px", color: "#7a6a4a", fontFamily: "var(--font-sans)", marginBottom: "4px" }}>{label}</p>
+                              <p style={{ fontSize: "10px", color: "#a09068", fontFamily: "var(--font-sans)", marginBottom: "4px" }}>{label}</p>
                               <p style={{ fontSize: "14px", fontWeight: 700, color: highlight === true ? "#22c55e" : highlight === false ? "#f87171" : "#e8dcc0", fontFamily: "var(--font-sans)" }}>{value}</p>
                             </div>
                           ))}
@@ -1669,11 +1636,11 @@ export default function CarteiraContent({ userEmail }: Props) {
                         {/* Value + Gain */}
                         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "14px" }}>
                           <div>
-                            <p style={{ fontSize: "10px", color: "#7a6a4a", fontFamily: "var(--font-sans)", marginBottom: "3px" }}>Valor Total</p>
+                            <p style={{ fontSize: "10px", color: "#a09068", fontFamily: "var(--font-sans)", marginBottom: "3px" }}>Valor Total</p>
                             <p style={{ fontSize: "15px", fontWeight: 700, color: "#e8dcc0", fontFamily: "var(--font-sans)" }}>{fmt(current)}</p>
                           </div>
                           <div>
-                            <p style={{ fontSize: "10px", color: "#7a6a4a", fontFamily: "var(--font-sans)", marginBottom: "3px" }}>Ganho / Perda</p>
+                            <p style={{ fontSize: "10px", color: "#a09068", fontFamily: "var(--font-sans)", marginBottom: "3px" }}>Ganho / Perda</p>
                             <p style={{ fontSize: "13px", fontWeight: 700, color: gain >= 0 ? "#22c55e" : "#f87171", fontFamily: "var(--font-sans)" }}>
                               {gain >= 0 ? "+" : ""}{fmt(gain)} ({gainPct >= 0 ? "+" : ""}{gainPct.toFixed(2)}%)
                             </p>
@@ -1700,7 +1667,7 @@ export default function CarteiraContent({ userEmail }: Props) {
                             },
                           ].map(({ label, value, color: c }, i) => (
                             <div key={label} style={{ flex: 1, textAlign: "center", borderLeft: i > 0 ? "1px solid rgba(255,255,255,0.05)" : "none" }}>
-                              <p style={{ fontSize: "10px", color: "#7a6a4a", fontFamily: "var(--font-sans)", marginBottom: "2px" }}>{label}</p>
+                              <p style={{ fontSize: "10px", color: "#a09068", fontFamily: "var(--font-sans)", marginBottom: "2px" }}>{label}</p>
                               <p style={{ fontSize: "12px", fontWeight: 600, color: c, fontFamily: "var(--font-sans)" }}>{value}</p>
                             </div>
                           ))}
@@ -1724,7 +1691,7 @@ export default function CarteiraContent({ userEmail }: Props) {
                   <p style={{ fontSize: "15px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-display)", marginBottom: "2px" }}>
                     Histórico de Transações
                   </p>
-                  <p style={{ fontSize: "11px", color: "#7a6a4a", fontFamily: "var(--font-sans)" }}>
+                  <p style={{ fontSize: "11px", color: "#a09068", fontFamily: "var(--font-sans)" }}>
                     Total Investido: <span style={{ color: "#C9A84C", fontWeight: 600 }}>{fmt(totalInvested)}</span>
                   </p>
                 </div>
@@ -1737,7 +1704,7 @@ export default function CarteiraContent({ userEmail }: Props) {
 
               {transactions.length === 0 ? (
                 <div style={{ textAlign: "center", padding: "32px 0 24px" }}>
-                  <p style={{ fontSize: "13px", color: "#7a6a4a", fontFamily: "var(--font-sans)", marginBottom: "14px" }}>
+                  <p style={{ fontSize: "13px", color: "#a09068", fontFamily: "var(--font-sans)", marginBottom: "14px" }}>
                     Nenhuma transação registrada
                   </p>
                   <button
@@ -1772,9 +1739,10 @@ export default function CarteiraContent({ userEmail }: Props) {
                     return (
                       <div key={t.id} style={{
                         display: "flex", alignItems: "center", gap: "14px",
-                        padding: "13px 16px", background: "rgba(255,255,255,0.02)",
-                        borderRadius: "10px", border: "1px solid rgba(255,255,255,0.04)",
-                        borderLeft: `3px solid ${isBuy ? "rgba(34,197,94,0.4)" : "rgba(248,113,113,0.4)"}`,
+                        padding: "13px 16px",
+                        background: isBuy ? "rgba(52,211,153,0.04)" : "rgba(248,113,113,0.04)",
+                        borderRadius: "10px",
+                        border: `1px solid ${isBuy ? "rgba(52,211,153,0.12)" : "rgba(248,113,113,0.12)"}`,
                       }}>
                         {/* Logo / fallback */}
                         <div style={{
@@ -1819,23 +1787,23 @@ export default function CarteiraContent({ userEmail }: Props) {
                               {isBuy ? "Compra" : "Venda"}
                             </span>
                             {live != null && (
-                              <span style={{ fontSize: "10px", color: "#5a4a2a", fontFamily: "var(--font-sans)" }}>
+                              <span style={{ fontSize: "10px", color: "#9a8a6a", fontFamily: "var(--font-sans)" }}>
                                 · agora {fmt(live)}
                               </span>
                             )}
                           </div>
                           <p style={{ fontSize: "11px", color: "#857560", fontFamily: "var(--font-sans)", marginBottom: "2px" }}>
                             {txQty.toLocaleString("pt-BR")} {txQty === 1 ? "cota" : "cotas"} × <span style={{ color: "#a09068", fontWeight: 600 }}>{fmt(txPrice)}</span>
-                            {t.notes && <span style={{ color: "#5a4a2a" }}> · {t.notes}</span>}
+                            {t.notes && <span style={{ color: "#9a8a6a" }}> · {t.notes}</span>}
                           </p>
-                          <p style={{ fontSize: "10px", color: "#5a4a2a", fontFamily: "var(--font-sans)" }}>
+                          <p style={{ fontSize: "10px", color: "#9a8a6a", fontFamily: "var(--font-sans)" }}>
                             {dateFull} · {dateAgo}
                           </p>
                         </div>
 
                         {/* Right */}
                         <div style={{ textAlign: "right", flexShrink: 0 }}>
-                          <p style={{ fontSize: "10px", color: "#5a4a2a", fontFamily: "var(--font-sans)", letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: "2px" }}>
+                          <p style={{ fontSize: "10px", color: "#9a8a6a", fontFamily: "var(--font-sans)", letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: "2px" }}>
                             {isBuy ? "Investido" : "Recebido"}
                           </p>
                           <p style={{ fontSize: "15px", fontWeight: 700, color: "#e8dcc0", fontFamily: "var(--font-sans)", marginBottom: "3px" }}>
@@ -1852,7 +1820,7 @@ export default function CarteiraContent({ userEmail }: Props) {
                               {gainPos ? "+" : ""}{fmt(gain)} ({gainPos ? "+" : ""}{gainPct.toFixed(2)}%)
                             </p>
                           ) : curVal != null && !isBuy ? (
-                            <p style={{ fontSize: "10px", color: "#7a6a4a", fontFamily: "var(--font-sans)" }}>
+                            <p style={{ fontSize: "10px", color: "#a09068", fontFamily: "var(--font-sans)" }}>
                               hoje valeria {fmt(curVal)}
                             </p>
                           ) : null}
@@ -1861,7 +1829,7 @@ export default function CarteiraContent({ userEmail }: Props) {
                     );
                   })}
                   {transactions.length > 12 && (
-                    <p style={{ textAlign: "center", fontSize: "12px", color: "#7a6a4a", fontFamily: "var(--font-sans)", paddingTop: "8px" }}>
+                    <p style={{ textAlign: "center", fontSize: "12px", color: "#a09068", fontFamily: "var(--font-sans)", paddingTop: "8px" }}>
                       +{transactions.length - 12} transações anteriores
                     </p>
                   )}
@@ -1878,7 +1846,7 @@ export default function CarteiraContent({ userEmail }: Props) {
                   </div>
                   <div>
                     <p style={{ fontSize: "15px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-display)", marginBottom: "2px" }}>Otimização IA</p>
-                    <p style={{ fontSize: "11px", color: "#7a6a4a", fontFamily: "var(--font-sans)" }}>Recomendações personalizadas para sua carteira</p>
+                    <p style={{ fontSize: "11px", color: "#a09068", fontFamily: "var(--font-sans)" }}>Recomendações personalizadas para sua carteira</p>
                   </div>
                 </div>
                 <div style={{ display: "flex", gap: "8px" }}>
@@ -1894,11 +1862,11 @@ export default function CarteiraContent({ userEmail }: Props) {
               {insights.length === 0 ? (
                 <div style={{ textAlign: "center", padding: "40px 0" }}>
                   <Sparkles size={32} style={{ color: "#8b5cf6", opacity: 0.4, display: "block", margin: "0 auto 16px" }} />
-                  <p style={{ fontSize: "13px", color: "#7a6a4a", fontFamily: "var(--font-sans)", marginBottom: "6px" }}>
+                  <p style={{ fontSize: "13px", color: "#a09068", fontFamily: "var(--font-sans)", marginBottom: "6px" }}>
                     Clique em &apos;Analisar&apos; para receber recomendações personalizadas
                   </p>
-                  <p style={{ fontSize: "11px", color: "#5a4a2a", fontFamily: "var(--font-sans)" }}>
-                    Perfil de risco · <span style={{ color: "#7a6a4a" }}>longo prazo</span>
+                  <p style={{ fontSize: "11px", color: "#9a8a6a", fontFamily: "var(--font-sans)" }}>
+                    Perfil de risco · <span style={{ color: "#a09068" }}>longo prazo</span>
                   </p>
                 </div>
               ) : (
@@ -1913,7 +1881,7 @@ export default function CarteiraContent({ userEmail }: Props) {
                           </span>
                         )}
                       </div>
-                      <p style={{ fontSize: "12px", color: "#7a6a4a", fontFamily: "var(--font-sans)", lineHeight: 1.65, marginBottom: "8px" }}>{insight.description}</p>
+                      <p style={{ fontSize: "12px", color: "#a09068", fontFamily: "var(--font-sans)", lineHeight: 1.65, marginBottom: "8px" }}>{insight.description}</p>
                       {insight.predicted_impact && (
                         <p style={{ fontSize: "11px", color: "#a78bfa", fontFamily: "var(--font-sans)" }}>
                           Impacto estimado: {insight.predicted_impact}
@@ -2137,7 +2105,7 @@ export default function CarteiraContent({ userEmail }: Props) {
                     <button key={type} onClick={() => setTxForm(p => ({ ...p, type }))} style={{
                       flex: 1, padding: "10px", borderRadius: "8px", border: `1px solid ${txForm.type === type ? (type === "compra" ? "rgba(34,197,94,0.4)" : "rgba(248,113,113,0.4)") : "#2a2010"}`,
                       background: txForm.type === type ? (type === "compra" ? "rgba(34,197,94,0.1)" : "rgba(248,113,113,0.1)") : "transparent",
-                      color: txForm.type === type ? (type === "compra" ? "#22c55e" : "#f87171") : "#7a6a4a",
+                      color: txForm.type === type ? (type === "compra" ? "#22c55e" : "#f87171") : "#a09068",
                       fontSize: "13px", fontWeight: 600, fontFamily: "var(--font-sans)", cursor: "pointer",
                     }}>
                       {type.charAt(0).toUpperCase() + type.slice(1)}

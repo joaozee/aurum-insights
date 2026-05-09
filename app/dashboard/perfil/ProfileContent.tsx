@@ -36,16 +36,17 @@ function memberSince(date: string | null): string {
 
 function computeTier(points: number) {
   if (points < 100)
-    return { name: "Bronze", level: 1, min: 0, max: 100, gradient: "linear-gradient(135deg, #c87c3a, #8b5a2b)" };
+    return { name: "Bronze", level: 1, min: 0, max: 100, color: "#c87c3a", gradient: "linear-gradient(135deg, #c87c3a, #8b5a2b)" };
   if (points < 500)
-    return { name: "Prata", level: 2, min: 100, max: 500, gradient: "linear-gradient(135deg, #d8d8d8, #888)" };
+    return { name: "Prata", level: 2, min: 100, max: 500, color: "#c8c8c8", gradient: "linear-gradient(135deg, #d8d8d8, #888)" };
   if (points < 2000)
-    return { name: "Ouro", level: 3, min: 500, max: 2000, gradient: "linear-gradient(135deg, #ffd966, #c9a84c)" };
+    return { name: "Ouro", level: 3, min: 500, max: 2000, color: "#E8C96A", gradient: "linear-gradient(135deg, #ffd966, #c9a84c)" };
   return {
     name: "Platina",
     level: 4,
     min: 2000,
     max: 10000,
+    color: "#c8d4e8",
     gradient: "linear-gradient(135deg, #e8eafc, #a0b4d8)",
   };
 }
@@ -292,7 +293,7 @@ export default function ProfileContent({ mode, currentUserEmail, currentUserName
                     border: "4px solid #130f09",
                     background: profile.avatar_url
                       ? `url(${profile.avatar_url}) center/cover no-repeat`
-                      : "linear-gradient(135deg, #8b5cf6, #6d28d9)",
+                      : "linear-gradient(135deg, #C9A84C, #8B6914)",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
@@ -425,9 +426,9 @@ export default function ProfileContent({ mode, currentUserEmail, currentUserName
                   </p>
                 ) : null}
 
-                <div style={{ display: "flex", flexWrap: "wrap", gap: "16px 18px", fontSize: "12px", color: "#7a6a4a", fontFamily: "var(--font-sans)" }}>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "16px 18px", fontSize: "12px", color: "#a09068", fontFamily: "var(--font-sans)" }}>
                   <span style={{ display: "inline-flex", alignItems: "center", gap: "5px" }}>
-                    <span style={{ color: "#5a4a2a" }}>{isSelf ? "✉" : "@"}</span>
+                    <span style={{ color: "#9a8a6a" }}>{isSelf ? "✉" : "@"}</span>
                     {isSelf ? profile.user_email : profile.username}
                   </span>
                   <span style={{ display: "inline-flex", alignItems: "center", gap: "5px" }}>
@@ -494,7 +495,7 @@ export default function ProfileContent({ mode, currentUserEmail, currentUserName
               }}
             >
               <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "4px", position: "relative" }}>
-                <p style={{ fontSize: "10px", color: "#7a6a4a", fontFamily: "var(--font-sans)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+                <p style={{ fontSize: "10px", color: "#a09068", fontFamily: "var(--font-sans)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
                   Nível Atual
                 </p>
                 <NivelTooltip />
@@ -505,27 +506,26 @@ export default function ProfileContent({ mode, currentUserEmail, currentUserName
                     fontSize: "20px",
                     fontWeight: 700,
                     fontFamily: "var(--font-display)",
-                    background: tier.gradient,
-                    WebkitBackgroundClip: "text",
-                    WebkitTextFillColor: "transparent",
+                    color: tier.color,
+                    letterSpacing: "-0.01em",
                   }}
                 >
                   {tier.name}
                 </span>
-                <span style={{ fontSize: "11px", color: "#7a6a4a", fontFamily: "var(--font-sans)" }}>
+                <span style={{ fontSize: "11px", color: "#a09068", fontFamily: "var(--font-sans)" }}>
                   Nível {tier.level} · {bundle.points.total_points} XP
                 </span>
               </div>
               <div style={{ marginBottom: "6px" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
-                  <span style={{ fontSize: "10px", color: "#7a6a4a", fontFamily: "var(--font-sans)" }}>Progresso</span>
+                  <span style={{ fontSize: "10px", color: "#a09068", fontFamily: "var(--font-sans)" }}>Progresso</span>
                   <span style={{ fontSize: "10px", fontWeight: 600, color: "#C9A84C", fontFamily: "var(--font-sans)" }}>{tierProgress}%</span>
                 </div>
                 <div style={{ height: "5px", background: "rgba(255,255,255,0.05)", borderRadius: "3px", overflow: "hidden" }}>
                   <div style={{ height: "100%", width: `${tierProgress}%`, background: tier.gradient, borderRadius: "3px" }} />
                 </div>
               </div>
-              <p style={{ fontSize: "10px", color: "#5a4a2a", fontFamily: "var(--font-sans)" }}>
+              <p style={{ fontSize: "10px", color: "#9a8a6a", fontFamily: "var(--font-sans)" }}>
                 {Math.max(0, tier.max - bundle.points.total_points)} XP para o próximo nível
               </p>
             </div>
@@ -565,7 +565,7 @@ export default function ProfileContent({ mode, currentUserEmail, currentUserName
                   border: "none",
                   borderRadius: "7px",
                   background: active ? "rgba(201,168,76,0.1)" : "transparent",
-                  color: active ? "#C9A84C" : "#7a6a4a",
+                  color: active ? "#C9A84C" : "#a09068",
                   fontSize: "12px",
                   fontWeight: active ? 600 : 500,
                   fontFamily: "var(--font-sans)",
@@ -621,7 +621,7 @@ export default function ProfileContent({ mode, currentUserEmail, currentUserName
                       <span style={{ fontSize: "12px", color: "#c8b89a", fontFamily: "var(--font-sans)" }}>
                         Post #{f.post_id.slice(0, 8)}
                       </span>
-                      <ExternalLink size={12} style={{ color: "#7a6a4a" }} />
+                      <ExternalLink size={12} style={{ color: "#a09068" }} />
                     </div>
                   ))}
                 </div>
@@ -645,9 +645,9 @@ export default function ProfileContent({ mode, currentUserEmail, currentUserName
                         <span style={{ fontSize: "13px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-sans)" }}>{c.name}</span>
                       </div>
                       {c.description && (
-                        <p style={{ fontSize: "11px", color: "#7a6a4a", fontFamily: "var(--font-sans)", marginBottom: "6px" }}>{c.description}</p>
+                        <p style={{ fontSize: "11px", color: "#a09068", fontFamily: "var(--font-sans)", marginBottom: "6px" }}>{c.description}</p>
                       )}
-                      <span style={{ fontSize: "10px", color: "#5a4a2a", fontFamily: "var(--font-sans)" }}>
+                      <span style={{ fontSize: "10px", color: "#9a8a6a", fontFamily: "var(--font-sans)" }}>
                         {(c.post_ids ?? []).length} {(c.post_ids ?? []).length === 1 ? "post" : "posts"}
                       </span>
                     </div>
@@ -668,7 +668,7 @@ export default function ProfileContent({ mode, currentUserEmail, currentUserName
                 </div>
                 {bundle.achievements.length > 0 && (
                   <div style={{ marginTop: "14px" }}>
-                    <p style={{ fontSize: "11px", color: "#7a6a4a", fontFamily: "var(--font-sans)", marginBottom: "8px", letterSpacing: "0.04em" }}>
+                    <p style={{ fontSize: "11px", color: "#a09068", fontFamily: "var(--font-sans)", marginBottom: "8px", letterSpacing: "0.04em" }}>
                       Conquistas Recentes
                     </p>
                     <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
@@ -685,7 +685,7 @@ export default function ProfileContent({ mode, currentUserEmail, currentUserName
               <Card>
                 <CardHeader title="Compartilhar Perfil" icon={<Share2 size={14} style={{ color: "#C9A84C" }} />} />
                 <div style={{ display: "flex", alignItems: "center", gap: "6px", background: "#0d0b07", border: "1px solid rgba(201,168,76,0.1)", borderRadius: "8px", padding: "8px 12px", marginTop: "8px", marginBottom: "10px" }}>
-                  <Link2 size={11} style={{ color: "#7a6a4a", flexShrink: 0 }} />
+                  <Link2 size={11} style={{ color: "#a09068", flexShrink: 0 }} />
                   <span style={{ fontSize: "11px", color: "#9a8a6a", fontFamily: "var(--font-sans)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>
                     {profileUrl}
                   </span>
@@ -697,7 +697,7 @@ export default function ProfileContent({ mode, currentUserEmail, currentUserName
                     {linkCopied ? <Check size={13} /> : <ExternalLink size={13} />}
                   </button>
                 </div>
-                <p style={{ fontSize: "11px", color: "#7a6a4a", fontFamily: "var(--font-sans)", marginBottom: "8px" }}>Compartilhe seu perfil em redes sociais:</p>
+                <p style={{ fontSize: "11px", color: "#a09068", fontFamily: "var(--font-sans)", marginBottom: "8px" }}>Compartilhe seu perfil em redes sociais:</p>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px" }}>
                   <SocialBtn label="Facebook" color="#1877f2" url={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(profileUrl)}`} />
                   <SocialBtn label="Twitter" color="#1da1f2" url={`https://twitter.com/intent/tweet?url=${encodeURIComponent(profileUrl)}`} />
@@ -721,7 +721,7 @@ export default function ProfileContent({ mode, currentUserEmail, currentUserName
                         border: "none",
                         borderRadius: "5px",
                         background: engTab === id ? "rgba(201,168,76,0.1)" : "transparent",
-                        color: engTab === id ? "#C9A84C" : "#7a6a4a",
+                        color: engTab === id ? "#C9A84C" : "#a09068",
                         fontSize: "11px",
                         fontWeight: engTab === id ? 600 : 500,
                         fontFamily: "var(--font-sans)",
@@ -737,13 +737,13 @@ export default function ProfileContent({ mode, currentUserEmail, currentUserName
               {engTab === "geral" ? (
                 <>
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "8px", marginBottom: "8px" }}>
-                    <MetricCell icon={<MessageCircle size={12} />} label="Posts" value={bundle.engagement.posts} color="#3b82f6" />
-                    <MetricCell icon={<Heart size={12} />} label="Curtidas" value={bundle.engagement.likes} color="#ef4444" />
-                    <MetricCell icon={<MessageCircle size={12} />} label="Comentários" value={bundle.engagement.comments} color="#06b6d4" />
+                    <MetricCell icon={<MessageCircle size={12} />} label="Posts" value={bundle.engagement.posts} color="#5E6B8C" />
+                    <MetricCell icon={<Heart size={12} />} label="Curtidas" value={bundle.engagement.likes} color="#A4485E" />
+                    <MetricCell icon={<MessageCircle size={12} />} label="Comentários" value={bundle.engagement.comments} color="#4F8A82" />
                   </div>
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "8px" }}>
-                    <MetricCell icon={<Repeat2 size={12} />} label="Compartilhamentos" value={bundle.engagement.reposts} color="#10b981" />
-                    <MetricCell icon={<BarChart2 size={12} />} label="Engajamento Médio/Post" value={bundle.engagement.avgPerPost.toFixed(1)} color="#f59e0b" />
+                    <MetricCell icon={<Repeat2 size={12} />} label="Compartilhamentos" value={bundle.engagement.reposts} color="#6E8C4A" />
+                    <MetricCell icon={<BarChart2 size={12} />} label="Engajamento Médio/Post" value={bundle.engagement.avgPerPost.toFixed(1)} color="#C58A3D" />
                   </div>
                   <div style={{ marginTop: "10px", paddingTop: "10px", borderTop: "1px solid rgba(201,168,76,0.05)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <span style={{ fontSize: "12px", color: "#9a8a6a", fontFamily: "var(--font-sans)" }}>Taxa de Engajamento</span>
@@ -774,7 +774,7 @@ export default function ProfileContent({ mode, currentUserEmail, currentUserName
                       border: "none",
                       borderRadius: "6px",
                       background: conqTab === id ? "linear-gradient(135deg, #2a1f3e, #1a1410)" : "transparent",
-                      color: conqTab === id ? "#e8dcc0" : "#7a6a4a",
+                      color: conqTab === id ? "#e8dcc0" : "#a09068",
                       fontSize: "12px",
                       fontWeight: conqTab === id ? 600 : 500,
                       fontFamily: "var(--font-sans)",
@@ -803,7 +803,7 @@ export default function ProfileContent({ mode, currentUserEmail, currentUserName
                               {a.badge_name}
                             </p>
                             {a.badge_description && (
-                              <p style={{ fontSize: "10px", color: "#7a6a4a", fontFamily: "var(--font-sans)" }}>
+                              <p style={{ fontSize: "10px", color: "#a09068", fontFamily: "var(--font-sans)" }}>
                                 {a.badge_description}
                               </p>
                             )}
@@ -822,7 +822,7 @@ export default function ProfileContent({ mode, currentUserEmail, currentUserName
                           <p style={{ fontSize: "13px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-sans)", marginBottom: "2px" }}>
                             {c.course_title}
                           </p>
-                          <p style={{ fontSize: "11px", color: "#7a6a4a", fontFamily: "var(--font-sans)" }}>
+                          <p style={{ fontSize: "11px", color: "#a09068", fontFamily: "var(--font-sans)" }}>
                             {new Date(c.completion_date).toLocaleDateString("pt-BR")} · #{c.certificate_number}
                           </p>
                         </div>
@@ -842,7 +842,7 @@ export default function ProfileContent({ mode, currentUserEmail, currentUserName
             <Card style={{ marginTop: "16px", background: "linear-gradient(135deg, #1a1205 0%, #130f09 60%)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "14px" }}>
                 <div>
-                  <p style={{ fontSize: "11px", color: "#7a6a4a", fontFamily: "var(--font-sans)", letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: "4px" }}>
+                  <p style={{ fontSize: "11px", color: "#a09068", fontFamily: "var(--font-sans)", letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: "4px" }}>
                     Pontos Totais
                   </p>
                   <div style={{ display: "flex", alignItems: "baseline", gap: "8px" }}>
@@ -888,7 +888,7 @@ export default function ProfileContent({ mode, currentUserEmail, currentUserName
                     <p style={{ fontSize: "12px", color: "#c8b89a", fontFamily: "var(--font-sans)", lineHeight: 1.5, marginBottom: "8px", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
                       {p.content || "(sem texto)"}
                     </p>
-                    <div style={{ display: "flex", gap: "14px", fontSize: "11px", color: "#7a6a4a", fontFamily: "var(--font-sans)" }}>
+                    <div style={{ display: "flex", gap: "14px", fontSize: "11px", color: "#a09068", fontFamily: "var(--font-sans)" }}>
                       <span>{new Date(p.created_at).toLocaleDateString("pt-BR")}</span>
                       <span style={{ display: "inline-flex", alignItems: "center", gap: "3px" }}><Heart size={10} /> {p.likes_count}</span>
                       <span style={{ display: "inline-flex", alignItems: "center", gap: "3px" }}><MessageCircle size={10} /> {p.comments_count}</span>
@@ -966,7 +966,7 @@ function CardHeader({
         </h3>
       </div>
       {subtitle && (
-        <p style={{ fontSize: "11px", color: "#7a6a4a", fontFamily: "var(--font-sans)", marginTop: "3px" }}>
+        <p style={{ fontSize: "11px", color: "#a09068", fontFamily: "var(--font-sans)", marginTop: "3px" }}>
           {subtitle}
         </p>
       )}
@@ -1002,9 +1002,9 @@ function SettingsRow({
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <p style={{ fontSize: "12px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-sans)", marginBottom: "3px", lineHeight: 1.3 }}>{label}</p>
-        {sub && <p style={{ fontSize: "10px", color: "#7a6a4a", fontFamily: "var(--font-sans)", lineHeight: 1.3 }}>{sub}</p>}
+        {sub && <p style={{ fontSize: "10px", color: "#a09068", fontFamily: "var(--font-sans)", lineHeight: 1.3 }}>{sub}</p>}
       </div>
-      <ArrowRight size={12} style={{ color: "#5a4a2a" }} />
+      <ArrowRight size={12} style={{ color: "#9a8a6a" }} />
     </button>
   );
 }
@@ -1022,13 +1022,13 @@ function PrimaryBtn({
         padding: "7px 12px",
         borderRadius: "7px",
         border: "none",
-        background: "linear-gradient(135deg, #8b5cf6, #6d28d9)",
-        color: "#fff",
+        background: "linear-gradient(135deg, #C9A84C, #A07820)",
+        color: "#0d0b07",
         fontSize: "11px",
         fontWeight: 600,
         fontFamily: "var(--font-sans)",
         cursor: "pointer",
-        boxShadow: "0 2px 12px rgba(139,92,246,0.25)",
+        boxShadow: "0 2px 12px rgba(201,168,76,0.25)",
       }}
     >
       {icon} {label}
@@ -1040,7 +1040,7 @@ function EmptyState({ text }: { text: string }) {
   return (
     <p style={{
       fontSize: "12px",
-      color: "#7a6a4a",
+      color: "#a09068",
       fontFamily: "var(--font-sans)",
       textAlign: "center",
       padding: "24px 0",
@@ -1055,9 +1055,9 @@ function StatCell({
 }: { icon: React.ReactNode; label: string; value: number | string }) {
   return (
     <div style={{ background: "#0d0b07", border: "1px solid rgba(201,168,76,0.06)", borderRadius: "8px", padding: "10px 12px" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: "5px", color: "#7a6a4a", marginBottom: "4px" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: "5px", color: "#a09068", marginBottom: "4px" }}>
         {icon}
-        <span style={{ fontSize: "10px", color: "#7a6a4a", fontFamily: "var(--font-sans)" }}>{label}</span>
+        <span style={{ fontSize: "10px", color: "#a09068", fontFamily: "var(--font-sans)" }}>{label}</span>
       </div>
       <p style={{ fontSize: "18px", fontWeight: 700, color: "#e8dcc0", fontFamily: "var(--font-display)" }}>{value}</p>
     </div>
@@ -1083,9 +1083,9 @@ function PointsCell({
 }: { icon: React.ReactNode; label: string; value: number }) {
   return (
     <div style={{ background: "rgba(13,11,7,0.6)", border: "1px solid rgba(201,168,76,0.08)", borderRadius: "8px", padding: "10px 12px" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: "5px", color: "#7a6a4a", marginBottom: "4px" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: "5px", color: "#a09068", marginBottom: "4px" }}>
         {icon}
-        <span style={{ fontSize: "10px", color: "#7a6a4a", fontFamily: "var(--font-sans)" }}>{label}</span>
+        <span style={{ fontSize: "10px", color: "#a09068", fontFamily: "var(--font-sans)" }}>{label}</span>
       </div>
       <p style={{ fontSize: "18px", fontWeight: 700, color: "#e8dcc0", fontFamily: "var(--font-display)" }}>{value}</p>
     </div>
@@ -1163,7 +1163,7 @@ function SavedTab({ supabase, email }: { supabase: any; email: string }) {
                   Post #{s.post_id.slice(0, 8)}
                 </span>
               </div>
-              <span style={{ fontSize: "10px", color: "#7a6a4a", fontFamily: "var(--font-sans)" }}>
+              <span style={{ fontSize: "10px", color: "#a09068", fontFamily: "var(--font-sans)" }}>
                 {new Date(s.saved_at).toLocaleDateString("pt-BR")}
               </span>
             </div>
@@ -1176,7 +1176,7 @@ function SavedTab({ supabase, email }: { supabase: any; email: string }) {
                   {n.title}
                 </span>
               </div>
-              <span style={{ fontSize: "10px", color: "#7a6a4a", fontFamily: "var(--font-sans)", flexShrink: 0 }}>
+              <span style={{ fontSize: "10px", color: "#a09068", fontFamily: "var(--font-sans)", flexShrink: 0 }}>
                 {new Date(n.saved_at).toLocaleDateString("pt-BR")}
               </span>
             </div>
@@ -1202,7 +1202,7 @@ function NivelTooltip() {
         aria-label="Como funciona o sistema de níveis"
         style={{
           background: "transparent", border: "none", cursor: "help",
-          padding: 0, color: "#5a4a2a",
+          padding: 0, color: "#9a8a6a",
           display: "flex", alignItems: "center",
         }}
       >
@@ -1241,7 +1241,7 @@ function NivelTooltip() {
             <p style={{ fontSize: "11px", fontWeight: 700, color: "#e8dcc0", marginBottom: "6px", letterSpacing: "0.04em" }}>
               NÍVEIS
             </p>
-            <p style={{ fontSize: "10px", color: "#7a6a4a", lineHeight: 1.5 }}>
+            <p style={{ fontSize: "10px", color: "#a09068", lineHeight: 1.5 }}>
               Bronze 0–99 · Prata 100–499 · Ouro 500–1.999 · Platina 2.000+
             </p>
           </div>

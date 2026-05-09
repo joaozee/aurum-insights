@@ -106,12 +106,12 @@ export default function AulaContent({
           style={{
             display: "flex", alignItems: "center", gap: "6px",
             background: "none", border: "none", cursor: "pointer",
-            color: "#7a6a4a", fontSize: "13px",
+            color: "#a09068", fontSize: "13px",
             fontFamily: "var(--font-sans)", padding: 0, marginBottom: "20px",
             transition: "color 0.15s",
           }}
           onMouseEnter={(e) => { e.currentTarget.style.color = "#C9A84C"; }}
-          onMouseLeave={(e) => { e.currentTarget.style.color = "#7a6a4a"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.color = "#a09068"; }}
         >
           <ChevronLeft size={15} /> Voltar para Curso
         </button>
@@ -145,7 +145,7 @@ export default function AulaContent({
               }}>
                 {aulaAtual.videoUrl ? "Carregando vídeo..." : "Vídeo não disponível"}
               </p>
-              <p style={{ fontSize: "12px", color: "#5a4a2a", fontFamily: "var(--font-sans)" }}>
+              <p style={{ fontSize: "12px", color: "#9a8a6a", fontFamily: "var(--font-sans)" }}>
                 {aulaAtual.videoUrl ? "" : "URL do vídeo não adicionada"}
               </p>
             </div>
@@ -163,7 +163,7 @@ export default function AulaContent({
                 }}>
                   Módulo {moduloIndex + 1} · Aula {aulaIndex + 1}
                 </span>
-                <CheckCircle2 size={16} style={{ color: "#5a4a2a" }} />
+                <CheckCircle2 size={16} style={{ color: "#9a8a6a" }} />
               </div>
               <h1 style={{
                 fontSize: "22px", fontWeight: 700, color: "#e8dcc0",
@@ -174,7 +174,7 @@ export default function AulaContent({
               </h1>
               <div style={{
                 display: "flex", alignItems: "center", gap: "16px",
-                fontSize: "12px", color: "#7a6a4a", fontFamily: "var(--font-sans)",
+                fontSize: "12px", color: "#a09068", fontFamily: "var(--font-sans)",
                 marginBottom: aulaAtual.descricao ? "16px" : "20px",
               }}>
                 <span style={{ display: "flex", alignItems: "center", gap: "5px" }}>
@@ -200,7 +200,7 @@ export default function AulaContent({
                       : "rgba(201,168,76,0.15)",
                     border: "none", borderRadius: "8px",
                     padding: "10px 18px",
-                    color: proxima ? "#0d0b07" : "#5a4a2a",
+                    color: proxima ? "#0d0b07" : "#9a8a6a",
                     fontSize: "13px", fontWeight: 600,
                     fontFamily: "var(--font-sans)",
                     cursor: proxima ? "pointer" : "not-allowed",
@@ -299,7 +299,7 @@ export default function AulaContent({
                         </div>
                       </div>
                       <span style={{
-                        fontSize: "10px", color: "#5a4a2a",
+                        fontSize: "10px", color: "#9a8a6a",
                         fontFamily: "var(--font-sans)", flexShrink: 0,
                       }}>
                         {prog}%
@@ -360,14 +360,14 @@ export default function AulaContent({
                           }}>
                             {m.titulo}
                           </p>
-                          <p style={{ fontSize: "10px", color: "#5a4a2a", fontFamily: "var(--font-sans)" }}>
+                          <p style={{ fontSize: "10px", color: "#9a8a6a", fontFamily: "var(--font-sans)" }}>
                             {m.aulas.length} aulas
                           </p>
                         </div>
                         <ChevronDown
                           size={13}
                           style={{
-                            color: "#7a6a4a",
+                            color: "#a09068",
                             transform: aberto ? "rotate(180deg)" : "rotate(0deg)",
                             transition: "transform 0.2s",
                           }}
@@ -404,7 +404,7 @@ export default function AulaContent({
                                 ) : ativa ? (
                                   <PlayCircle size={11} style={{ color: "#C9A84C", flexShrink: 0 }} />
                                 ) : (
-                                  <PlayCircle size={11} style={{ color: "#5a4a2a", flexShrink: 0 }} />
+                                  <PlayCircle size={11} style={{ color: "#9a8a6a", flexShrink: 0 }} />
                                 )}
                                 <span style={{
                                   flex: 1,
@@ -417,7 +417,7 @@ export default function AulaContent({
                                   {a.titulo}
                                 </span>
                                 <span style={{
-                                  fontSize: "10px", color: "#5a4a2a",
+                                  fontSize: "10px", color: "#9a8a6a",
                                   fontFamily: "var(--font-sans)", flexShrink: 0,
                                 }}>
                                   {a.duracaoMin}m

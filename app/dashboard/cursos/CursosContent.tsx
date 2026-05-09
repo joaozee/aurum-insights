@@ -105,7 +105,7 @@ export default function CursosContent({ userEmail }: CursosContentProps) {
           Aprenda a investir com os melhores
         </h1>
         <p style={{
-          fontSize: "14px", color: "#7a6a4a", fontFamily: "var(--font-sans)",
+          fontSize: "14px", color: "#a09068", fontFamily: "var(--font-sans)",
           marginBottom: "32px", lineHeight: 1.6,
         }}>
           Cursos completos para transformar você em um investidor de sucesso, do básico ao avançado.
@@ -118,7 +118,7 @@ export default function CursosContent({ userEmail }: CursosContentProps) {
               size={15}
               style={{
                 position: "absolute", left: "14px", top: "50%",
-                transform: "translateY(-50%)", color: "#5a4a2a",
+                transform: "translateY(-50%)", color: "#9a8a6a",
               }}
             />
             <input
@@ -164,7 +164,7 @@ export default function CursosContent({ userEmail }: CursosContentProps) {
               size={14}
               style={{
                 position: "absolute", right: "12px", top: "50%",
-                transform: "translateY(-50%)", color: "#7a6a4a", pointerEvents: "none",
+                transform: "translateY(-50%)", color: "#a09068", pointerEvents: "none",
               }}
             />
           </div>
@@ -230,7 +230,7 @@ export default function CursosContent({ userEmail }: CursosContentProps) {
           <div style={{
             background: "#130f09", border: "1px solid rgba(201,168,76,0.1)",
             borderRadius: "12px", padding: "48px 24px", textAlign: "center",
-            color: "#7a6a4a", fontSize: "14px", fontFamily: "var(--font-sans)",
+            color: "#a09068", fontSize: "14px", fontFamily: "var(--font-sans)",
             marginBottom: "48px",
           }}>
             Nenhum curso encontrado com os filtros atuais.
@@ -322,7 +322,7 @@ export default function CursosContent({ userEmail }: CursosContentProps) {
                       {TIPO_LABEL[item.tipo]}
                     </span>
                     {item.duracaoMin && (
-                      <span style={{ fontSize: "11px", color: "#5a4a2a", display: "flex", alignItems: "center", gap: "3px" }}>
+                      <span style={{ fontSize: "11px", color: "#9a8a6a", display: "flex", alignItems: "center", gap: "3px" }}>
                         <Clock size={10} /> {item.duracaoMin} min
                       </span>
                     )}
@@ -419,8 +419,8 @@ function CursoCard({
         {curso.bestseller && (
           <span style={{
             position: "absolute", top: "10px", right: "10px",
-            background: "linear-gradient(135deg, #8b5cf6, #6d28d9)",
-            color: "#fff", fontSize: "10px", fontWeight: 700,
+            background: "linear-gradient(135deg, #C9A84C, #A07820)",
+            color: "#0d0b07", fontSize: "10px", fontWeight: 700,
             padding: "4px 10px", borderRadius: "6px",
             fontFamily: "var(--font-sans)", letterSpacing: "0.06em",
             display: "flex", alignItems: "center", gap: "4px",
@@ -460,7 +460,7 @@ function CursoCard({
         </h3>
 
         <p style={{
-          fontSize: "12px", color: "#7a6a4a", fontFamily: "var(--font-sans)",
+          fontSize: "12px", color: "#a09068", fontFamily: "var(--font-sans)",
           lineHeight: 1.55, marginBottom: "14px",
           display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical",
           overflow: "hidden", flex: 1,
@@ -470,7 +470,7 @@ function CursoCard({
 
         <div style={{
           display: "flex", gap: "12px", marginBottom: "14px",
-          fontSize: "11px", color: "#6a5a3a", fontFamily: "var(--font-sans)",
+          fontSize: "11px", color: "#a09068", fontFamily: "var(--font-sans)",
         }}>
           <span style={{ display: "flex", alignItems: "center", gap: "4px" }}>
             <Clock size={11} /> {curso.duracaoHoras}h
@@ -487,7 +487,7 @@ function CursoCard({
           <div>
             {curso.precoOriginal && (
               <p style={{
-                fontSize: "11px", color: "#5a4a2a",
+                fontSize: "11px", color: "#9a8a6a",
                 textDecoration: "line-through",
                 fontFamily: "var(--font-sans)", marginBottom: "2px",
               }}>

@@ -21,31 +21,34 @@ const VALORES = [
   "Comunidade colaborativa",
 ];
 
+// Cores via paleta Aurum (lib/aurum-colors.ts) para manter coerência com a
+// identidade dourada/warm-dark do app, em vez do rainbow Tailwind-500 que
+// quebrava a marca exatamente na página "Sobre".
 const MVV = [
   {
     icon: Target,
     label: "Missão",
-    color: "#f59e0b",
-    bg: "rgba(245,158,11,0.1)",
-    border: "rgba(245,158,11,0.2)",
+    color: "#C58A3D", // chart-2 amber
+    bg: "rgba(197,138,61,0.1)",
+    border: "rgba(197,138,61,0.2)",
     text: "Empoderar investidores brasileiros através de educação financeira de excelência, análises precisas e uma comunidade colaborativa.",
     type: "text",
   },
   {
     icon: Eye,
     label: "Visão",
-    color: "#06b6d4",
-    bg: "rgba(6,182,212,0.1)",
-    border: "rgba(6,182,212,0.2)",
+    color: "#4F8A82", // chart-7 desat teal
+    bg: "rgba(79,138,130,0.1)",
+    border: "rgba(79,138,130,0.2)",
     text: "Ser a plataforma de educação financeira mais confiável e completa do Brasil, transformando milhões de vidas através do conhecimento.",
     type: "text",
   },
   {
     icon: Shield,
     label: "Valores",
-    color: "#10b981",
-    bg: "rgba(16,185,129,0.1)",
-    border: "rgba(16,185,129,0.2)",
+    color: "#6E8C4A", // chart-8 olive green
+    bg: "rgba(110,140,74,0.1)",
+    border: "rgba(110,140,74,0.2)",
     text: "",
     type: "list",
   },
@@ -56,29 +59,29 @@ const DIFERENCIAIS = [
     icon: Users,
     label: "Comunidade Ativa",
     text: "Conecte-se com milhares de investidores, compartilhe experiências e aprenda em conjunto.",
-    color: "#8b5cf6",
-    bg: "rgba(139,92,246,0.1)",
+    color: "#8B5470", // chart-5 mauve
+    bg: "rgba(139,84,112,0.1)",
   },
   {
     icon: BarChart2,
     label: "Análises Profissionais",
     text: "Receba análises detalhadas de ações, FIIs e tendências de mercado feitas por especialistas.",
-    color: "#f59e0b",
-    bg: "rgba(245,158,11,0.1)",
+    color: "#C58A3D", // chart-2 amber
+    bg: "rgba(197,138,61,0.1)",
   },
   {
     icon: BookOpen,
     label: "Cursos Práticos",
     text: "Aprenda do básico ao avançado com cursos estruturados e certificados reconhecidos.",
-    color: "#10b981",
-    bg: "rgba(16,185,129,0.1)",
+    color: "#6E8C4A", // chart-8 olive
+    bg: "rgba(110,140,74,0.1)",
   },
   {
     icon: Cpu,
     label: "Tecnologia Avançada",
     text: "Ferramentas inteligentes de análise, gestão de portfólio e acompanhamento em tempo real.",
-    color: "#06b6d4",
-    bg: "rgba(6,182,212,0.1)",
+    color: "#5E6B8C", // chart-6 slate blue
+    bg: "rgba(94,107,140,0.1)",
   },
 ];
 
@@ -99,7 +102,7 @@ export default function SobreContent() {
             background: "none",
             border: "none",
             cursor: "pointer",
-            color: "#7a6a4a",
+            color: "#a09068",
             fontSize: "13px",
             fontFamily: "var(--font-sans)",
             padding: 0,
@@ -107,7 +110,7 @@ export default function SobreContent() {
             transition: "color 0.15s",
           }}
           onMouseEnter={(e) => { e.currentTarget.style.color = "#C9A84C"; }}
-          onMouseLeave={(e) => { e.currentTarget.style.color = "#7a6a4a"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.color = "#a09068"; }}
         >
           <ChevronLeft size={15} /> Voltar
         </button>
@@ -207,7 +210,7 @@ export default function SobreContent() {
                   {label}
                 </p>
                 {type === "text" ? (
-                  <p style={{ fontSize: "13px", color: "#7a6a4a", fontFamily: "var(--font-sans)", lineHeight: 1.7, margin: 0 }}>
+                  <p style={{ fontSize: "13px", color: "#a09068", fontFamily: "var(--font-sans)", lineHeight: 1.7, margin: 0 }}>
                     {text}
                   </p>
                 ) : (
@@ -215,7 +218,7 @@ export default function SobreContent() {
                     {VALORES.map((v) => (
                       <li key={v} style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                         <Check size={12} style={{ color, flexShrink: 0 }} />
-                        <span style={{ fontSize: "13px", color: "#7a6a4a", fontFamily: "var(--font-sans)" }}>{v}</span>
+                        <span style={{ fontSize: "13px", color: "#a09068", fontFamily: "var(--font-sans)" }}>{v}</span>
                       </li>
                     ))}
                   </ul>
@@ -275,7 +278,7 @@ export default function SobreContent() {
                   <p style={{ fontSize: "14px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-sans)", marginBottom: "6px" }}>
                     {label}
                   </p>
-                  <p style={{ fontSize: "13px", color: "#6a5a3a", fontFamily: "var(--font-sans)", lineHeight: 1.65, margin: 0 }}>
+                  <p style={{ fontSize: "13px", color: "#a09068", fontFamily: "var(--font-sans)", lineHeight: 1.65, margin: 0 }}>
                     {text}
                   </p>
                 </div>
@@ -287,8 +290,8 @@ export default function SobreContent() {
         {/* CTA */}
         <div
           style={{
-            background: "linear-gradient(135deg, #1a0f2e 0%, #130f1a 50%, #0f1520 100%)",
-            border: "1px solid rgba(139,92,246,0.2)",
+            background: "linear-gradient(135deg, #1a1205 0%, #130f09 50%, #0d0b07 100%)",
+            border: "1px solid rgba(201,168,76,0.2)",
             borderRadius: "16px",
             padding: "40px 32px",
             textAlign: "center",
@@ -309,7 +312,7 @@ export default function SobreContent() {
           <p
             style={{
               fontSize: "14px",
-              color: "#7a6a8a",
+              color: "#a09068",
               fontFamily: "var(--font-sans)",
               lineHeight: 1.7,
               marginBottom: "28px",

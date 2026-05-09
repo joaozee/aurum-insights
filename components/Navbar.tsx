@@ -226,7 +226,7 @@ export default function Navbar({ userName, userInitial, userAvatar, userEmail }:
                   <p style={{ fontSize: "12px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-sans)", marginBottom: "2px" }}>
                     {userName}
                   </p>
-                  <p style={{ fontSize: "11px", color: "#5a4a2a", fontFamily: "var(--font-sans)" }}>
+                  <p style={{ fontSize: "11px", color: "#9a8a6a", fontFamily: "var(--font-sans)" }}>
                     Membro Aurum
                   </p>
                 </div>
@@ -294,7 +294,7 @@ function NavIconBtn({ children, label }: { children: React.ReactNode; label: str
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        color: "#7a6a4a",
+        color: "#a09068",
         transition: "all 0.15s",
       }}
       onMouseEnter={(e) => {
@@ -303,7 +303,7 @@ function NavIconBtn({ children, label }: { children: React.ReactNode; label: str
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.background = "transparent";
-        e.currentTarget.style.color = "#7a6a4a";
+        e.currentTarget.style.color = "#a09068";
       }}
     >
       {children}

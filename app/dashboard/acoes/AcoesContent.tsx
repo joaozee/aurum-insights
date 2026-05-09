@@ -157,7 +157,7 @@ export default function AcoesContent() {
               }}>
                 Análise de Ações
               </h1>
-              <p style={{ fontSize: "12px", color: "#7a6a4a", fontFamily: "var(--font-sans)" }}>
+              <p style={{ fontSize: "12px", color: "#a09068", fontFamily: "var(--font-sans)" }}>
                 Pesquise ações, FIIs ou criptomoedas para análise completa
               </p>
             </div>
@@ -165,7 +165,7 @@ export default function AcoesContent() {
 
           <div style={{ position: "relative", display: "flex", gap: "8px", marginTop: "16px" }}>
             <div style={{ flex: 1, position: "relative" }}>
-              <Search size={14} style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: "#5a4a2a" }} />
+              <Search size={14} style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: "#9a8a6a" }} />
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
@@ -193,11 +193,11 @@ export default function AcoesContent() {
                   maxHeight: "320px", overflowY: "auto",
                 }}>
                   {searchLoading ? (
-                    <div style={{ padding: "16px", color: "#7a6a4a", fontSize: "12px", textAlign: "center", fontFamily: "var(--font-sans)" }}>
+                    <div style={{ padding: "16px", color: "#a09068", fontSize: "12px", textAlign: "center", fontFamily: "var(--font-sans)" }}>
                       Buscando...
                     </div>
                   ) : searchResults.length === 0 ? (
-                    <div style={{ padding: "16px", color: "#7a6a4a", fontSize: "12px", textAlign: "center", fontFamily: "var(--font-sans)" }}>
+                    <div style={{ padding: "16px", color: "#a09068", fontSize: "12px", textAlign: "center", fontFamily: "var(--font-sans)" }}>
                       Nenhum ativo encontrado para &quot;{query}&quot;
                     </div>
                   ) : (
@@ -224,7 +224,7 @@ export default function AcoesContent() {
                           <p style={{ fontSize: "12px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-sans)" }}>
                             {r.symbol}
                           </p>
-                          <p style={{ fontSize: "11px", color: "#7a6a4a", fontFamily: "var(--font-sans)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          <p style={{ fontSize: "11px", color: "#a09068", fontFamily: "var(--font-sans)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                             {r.name}
                           </p>
                         </div>
@@ -339,7 +339,7 @@ export default function AcoesContent() {
           {/* News cards (4 maiores destaques) */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
             {news.length === 0 ? (
-              <p style={{ gridColumn: "1 / -1", fontSize: "12px", color: "#7a6a4a", fontFamily: "var(--font-sans)", textAlign: "center", padding: "30px" }}>
+              <p style={{ gridColumn: "1 / -1", fontSize: "12px", color: "#a09068", fontFamily: "var(--font-sans)", textAlign: "center", padding: "30px" }}>
                 Carregando notícias...
               </p>
             ) : (
@@ -369,7 +369,7 @@ export default function AcoesContent() {
                       background: "linear-gradient(135deg, #1a1410 0%, #2a1f12 100%)",
                       display: "flex", alignItems: "center", justifyContent: "center",
                     }}>
-                      <Newspaper size={28} style={{ color: "#5a4a2a" }} />
+                      <Newspaper size={28} style={{ color: "#9a8a6a" }} />
                     </div>
                   )}
                   <div style={{ padding: "12px 14px" }}>
@@ -396,7 +396,7 @@ export default function AcoesContent() {
                     }}>
                       {n.title}
                     </p>
-                    <p style={{ fontSize: "10px", color: "#5a4a2a", fontFamily: "var(--font-sans)" }}>
+                    <p style={{ fontSize: "10px", color: "#9a8a6a", fontFamily: "var(--font-sans)" }}>
                       {fmtNewsDate(n.pubDate)}
                     </p>
                   </div>
@@ -413,7 +413,7 @@ export default function AcoesContent() {
             height: "fit-content",
           }}>
             <p style={{
-              fontSize: "10px", fontWeight: 700, color: "#7a6a4a",
+              fontSize: "10px", fontWeight: 700, color: "#a09068",
               fontFamily: "var(--font-sans)", letterSpacing: "0.08em",
               marginBottom: "16px", textTransform: "uppercase",
             }}>
@@ -480,7 +480,7 @@ function IbovCard({ ibov }: { ibov: OverviewIbov | null }) {
     }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <span style={{
-          fontSize: "11px", fontWeight: 600, color: "#7a6a4a",
+          fontSize: "11px", fontWeight: 600, color: "#a09068",
           fontFamily: "var(--font-sans)", letterSpacing: "0.06em",
           textTransform: "uppercase",
         }}>
@@ -507,7 +507,7 @@ function IbovCard({ ibov }: { ibov: OverviewIbov | null }) {
           </span>
         )}
       </div>
-      <p style={{ fontSize: "10px", color: "#5a4a2a", fontFamily: "var(--font-sans)" }}>
+      <p style={{ fontSize: "10px", color: "#9a8a6a", fontFamily: "var(--font-sans)" }}>
         Pontos · Atualizado em tempo real
       </p>
     </div>
@@ -536,7 +536,7 @@ function MoversCard({
         </span>
       </div>
       {movers.length === 0 ? (
-        <p style={{ fontSize: "11px", color: "#5a4a2a", fontFamily: "var(--font-sans)", padding: "8px 0" }}>
+        <p style={{ fontSize: "11px", color: "#9a8a6a", fontFamily: "var(--font-sans)", padding: "8px 0" }}>
           Carregando...
         </p>
       ) : (
@@ -555,7 +555,7 @@ function MoversCard({
                 {m.symbol}
               </span>
               <span style={{
-                flex: 1, fontSize: "10px", color: "#7a6a4a",
+                flex: 1, fontSize: "10px", color: "#a09068",
                 fontFamily: "var(--font-sans)",
                 overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
               }}>
@@ -599,7 +599,7 @@ function SectionCard({
             {title}
           </p>
         </div>
-        {subtitle && <span style={{ fontSize: "10px", color: "#5a4a2a", fontFamily: "var(--font-sans)" }}>{subtitle}</span>}
+        {subtitle && <span style={{ fontSize: "10px", color: "#9a8a6a", fontFamily: "var(--font-sans)" }}>{subtitle}</span>}
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
         {children}
@@ -627,7 +627,7 @@ function Row({
           {label}
         </p>
         {sublabel && (
-          <p style={{ fontSize: "10px", color: "#5a4a2a", fontFamily: "var(--font-sans)" }}>{sublabel}</p>
+          <p style={{ fontSize: "10px", color: "#9a8a6a", fontFamily: "var(--font-sans)" }}>{sublabel}</p>
         )}
       </div>
       <div style={{ textAlign: "right" }}>
@@ -653,7 +653,7 @@ function FooterLink({ children, onClick }: { children: React.ReactNode; onClick:
         padding: "8px 0 0 0",
         borderTop: "1px solid rgba(201,168,76,0.06)",
         marginTop: "4px",
-        color: "#5a4a2a", fontSize: "10px",
+        color: "#9a8a6a", fontSize: "10px",
         fontFamily: "var(--font-sans)",
         cursor: "pointer", textAlign: "left",
         display: "flex", alignItems: "center", gap: "4px",

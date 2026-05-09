@@ -87,12 +87,12 @@ export default function RedeContent({ userEmail }: { userEmail: string }) {
           style={{
             display: "flex", alignItems: "center", gap: "6px",
             background: "none", border: "none", cursor: "pointer",
-            color: "#7a6a4a", fontSize: "13px",
+            color: "#a09068", fontSize: "13px",
             fontFamily: "var(--font-sans)", padding: 0, marginBottom: "24px",
             transition: "color 0.15s",
           }}
           onMouseEnter={(e) => { e.currentTarget.style.color = "#C9A84C"; }}
-          onMouseLeave={(e) => { e.currentTarget.style.color = "#7a6a4a"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.color = "#a09068"; }}
         >
           <ChevronLeft size={15} /> Voltar para comunidade
         </button>
@@ -105,7 +105,7 @@ export default function RedeContent({ userEmail }: { userEmail: string }) {
         }}>
           Minha Rede
         </h1>
-        <p style={{ fontSize: "13px", color: "#7a6a4a", fontFamily: "var(--font-sans)", marginBottom: "24px" }}>
+        <p style={{ fontSize: "13px", color: "#a09068", fontFamily: "var(--font-sans)", marginBottom: "24px" }}>
           Conecte-se com outros investidores
         </p>
 
@@ -117,7 +117,7 @@ export default function RedeContent({ userEmail }: { userEmail: string }) {
 
         {/* Search */}
         <div style={{ position: "relative", marginBottom: "20px" }}>
-          <Search size={14} style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: "#5a4a2a" }} />
+          <Search size={14} style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: "#9a8a6a" }} />
           <input
             value={busca}
             onChange={(e) => setBusca(e.target.value)}
@@ -209,7 +209,7 @@ function UserRow({
           {user.name}
         </p>
         <p style={{
-          fontSize: "11px", color: "#6a5a3a", fontFamily: "var(--font-sans)",
+          fontSize: "11px", color: "#a09068", fontFamily: "var(--font-sans)",
           overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
         }}>
           {user.email}
@@ -257,7 +257,7 @@ function Empty({ text }: { text: string }) {
       background: "#130f09",
       border: "1px solid rgba(201,168,76,0.08)",
       borderRadius: "10px", padding: "32px 24px",
-      textAlign: "center", color: "#7a6a4a",
+      textAlign: "center", color: "#a09068",
       fontSize: "13px", fontFamily: "var(--font-sans)",
     }}>
       {text}

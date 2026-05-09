@@ -62,12 +62,12 @@ export default function CursoDetalheContent({
           style={{
             display: "flex", alignItems: "center", gap: "6px",
             background: "none", border: "none", cursor: "pointer",
-            color: "#7a6a4a", fontSize: "13px",
+            color: "#a09068", fontSize: "13px",
             fontFamily: "var(--font-sans)", padding: 0, marginBottom: "24px",
             transition: "color 0.15s",
           }}
           onMouseEnter={(e) => { e.currentTarget.style.color = "#C9A84C"; }}
-          onMouseLeave={(e) => { e.currentTarget.style.color = "#7a6a4a"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.color = "#a09068"; }}
         >
           <ChevronLeft size={15} /> Voltar para cursos
         </button>
@@ -207,14 +207,14 @@ export default function CursoDetalheContent({
                           }}>
                             {modulo.titulo}
                           </p>
-                          <p style={{ fontSize: "11px", color: "#6a5a3a", fontFamily: "var(--font-sans)" }}>
+                          <p style={{ fontSize: "11px", color: "#a09068", fontFamily: "var(--font-sans)" }}>
                             {modulo.aulas.length} aulas
                           </p>
                         </div>
                         <ChevronDown
                           size={16}
                           style={{
-                            color: "#7a6a4a",
+                            color: "#a09068",
                             transform: aberto ? "rotate(180deg)" : "rotate(0deg)",
                             transition: "transform 0.2s",
                           }}
@@ -239,11 +239,11 @@ export default function CursoDetalheContent({
                               onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(201,168,76,0.05)"; }}
                               onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
                             >
-                              <PlayCircle size={13} style={{ color: "#7a6a4a" }} />
+                              <PlayCircle size={13} style={{ color: "#a09068" }} />
                               <span style={{ flex: 1, fontSize: "13px", color: "#9a8a6a", fontFamily: "var(--font-sans)" }}>
                                 {aula.titulo}
                               </span>
-                              <span style={{ fontSize: "11px", color: "#5a4a2a", fontFamily: "var(--font-sans)" }}>
+                              <span style={{ fontSize: "11px", color: "#9a8a6a", fontFamily: "var(--font-sans)" }}>
                                 {aula.duracaoMin} min
                               </span>
                             </button>
@@ -276,7 +276,7 @@ export default function CursoDetalheContent({
                       Você está matriculado!
                     </span>
                   </div>
-                  <p style={{ fontSize: "12px", color: "#7a6a4a", fontFamily: "var(--font-sans)", marginBottom: "16px" }}>
+                  <p style={{ fontSize: "12px", color: "#a09068", fontFamily: "var(--font-sans)", marginBottom: "16px" }}>
                     Continue de onde parou.
                   </p>
                 </>
@@ -290,7 +290,7 @@ export default function CursoDetalheContent({
                   </p>
                   {curso.precoOriginal && (
                     <p style={{
-                      fontSize: "12px", color: "#5a4a2a",
+                      fontSize: "12px", color: "#9a8a6a",
                       textDecoration: "line-through",
                       fontFamily: "var(--font-sans)", marginBottom: "16px",
                     }}>
@@ -406,7 +406,7 @@ export default function CursoDetalheContent({
                       {curso.proximoPasso.titulo}
                     </p>
                     <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                      <span style={{ fontSize: "11px", color: "#5a4a2a", display: "flex", alignItems: "center", gap: "3px" }}>
+                      <span style={{ fontSize: "11px", color: "#9a8a6a", display: "flex", alignItems: "center", gap: "3px" }}>
                         <Clock size={9} /> {curso.proximoPasso.duracaoHoras}h
                       </span>
                       <span style={{

@@ -163,7 +163,7 @@ export default function AcaoContent({ ticker }: { ticker: string }) {
   if (loading) {
     return (
       <div style={{ minHeight: "calc(100vh - 58px)", background: "#0a0806", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <p style={{ color: "#7a6a4a", fontSize: "13px", fontFamily: "var(--font-sans)" }}>Carregando análise de {ticker}...</p>
+        <p style={{ color: "#a09068", fontSize: "13px", fontFamily: "var(--font-sans)" }}>Carregando análise de {ticker}...</p>
       </div>
     );
   }
@@ -182,7 +182,7 @@ export default function AcaoContent({ ticker }: { ticker: string }) {
             <p style={{ fontSize: "15px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-sans)", marginBottom: "6px" }}>
               Ativo não encontrado
             </p>
-            <p style={{ fontSize: "12px", color: "#7a6a4a", fontFamily: "var(--font-sans)" }}>
+            <p style={{ fontSize: "12px", color: "#a09068", fontFamily: "var(--font-sans)" }}>
               Não conseguimos buscar dados para <strong>{ticker}</strong>. Verifique o ticker e tente novamente.
             </p>
           </div>
@@ -351,7 +351,7 @@ export default function AcaoContent({ ticker }: { ticker: string }) {
                 <p style={{ fontSize: "14px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-display)", marginBottom: "4px" }}>
                   Checklist do Investidor
                 </p>
-                <p style={{ fontSize: "11px", color: "#7a6a4a", fontFamily: "var(--font-sans)" }}>
+                <p style={{ fontSize: "11px", color: "#a09068", fontFamily: "var(--font-sans)" }}>
                   {checklist.passedTotal} de {checklist.total} critérios atendidos
                 </p>
               </div>
@@ -471,7 +471,7 @@ export default function AcaoContent({ ticker }: { ticker: string }) {
             ))}
           </div>
           <div style={{ display: "flex", gap: "6px" }}>
-            <span style={{ fontSize: "11px", color: "#7a6a4a", fontFamily: "var(--font-sans)", padding: "5px 0" }}>Período:</span>
+            <span style={{ fontSize: "11px", color: "#a09068", fontFamily: "var(--font-sans)", padding: "5px 0" }}>Período:</span>
             {(["1y", "5y", "10y"] as const).map((p) => (
               <PillBtn key={p} active={p === comparePeriod} onClick={() => setComparePeriod(p)}>
                 {p === "1y" ? "1 Ano" : p === "5y" ? "5 Anos" : "10 Anos"}
@@ -555,7 +555,7 @@ export default function AcaoContent({ ticker }: { ticker: string }) {
                 <p style={{ fontSize: "14px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-sans)", marginBottom: "2px" }}>
                   {quote.longName ?? quote.shortName}
                 </p>
-                <p style={{ fontSize: "11px", color: "#7a6a4a", fontFamily: "var(--font-sans)" }}>
+                <p style={{ fontSize: "11px", color: "#a09068", fontFamily: "var(--font-sans)" }}>
                   {quote.summaryProfile.sector ?? "—"} {quote.summaryProfile.industry && `· ${quote.summaryProfile.industry}`}
                 </p>
               </div>
@@ -577,7 +577,7 @@ export default function AcaoContent({ ticker }: { ticker: string }) {
                 </a>
               )}
               {quote.summaryProfile.fullTimeEmployees && (
-                <span style={{ fontSize: "11px", color: "#7a6a4a", fontFamily: "var(--font-sans)" }}>
+                <span style={{ fontSize: "11px", color: "#a09068", fontFamily: "var(--font-sans)" }}>
                   {quote.summaryProfile.fullTimeEmployees.toLocaleString("pt-BR")} funcionários
                 </span>
               )}
@@ -838,12 +838,12 @@ function BackButton({ onClick }: { onClick: () => void }) {
       style={{
         display: "flex", alignItems: "center", gap: "6px",
         background: "none", border: "none", cursor: "pointer",
-        color: "#7a6a4a", fontSize: "13px",
+        color: "#a09068", fontSize: "13px",
         fontFamily: "var(--font-sans)", padding: 0, marginBottom: "16px",
         transition: "color 0.15s",
       }}
       onMouseEnter={(e) => { e.currentTarget.style.color = "#C9A84C"; }}
-      onMouseLeave={(e) => { e.currentTarget.style.color = "#7a6a4a"; }}
+      onMouseLeave={(e) => { e.currentTarget.style.color = "#a09068"; }}
     >
       <ChevronLeft size={15} /> Voltar para análise
     </button>
@@ -917,7 +917,7 @@ function MetricChip({
       }}>
         {value}
       </p>
-      <p style={{ fontSize: "10px", color: "#5a4a2a", fontFamily: "var(--font-sans)" }}>
+      <p style={{ fontSize: "10px", color: "#9a8a6a", fontFamily: "var(--font-sans)" }}>
         {sub}
       </p>
     </div>
@@ -927,7 +927,7 @@ function MetricChip({
 function MiniStat({ label, value, color }: { label: string; value: string; color: string }) {
   return (
     <div>
-      <p style={{ fontSize: "10px", color: "#5a4a2a", fontFamily: "var(--font-sans)", marginBottom: "3px", letterSpacing: "0.04em", textTransform: "uppercase" }}>
+      <p style={{ fontSize: "10px", color: "#9a8a6a", fontFamily: "var(--font-sans)", marginBottom: "3px", letterSpacing: "0.04em", textTransform: "uppercase" }}>
         {label}
       </p>
       <p style={{ fontSize: "14px", fontWeight: 600, color, fontFamily: "var(--font-display)" }}>
@@ -945,7 +945,7 @@ function Indicator({ label, value }: { label: string; value: string }) {
       borderRadius: "8px", padding: "10px 12px",
     }}>
       <p style={{
-        fontSize: "9px", fontWeight: 600, color: "#7a6a4a",
+        fontSize: "9px", fontWeight: 600, color: "#a09068",
         fontFamily: "var(--font-sans)", letterSpacing: "0.05em",
         marginBottom: "6px", textTransform: "uppercase",
       }}>
@@ -961,7 +961,7 @@ function Indicator({ label, value }: { label: string; value: string }) {
 function DivStat({ label, value, accent }: { label: string; value: string; accent: string }) {
   return (
     <div>
-      <p style={{ fontSize: "10px", color: "#7a6a4a", fontFamily: "var(--font-sans)", marginBottom: "2px" }}>
+      <p style={{ fontSize: "10px", color: "#a09068", fontFamily: "var(--font-sans)", marginBottom: "2px" }}>
         {label}
       </p>
       <p style={{ fontSize: "16px", fontWeight: 700, color: accent, fontFamily: "var(--font-display)" }}>
@@ -1002,7 +1002,7 @@ function ChecklistGroup({ group }: { group: ChecklistGroupT }) {
             {group.passed}/{group.total}
           </span>
         </div>
-        <ChevronDown size={14} style={{ color: "#7a6a4a", transform: open ? "rotate(180deg)" : "none", transition: "transform 0.2s" }} />
+        <ChevronDown size={14} style={{ color: "#a09068", transform: open ? "rotate(180deg)" : "none", transition: "transform 0.2s" }} />
       </button>
       {open && (
         <div style={{ padding: "0 16px 12px", display: "flex", flexDirection: "column", gap: "6px" }}>
@@ -1017,7 +1017,7 @@ function ChecklistGroup({ group }: { group: ChecklistGroupT }) {
                 <p style={{ fontSize: "12px", fontWeight: 500, color: "#e8dcc0", fontFamily: "var(--font-sans)", marginBottom: "2px" }}>
                   {item.label}
                 </p>
-                <p style={{ fontSize: "11px", color: "#7a6a4a", fontFamily: "var(--font-sans)", lineHeight: 1.4 }}>
+                <p style={{ fontSize: "11px", color: "#a09068", fontFamily: "var(--font-sans)", lineHeight: 1.4 }}>
                   {item.description}
                 </p>
               </div>
@@ -1032,7 +1032,7 @@ function ChecklistGroup({ group }: { group: ChecklistGroupT }) {
 function PriceChart({ history, positive }: { history: BrapiHistoricalPrice[]; positive: boolean }) {
   if (history.length < 2) {
     return (
-      <div style={{ height: "220px", display: "flex", alignItems: "center", justifyContent: "center", color: "#5a4a2a", fontSize: "12px", fontFamily: "var(--font-sans)" }}>
+      <div style={{ height: "220px", display: "flex", alignItems: "center", justifyContent: "center", color: "#9a8a6a", fontSize: "12px", fontFamily: "var(--font-sans)" }}>
         Sem dados históricos suficientes.
       </div>
     );
@@ -1095,7 +1095,7 @@ function DividendBars({ data, type, price }: {
             <g key={d.year}>
               <rect x={x} y={y} width={barW} height={barH} fill="#C9A84C" rx={3} />
               <text x={x + barW / 2} y={h - 8} textAnchor="middle"
-                fontSize={10} fill="#7a6a4a" fontFamily="var(--font-sans)">
+                fontSize={10} fill="#a09068" fontFamily="var(--font-sans)">
                 {d.year}
               </text>
               <text x={x + barW / 2} y={y - 4} textAnchor="middle"
@@ -1144,7 +1144,7 @@ function RevenueChart({ data }: { data: IncomeYear[] }) {
             <g key={d.year}>
               <rect x={cx - barW - 1} y={d.revenue >= 0 ? yRev : zeroY} width={barW} height={hRev} fill="#10b981" rx={2} />
               <rect x={cx + 1} y={profY} width={barW} height={profH} fill="#f59e0b" rx={2} />
-              <text x={cx} y={h - 8} textAnchor="middle" fontSize={10} fill="#7a6a4a" fontFamily="var(--font-sans)">
+              <text x={cx} y={h - 8} textAnchor="middle" fontSize={10} fill="#a09068" fontFamily="var(--font-sans)">
                 {d.year}
               </text>
             </g>
@@ -1169,7 +1169,7 @@ function DivRow({ dividend }: { dividend: BrapiCashDividend }) {
         <p style={{ fontSize: "12px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-sans)", marginBottom: "2px" }}>
           {tipo}
         </p>
-        <p style={{ fontSize: "10px", color: "#7a6a4a", fontFamily: "var(--font-sans)" }}>
+        <p style={{ fontSize: "10px", color: "#a09068", fontFamily: "var(--font-sans)" }}>
           {dividend.approvedOn && `aviso: ${formatDate(dividend.approvedOn)}`}
           {dividend.approvedOn && dividend.paymentDate && " · "}
           {dividend.paymentDate && `pgto: ${formatDate(dividend.paymentDate)}`}
@@ -1233,7 +1233,7 @@ function DataRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0",
       borderBottom: "1px solid rgba(201,168,76,0.05)" }}>
-      <span style={{ fontSize: "11px", color: "#7a6a4a", fontFamily: "var(--font-sans)" }}>{label}</span>
+      <span style={{ fontSize: "11px", color: "#a09068", fontFamily: "var(--font-sans)" }}>{label}</span>
       <span style={{ fontSize: "12px", color: "#e8dcc0", fontFamily: "var(--font-sans)", fontWeight: 500 }}>{value}</span>
     </div>
   );
@@ -1252,7 +1252,7 @@ function Empty({ text }: { text: string }) {
   return (
     <div style={{
       padding: "24px", textAlign: "center",
-      color: "#7a6a4a", fontSize: "12px",
+      color: "#a09068", fontSize: "12px",
       fontFamily: "var(--font-sans)",
     }}>
       {text}
@@ -1285,11 +1285,11 @@ function NewsList({ ticker }: { ticker: string }) {
             <p style={{ fontSize: "12px", color: "#c8b89a", fontFamily: "var(--font-sans)", lineHeight: 1.45, marginBottom: "3px" }}>
               {n.titulo}
             </p>
-            <p style={{ fontSize: "10px", color: "#5a4a2a", fontFamily: "var(--font-sans)" }}>
+            <p style={{ fontSize: "10px", color: "#9a8a6a", fontFamily: "var(--font-sans)" }}>
               {n.fonte} · {n.data}
             </p>
           </div>
-          <ExternalLink size={11} style={{ color: "#7a6a4a", flexShrink: 0 }} />
+          <ExternalLink size={11} style={{ color: "#a09068", flexShrink: 0 }} />
         </div>
       ))}
     </div>
