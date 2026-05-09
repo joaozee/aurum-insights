@@ -14,6 +14,8 @@ import {
   type CommunityPost, type PostComment, formatRelativeTime, initialFromName,
   TOPICOS_INTERESSE, FEED_ALGORITHMS, type FeedAlgorithm,
 } from "@/lib/comunidade";
+import { Skeleton } from "@/components/ui/skeleton";
+import { ErrorState } from "@/components/ui/error-state";
 
 interface Props {
   userEmail: string;
@@ -27,6 +29,7 @@ export default function ComunidadeContent({ userEmail, userName, userAvatar }: P
 
   const [posts, setPosts] = useState<CommunityPost[]>([]);
   const [loading, setLoading] = useState(true);
+  const [feedError, setFeedError] = useState<string | null>(null);
   const [composerText, setComposerText] = useState("");
   const [isPremium, setIsPremium] = useState(false);
   const [posting, setPosting] = useState(false);
@@ -108,12 +111,20 @@ export default function ComunidadeContent({ userEmail, userName, userAvatar }: P
   }, [supabase, userEmail]);
 
   const loadPosts = useCallback(async () => {
-    const { data } = await supabase
+    setLoading(true);
+    setFeedError(null);
+    const { data, error } = await supabase
       .from("community_post")
       .select("*")
       .neq("moderation_status", "rejeitado")
       .order("created_at", { ascending: false })
       .limit(80);
+    if (error) {
+      console.error("[comunidade/loadPosts]", error);
+      setFeedError("Não consegui carregar o feed.");
+      setLoading(false);
+      return;
+    }
     const list = (data ?? []) as CommunityPost[];
     setPosts(list);
 
@@ -727,8 +738,18 @@ export default function ComunidadeContent({ userEmail, userName, userAvatar }: P
           </div>
 
           {/* Posts */}
-          {loading ? (
-            <FeedEmpty text="Carregando feed..." />
+          {feedError ? (
+            <ErrorState
+              title={feedError}
+              message="Pode ser uma flutuação na conexão com o Supabase."
+              onRetry={loadPosts}
+            />
+          ) : loading ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+              <CommunityPostSkeleton />
+              <CommunityPostSkeleton />
+              <CommunityPostSkeleton />
+            </div>
           ) : filteredPosts.length === 0 ? (
             <FeedEmpty text={busca ? "Nenhum post encontrado." : "Ainda não há posts. Seja o primeiro!"} />
           ) : (
@@ -1708,6 +1729,38 @@ function FeedEmpty({ text }: { text: string }) {
       fontFamily: "var(--font-sans)",
     }}>
       {text}
+    </div>
+  );
+}
+
+// Skeleton com formato de PostCard (avatar 36 + name + 4 linhas de texto +
+// barra de actions). Mantém altura proxima do card real pra evitar shift.
+function CommunityPostSkeleton() {
+  return (
+    <div style={{
+      background: "#130f09",
+      border: "1px solid rgba(201,168,76,0.08)",
+      borderRadius: "12px",
+      padding: "16px 20px",
+    }}>
+      <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "12px" }}>
+        <Skeleton className="size-9 rounded-full" />
+        <div style={{ flex: 1 }}>
+          <Skeleton className="h-3.5 w-32 mb-1.5" />
+          <Skeleton className="h-2.5 w-20" />
+        </div>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "16px" }}>
+        <Skeleton className="h-3.5 w-full" />
+        <Skeleton className="h-3.5 w-[94%]" />
+        <Skeleton className="h-3.5 w-[78%]" />
+      </div>
+      <div style={{ display: "flex", gap: "20px", paddingTop: "12px", borderTop: "1px solid rgba(201,168,76,0.06)" }}>
+        <Skeleton className="h-3 w-12" />
+        <Skeleton className="h-3 w-12" />
+        <Skeleton className="h-3 w-12" />
+        <Skeleton className="h-3 w-12" />
+      </div>
     </div>
   );
 }

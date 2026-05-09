@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Playfair_Display, Inter } from "next/font/google";
+import { Toaster } from "sonner";
 import "./globals.css";
 
 const playfairDisplay = Playfair_Display({
@@ -27,7 +28,22 @@ export default function RootLayout({
 }) {
   return (
     <html lang="pt-BR" className={`${playfairDisplay.variable} ${inter.variable}`}>
-      <body>{children}</body>
+      <body>
+        {children}
+        <Toaster
+          theme="dark"
+          position="bottom-right"
+          toastOptions={{
+            style: {
+              background: "var(--bg-card)",
+              border: "1px solid var(--border-soft)",
+              color: "var(--text-default)",
+              fontFamily: "var(--font-sans)",
+            },
+            className: "aurum-toast",
+          }}
+        />
+      </body>
     </html>
   );
 }

@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import type { ProfileBundle } from "./load";
+import { toast } from "sonner";
 
 interface Props {
   mode: "self" | "public";
@@ -89,10 +90,26 @@ export default function ProfileContent({ mode, currentUserEmail, currentUserName
       cacheControl: "3600",
       upsert: true,
     });
-    if (!upErr) {
+    if (upErr) {
+      console.error("[avatar-upload]", upErr);
+      toast.error("Não consegui enviar a foto.", {
+        description: "Pode ser tamanho ou formato. Tenta de novo?",
+      });
+    } else {
       const { data: pub } = supabase.storage.from("profile-uploads").getPublicUrl(path);
-      await supabase.from("user_profile").update({ avatar_url: pub.publicUrl }).eq("user_email", currentUserEmail);
-      router.refresh();
+      const { error: dbErr } = await supabase
+        .from("user_profile")
+        .update({ avatar_url: pub.publicUrl })
+        .eq("user_email", currentUserEmail);
+      if (dbErr) {
+        console.error("[avatar-update]", dbErr);
+        toast.error("Foto enviada, mas não consegui salvar no perfil.", {
+          description: "Tenta de novo em um instante.",
+        });
+      } else {
+        toast.success("Foto de perfil atualizada.");
+        router.refresh();
+      }
     }
     setUploadingAvatar(false);
   }
@@ -105,10 +122,26 @@ export default function ProfileContent({ mode, currentUserEmail, currentUserName
       cacheControl: "3600",
       upsert: true,
     });
-    if (!upErr) {
+    if (upErr) {
+      console.error("[banner-upload]", upErr);
+      toast.error("Não consegui enviar a capa.", {
+        description: "Pode ser tamanho ou formato. Tenta de novo?",
+      });
+    } else {
       const { data: pub } = supabase.storage.from("profile-uploads").getPublicUrl(path);
-      await supabase.from("user_profile").update({ banner_url: pub.publicUrl }).eq("user_email", currentUserEmail);
-      router.refresh();
+      const { error: dbErr } = await supabase
+        .from("user_profile")
+        .update({ banner_url: pub.publicUrl })
+        .eq("user_email", currentUserEmail);
+      if (dbErr) {
+        console.error("[banner-update]", dbErr);
+        toast.error("Capa enviada, mas não consegui salvar no perfil.", {
+          description: "Tenta de novo em um instante.",
+        });
+      } else {
+        toast.success("Capa atualizada.");
+        router.refresh();
+      }
     }
     setUploadingBanner(false);
   }
