@@ -253,9 +253,9 @@ export default function ProfileContent({ mode, currentUserEmail, currentUserName
 
           {/* Profile row */}
           <div style={{ padding: "0 24px 24px" }}>
-            <div style={{ display: "flex", alignItems: "flex-end", gap: "18px", marginTop: "-44px", flexWrap: "wrap" }}>
-              {/* Avatar */}
-              <div style={{ position: "relative", flexShrink: 0 }}>
+            <div style={{ display: "flex", alignItems: "flex-start", gap: "18px", flexWrap: "wrap" }}>
+              {/* Avatar — só ele sobe sobre o banner; o texto fica abaixo */}
+              <div style={{ position: "relative", flexShrink: 0, marginTop: "-44px" }}>
                 <div
                   style={{
                     width: "92px",
@@ -316,7 +316,7 @@ export default function ProfileContent({ mode, currentUserEmail, currentUserName
               </div>
 
               {/* Info */}
-              <div style={{ paddingBottom: "8px", flex: 1, minWidth: 0 }}>
+              <div style={{ paddingTop: "12px", flex: 1, minWidth: 0 }}>
                 {editing ? (
                   <input
                     value={name}
