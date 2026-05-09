@@ -4,10 +4,10 @@ import { useState, useMemo, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   Camera, Pencil, Bookmark, Users, Activity, BarChart2,
-  HelpCircle, FileText, Shield, MessageSquare, Star,
+  MessageSquare, Star,
   FolderOpen, Briefcase, BookOpen, Newspaper, MessageCircle, Heart,
   Repeat2, Share2, Link2, Trophy, GraduationCap, Calendar, Check,
-  Crown, ExternalLink, Plus, ArrowRight,
+  Crown, ExternalLink, Plus,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import type { ProfileBundle } from "./load";
@@ -34,22 +34,6 @@ function memberSince(date: string | null): string {
   return fmt.charAt(0).toUpperCase() + fmt.slice(1);
 }
 
-function computeTier(points: number) {
-  if (points < 100)
-    return { name: "Bronze", level: 1, min: 0, max: 100, color: "#c87c3a", gradient: "linear-gradient(135deg, #c87c3a, #8b5a2b)" };
-  if (points < 500)
-    return { name: "Prata", level: 2, min: 100, max: 500, color: "#c8c8c8", gradient: "linear-gradient(135deg, #d8d8d8, #888)" };
-  if (points < 2000)
-    return { name: "Ouro", level: 3, min: 500, max: 2000, color: "#E8C96A", gradient: "linear-gradient(135deg, #ffd966, #c9a84c)" };
-  return {
-    name: "Platina",
-    level: 4,
-    min: 2000,
-    max: 10000,
-    color: "#c8d4e8",
-    gradient: "linear-gradient(135deg, #e8eafc, #a0b4d8)",
-  };
-}
 
 export default function ProfileContent({ mode, currentUserEmail, currentUserName, bundle }: Props) {
   const router = useRouter();
@@ -74,11 +58,6 @@ export default function ProfileContent({ mode, currentUserEmail, currentUserName
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const bannerInputRef = useRef<HTMLInputElement>(null);
 
-  const tier = computeTier(bundle.points.total_points);
-  const tierProgress = Math.min(
-    100,
-    Math.round(((bundle.points.total_points - tier.min) / (tier.max - tier.min)) * 100)
-  );
   const initial = (profile.user_name || profile.user_email).charAt(0).toUpperCase();
   const profileUrl =
     typeof window !== "undefined"
@@ -273,16 +252,8 @@ export default function ProfileContent({ mode, currentUserEmail, currentUserName
           </div>
 
           {/* Profile row */}
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 240px",
-              gap: "20px",
-              padding: "0 24px 24px",
-              alignItems: "flex-end",
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "flex-end", gap: "18px", marginTop: "-44px" }}>
+          <div style={{ padding: "0 24px 24px" }}>
+            <div style={{ display: "flex", alignItems: "flex-end", gap: "18px", marginTop: "-44px", flexWrap: "wrap" }}>
               {/* Avatar */}
               <div style={{ position: "relative", flexShrink: 0 }}>
                 <div
@@ -483,52 +454,6 @@ export default function ProfileContent({ mode, currentUserEmail, currentUserName
                 )}
               </div>
             </div>
-
-            {/* Level card */}
-            <div
-              style={{
-                background: "#0d0b07",
-                border: "1px solid rgba(201,168,76,0.12)",
-                borderRadius: "10px",
-                padding: "14px 16px",
-                marginBottom: "8px",
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "4px", position: "relative" }}>
-                <p style={{ fontSize: "10px", color: "#a09068", fontFamily: "var(--font-sans)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
-                  Nível Atual
-                </p>
-                <NivelTooltip />
-              </div>
-              <div style={{ display: "flex", alignItems: "baseline", gap: "8px", marginBottom: "8px" }}>
-                <span
-                  style={{
-                    fontSize: "20px",
-                    fontWeight: 700,
-                    fontFamily: "var(--font-display)",
-                    color: tier.color,
-                    letterSpacing: "-0.01em",
-                  }}
-                >
-                  {tier.name}
-                </span>
-                <span style={{ fontSize: "11px", color: "#a09068", fontFamily: "var(--font-sans)" }}>
-                  Nível {tier.level} · {bundle.points.total_points} XP
-                </span>
-              </div>
-              <div style={{ marginBottom: "6px" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
-                  <span style={{ fontSize: "10px", color: "#a09068", fontFamily: "var(--font-sans)" }}>Progresso</span>
-                  <span style={{ fontSize: "10px", fontWeight: 600, color: "#C9A84C", fontFamily: "var(--font-sans)" }}>{tierProgress}%</span>
-                </div>
-                <div style={{ height: "5px", background: "rgba(255,255,255,0.05)", borderRadius: "3px", overflow: "hidden" }}>
-                  <div style={{ height: "100%", width: `${tierProgress}%`, background: tier.gradient, borderRadius: "3px" }} />
-                </div>
-              </div>
-              <p style={{ fontSize: "10px", color: "#9a8a6a", fontFamily: "var(--font-sans)" }}>
-                {Math.max(0, tier.max - bundle.points.total_points)} XP para o próximo nível
-              </p>
-            </div>
           </div>
         </div>
 
@@ -583,25 +508,6 @@ export default function ProfileContent({ mode, currentUserEmail, currentUserName
         {/* ─── TAB CONTENT ──────────────────────────────────────────────────── */}
         {topTab === "geral" && (
           <>
-            {/* Conta + Suporte (self only) */}
-            {isSelf && (
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginTop: "16px" }}>
-                <Card>
-                  <CardHeader title="Conta" />
-                  <SettingsRow icon={<BookOpen size={14} />} label="Meus Cursos" sub="O curso individual da..." onClick={() => router.push("/dashboard/cursos")} />
-                  <SettingsRow icon={<Pencil size={14} />} label="Configurações de Perfil" sub="Configure seus dados, ações e mais" onClick={() => setEditing(true)} />
-                  <SettingsRow icon={<Crown size={14} />} label="Assinaturas" sub="Premium ativa" onClick={() => router.push("/dashboard/assinaturas")} />
-                </Card>
-                <Card>
-                  <CardHeader title="Suporte" />
-                  <SettingsRow icon={<HelpCircle size={14} />} label="Ajuda / FAQ" onClick={() => router.push("/dashboard/ajuda")} />
-                  <SettingsRow icon={<FileText size={14} />} label="Termos de Uso" onClick={() => router.push("/dashboard/termos")} />
-                  <SettingsRow icon={<Shield size={14} />} label="Política de Privacidade" onClick={() => router.push("/dashboard/privacidade")} />
-                  <SettingsRow icon={<MessageSquare size={14} />} label="Contato / Suporte" onClick={() => router.push("/dashboard/contato")} />
-                </Card>
-              </div>
-            )}
-
             {/* Posts Destacados */}
             <Card style={{ marginTop: "16px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
@@ -736,20 +642,13 @@ export default function ProfileContent({ mode, currentUserEmail, currentUserName
 
               {engTab === "geral" ? (
                 <>
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "8px", marginBottom: "8px" }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "8px", marginBottom: "8px" }}>
                     <MetricCell icon={<MessageCircle size={12} />} label="Posts" value={bundle.engagement.posts} color="#5E6B8C" />
                     <MetricCell icon={<Heart size={12} />} label="Curtidas" value={bundle.engagement.likes} color="#A4485E" />
-                    <MetricCell icon={<MessageCircle size={12} />} label="Comentários" value={bundle.engagement.comments} color="#4F8A82" />
                   </div>
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "8px" }}>
+                    <MetricCell icon={<MessageCircle size={12} />} label="Comentários" value={bundle.engagement.comments} color="#4F8A82" />
                     <MetricCell icon={<Repeat2 size={12} />} label="Compartilhamentos" value={bundle.engagement.reposts} color="#6E8C4A" />
-                    <MetricCell icon={<BarChart2 size={12} />} label="Engajamento Médio/Post" value={bundle.engagement.avgPerPost.toFixed(1)} color="#C58A3D" />
-                  </div>
-                  <div style={{ marginTop: "10px", paddingTop: "10px", borderTop: "1px solid rgba(201,168,76,0.05)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <span style={{ fontSize: "12px", color: "#9a8a6a", fontFamily: "var(--font-sans)" }}>Taxa de Engajamento</span>
-                    <span style={{ fontSize: "13px", fontWeight: 700, color: "#C9A84C", fontFamily: "var(--font-sans)" }}>
-                      {(bundle.engagement.rate * 100).toFixed(2)}%
-                    </span>
                   </div>
                 </>
               ) : (
@@ -838,30 +737,6 @@ export default function ProfileContent({ mode, currentUserEmail, currentUserName
               </div>
             </Card>
 
-            {/* Pontos totais */}
-            <Card style={{ marginTop: "16px", background: "linear-gradient(135deg, #1a1205 0%, #130f09 60%)" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "14px" }}>
-                <div>
-                  <p style={{ fontSize: "11px", color: "#a09068", fontFamily: "var(--font-sans)", letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: "4px" }}>
-                    Pontos Totais
-                  </p>
-                  <div style={{ display: "flex", alignItems: "baseline", gap: "8px" }}>
-                    <span style={{ fontSize: "32px", fontWeight: 700, color: "#e8dcc0", fontFamily: "var(--font-display)", letterSpacing: "-0.01em" }}>
-                      {bundle.points.total_points}
-                    </span>
-                    <span style={{ fontSize: "13px", color: "#C9A84C", fontFamily: "var(--font-sans)", fontWeight: 600 }}>XP</span>
-                  </div>
-                </div>
-                <div style={{ width: "44px", height: "44px", borderRadius: "50%", background: "linear-gradient(135deg, #C9A84C, #A07820)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <ArrowRight size={18} style={{ color: "#0d0b07" }} />
-                </div>
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "8px" }}>
-                <PointsCell icon={<BookOpen size={11} />} label="De Aulas" value={bundle.points.points_from_lessons} />
-                <PointsCell icon={<GraduationCap size={11} />} label="De Cursos" value={bundle.points.points_from_courses} />
-                <PointsCell icon={<Users size={11} />} label="Comunidade" value={bundle.points.points_from_community} />
-              </div>
-            </Card>
           </>
         )}
 
@@ -974,41 +849,6 @@ function CardHeader({
   );
 }
 
-function SettingsRow({
-  icon, label, sub, onClick,
-}: { icon: React.ReactNode; label: string; sub?: string; onClick: () => void }) {
-  return (
-    <button
-      onClick={onClick}
-      style={{
-        width: "100%",
-        display: "flex",
-        alignItems: "center",
-        gap: "12px",
-        padding: "10px 12px",
-        marginTop: "6px",
-        background: "#0d0b07",
-        border: "1px solid rgba(201,168,76,0.06)",
-        borderRadius: "8px",
-        cursor: "pointer",
-        textAlign: "left",
-        transition: "border-color 0.15s",
-      }}
-      onMouseEnter={(e) => { e.currentTarget.style.borderColor = "rgba(201,168,76,0.18)"; }}
-      onMouseLeave={(e) => { e.currentTarget.style.borderColor = "rgba(201,168,76,0.06)"; }}
-    >
-      <div style={{ width: "30px", height: "30px", borderRadius: "7px", background: "rgba(201,168,76,0.08)", display: "flex", alignItems: "center", justifyContent: "center", color: "#C9A84C", flexShrink: 0 }}>
-        {icon}
-      </div>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <p style={{ fontSize: "12px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-sans)", marginBottom: "3px", lineHeight: 1.3 }}>{label}</p>
-        {sub && <p style={{ fontSize: "10px", color: "#a09068", fontFamily: "var(--font-sans)", lineHeight: 1.3 }}>{sub}</p>}
-      </div>
-      <ArrowRight size={12} style={{ color: "#9a8a6a" }} />
-    </button>
-  );
-}
-
 function PrimaryBtn({
   icon, label, onClick,
 }: { icon: React.ReactNode; label: string; onClick: () => void }) {
@@ -1074,20 +914,6 @@ function MetricCell({
         <span style={{ fontSize: "10px", color: "#9a8a6a", fontFamily: "var(--font-sans)" }}>{label}</span>
       </div>
       <p style={{ fontSize: "16px", fontWeight: 700, color: "#e8dcc0", fontFamily: "var(--font-display)" }}>{value}</p>
-    </div>
-  );
-}
-
-function PointsCell({
-  icon, label, value,
-}: { icon: React.ReactNode; label: string; value: number }) {
-  return (
-    <div style={{ background: "rgba(13,11,7,0.6)", border: "1px solid rgba(201,168,76,0.08)", borderRadius: "8px", padding: "10px 12px" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: "5px", color: "#a09068", marginBottom: "4px" }}>
-        {icon}
-        <span style={{ fontSize: "10px", color: "#a09068", fontFamily: "var(--font-sans)" }}>{label}</span>
-      </div>
-      <p style={{ fontSize: "18px", fontWeight: 700, color: "#e8dcc0", fontFamily: "var(--font-display)" }}>{value}</p>
     </div>
   );
 }
@@ -1187,66 +1013,3 @@ function SavedTab({ supabase, email }: { supabase: any; email: string }) {
   );
 }
 
-function NivelTooltip() {
-  const [open, setOpen] = useState(false);
-  return (
-    <div
-      style={{ position: "relative", display: "inline-flex" }}
-      onMouseEnter={() => setOpen(true)}
-      onMouseLeave={() => setOpen(false)}
-      onFocus={() => setOpen(true)}
-      onBlur={() => setOpen(false)}
-    >
-      <button
-        type="button"
-        aria-label="Como funciona o sistema de níveis"
-        style={{
-          background: "transparent", border: "none", cursor: "help",
-          padding: 0, color: "#9a8a6a",
-          display: "flex", alignItems: "center",
-        }}
-      >
-        <HelpCircle size={11} />
-      </button>
-      {open && (
-        <div
-          role="tooltip"
-          style={{
-            position: "absolute",
-            top: "100%",
-            left: "50%",
-            transform: "translateX(-50%)",
-            marginTop: "8px",
-            width: "260px",
-            background: "#0d0b07",
-            border: "1px solid rgba(201,168,76,0.2)",
-            borderRadius: "8px",
-            padding: "12px 14px",
-            boxShadow: "0 8px 28px rgba(0,0,0,0.6)",
-            zIndex: 30,
-            fontFamily: "var(--font-sans)",
-          }}
-        >
-          <p style={{ fontSize: "11px", fontWeight: 700, color: "#e8dcc0", marginBottom: "8px", letterSpacing: "0.04em" }}>
-            COMO GANHAR XP
-          </p>
-          <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: "5px" }}>
-            <li style={{ fontSize: "11px", color: "#9a8a6a", lineHeight: 1.4 }}>📝 Postar na comunidade — <strong style={{ color: "#C9A84C" }}>+10 XP</strong></li>
-            <li style={{ fontSize: "11px", color: "#9a8a6a", lineHeight: 1.4 }}>💬 Comentar — <strong style={{ color: "#C9A84C" }}>+3 XP</strong></li>
-            <li style={{ fontSize: "11px", color: "#9a8a6a", lineHeight: 1.4 }}>❤️ Receber curtidas — <strong style={{ color: "#C9A84C" }}>+1 XP</strong></li>
-            <li style={{ fontSize: "11px", color: "#9a8a6a", lineHeight: 1.4 }}>🎓 Concluir aula — <strong style={{ color: "#C9A84C" }}>+15 XP</strong></li>
-            <li style={{ fontSize: "11px", color: "#9a8a6a", lineHeight: 1.4 }}>🏆 Concluir curso — <strong style={{ color: "#C9A84C" }}>+200 XP</strong></li>
-          </ul>
-          <div style={{ marginTop: "10px", paddingTop: "10px", borderTop: "1px solid rgba(201,168,76,0.1)" }}>
-            <p style={{ fontSize: "11px", fontWeight: 700, color: "#e8dcc0", marginBottom: "6px", letterSpacing: "0.04em" }}>
-              NÍVEIS
-            </p>
-            <p style={{ fontSize: "10px", color: "#a09068", lineHeight: 1.5 }}>
-              Bronze 0–99 · Prata 100–499 · Ouro 500–1.999 · Platina 2.000+
-            </p>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}

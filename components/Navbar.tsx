@@ -171,7 +171,12 @@ export default function Navbar({ userName, userInitial, userAvatar, userEmail }:
 
         {/* Right icons */}
         <div style={{ display: "flex", alignItems: "center", gap: "6px", flexShrink: 0 }}>
-          <NavIconBtn label="Configurações"><Settings size={16} /></NavIconBtn>
+          <NavIconBtn
+            label="Configurações"
+            onClick={() => router.push("/dashboard/configuracoes")}
+          >
+            <Settings size={16} />
+          </NavIconBtn>
           <NotificationsBell userEmail={userEmail} />
 
           {/* Avatar + Dropdown */}
@@ -252,6 +257,27 @@ export default function Navbar({ userName, userInitial, userAvatar, userEmail }:
                   Meu Perfil
                 </button>
                 <button
+                  onClick={() => { setMenuOpen(false); router.push("/dashboard/configuracoes"); }}
+                  style={{
+                    width: "100%",
+                    background: "transparent",
+                    border: "none",
+                    color: "#e8dcc0",
+                    fontSize: "13px",
+                    fontFamily: "var(--font-sans)",
+                    padding: "7px 10px",
+                    textAlign: "left",
+                    cursor: "pointer",
+                    borderRadius: "5px",
+                    transition: "background 0.15s",
+                    marginBottom: "4px",
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(201,168,76,0.08)"; e.currentTarget.style.color = "#C9A84C"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "#e8dcc0"; }}
+                >
+                  Configurações
+                </button>
+                <button
                   onClick={handleSignOut}
                   style={{
                     width: "100%",
@@ -280,10 +306,19 @@ export default function Navbar({ userName, userInitial, userAvatar, userEmail }:
   );
 }
 
-function NavIconBtn({ children, label }: { children: React.ReactNode; label: string }) {
+function NavIconBtn({
+  children,
+  label,
+  onClick,
+}: {
+  children: React.ReactNode;
+  label: string;
+  onClick?: () => void;
+}) {
   return (
     <button
       aria-label={label}
+      onClick={onClick}
       style={{
         width: "34px",
         height: "34px",
