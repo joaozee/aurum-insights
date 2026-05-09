@@ -10,9 +10,11 @@ import {
   Users,
   TrendingUp,
   Settings,
+  Search,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import NotificationsBell from "./NotificationsBell";
+import { useCommandPalette } from "./CommandPalette";
 
 const NAV_ITEMS = [
   { label: "Início", href: "/dashboard", icon: Home },
@@ -33,6 +35,7 @@ interface NavbarProps {
 export default function Navbar({ userName, userInitial, userAvatar, userEmail }: NavbarProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const { setOpen: setCommandOpen } = useCommandPalette();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -159,6 +162,12 @@ export default function Navbar({ userName, userInitial, userAvatar, userEmail }:
 
         {/* Right icons */}
         <div style={{ display: "flex", alignItems: "center", gap: "6px", flexShrink: 0 }}>
+          <NavIconBtn
+            label="Buscar (Ctrl+K)"
+            onClick={() => setCommandOpen(true)}
+          >
+            <Search size={16} />
+          </NavIconBtn>
           <NavIconBtn
             label="Configurações"
             onClick={() => router.push("/dashboard/configuracoes")}

@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import Navbar from "@/components/Navbar";
+import { CommandPaletteProvider } from "@/components/CommandPalette";
 
 export default async function DashboardLayout({
   children,
@@ -33,14 +34,16 @@ export default async function DashboardLayout({
   const userInitial = fullName.charAt(0).toUpperCase();
 
   return (
-    <div style={{ minHeight: "100vh", background: "#0d0b07" }}>
-      <Navbar
-        userName={fullName}
-        userInitial={userInitial}
-        userAvatar={profile?.avatar_url ?? null}
-        userEmail={user.email!}
-      />
-      <main>{children}</main>
-    </div>
+    <CommandPaletteProvider>
+      <div style={{ minHeight: "100vh", background: "#0d0b07" }}>
+        <Navbar
+          userName={fullName}
+          userInitial={userInitial}
+          userAvatar={profile?.avatar_url ?? null}
+          userEmail={user.email!}
+        />
+        <main>{children}</main>
+      </div>
+    </CommandPaletteProvider>
   );
 }
