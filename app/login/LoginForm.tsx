@@ -4,6 +4,10 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
 
 export default function LoginForm() {
   const router = useRouter();
@@ -37,109 +41,33 @@ export default function LoginForm() {
   }
 
   return (
-    <div
-      className="min-h-screen flex items-center justify-center relative overflow-hidden"
-      style={{ background: "#0d0b07" }}
-    >
-      {/* Background decorative circles */}
-      <div
-        className="absolute pointer-events-none"
-        style={{
-          top: "-180px",
-          left: "-180px",
-          width: "520px",
-          height: "520px",
-          borderRadius: "50%",
-          border: "1px solid rgba(180,150,60,0.12)",
-          boxShadow: "0 0 0 40px rgba(180,150,60,0.04)",
-        }}
-      />
-      <div
-        className="absolute pointer-events-none"
-        style={{
-          top: "-100px",
-          left: "-100px",
-          width: "360px",
-          height: "360px",
-          borderRadius: "50%",
-          border: "1px solid rgba(180,150,60,0.08)",
-        }}
-      />
-      <div
-        className="absolute pointer-events-none"
-        style={{
-          bottom: "-200px",
-          right: "-180px",
-          width: "560px",
-          height: "560px",
-          borderRadius: "50%",
-          border: "1px solid rgba(180,150,60,0.10)",
-          boxShadow: "0 0 0 40px rgba(180,150,60,0.03)",
-        }}
-      />
-      <div
-        className="absolute pointer-events-none"
-        style={{
-          bottom: "-120px",
-          right: "-100px",
-          width: "380px",
-          height: "380px",
-          borderRadius: "50%",
-          border: "1px solid rgba(180,150,60,0.06)",
-        }}
-      />
+    <div className="min-h-screen flex items-center justify-center relative overflow-hidden bg-[var(--bg-shell)]">
+      <DecorativeCircles />
 
       {/* Card */}
-      <div
-        className="relative z-10 w-full animate-fade-in"
-        style={{
-          maxWidth: "420px",
-          margin: "0 auto",
-          background: "#130f09",
-          borderRadius: "4px",
-          padding: "44px 40px 36px",
-          boxShadow: "0 8px 48px rgba(0,0,0,0.6)",
-        }}
-      >
-        {/* Logo */}
+      <div className="relative z-10 w-full max-w-[420px] mx-auto bg-card rounded-sm px-10 pt-11 pb-9 shadow-[0_8px_48px_rgba(0,0,0,0.6)] animate-fade-in">
         <div className="flex justify-center mb-10">
-          <AurumLogo />
+          <img
+            src="/logo.png"
+            alt="Aurum Grupo, Fundado em Valor"
+            className="h-[130px] max-w-[380px] object-contain"
+          />
         </div>
 
         {/* Heading */}
         <div className="mb-8">
-          <h1 className="font-display font-bold mb-1" style={{ fontSize: "28px", lineHeight: 1.2 }}>
-            <RainbowText text="Bem-vindo" />
+          <h1 className="font-display font-bold text-[28px] leading-tight text-[#e8e0d0]">
+            Bem-vindo
           </h1>
-          <p
-            className="uppercase tracking-[0.18em] font-sans"
-            style={{ fontSize: "11px", color: "#9a8a6a", marginTop: "6px" }}
-          >
+          <p className="mt-1.5 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
             Acesse sua conta
           </p>
-          <div
-            style={{
-              width: "32px",
-              height: "2px",
-              background: "linear-gradient(90deg, #C9A84C, #8B6914)",
-              marginTop: "10px",
-              borderRadius: "1px",
-            }}
-          />
+          <div className="mt-2.5 h-0.5 w-8 rounded-[1px] bg-gradient-to-r from-gold to-gold-dim" />
         </div>
 
-        {/* Form */}
         <form onSubmit={handleSubmit} noValidate className="space-y-5">
-          {/* Email */}
-          <div>
-            <label
-              htmlFor="email"
-              className="block font-sans uppercase tracking-[0.18em] mb-2"
-              style={{ fontSize: "10px", color: "#a09068" }}
-            >
-              E-mail
-            </label>
-            <input
+          <Field id="email" label="E-mail">
+            <Input
               id="email"
               type="email"
               value={email}
@@ -148,38 +76,12 @@ export default function LoginForm() {
               autoComplete="email"
               autoFocus
               placeholder="seu@email.com.br"
-              style={{
-                width: "100%",
-                background: "#1a1508",
-                border: "1px solid #2a2010",
-                borderRadius: "3px",
-                padding: "12px 14px",
-                color: "#e8dcc0",
-                fontSize: "14px",
-                fontFamily: "var(--font-sans)",
-                outline: "none",
-                transition: "border-color 0.2s",
-              }}
-              onFocus={(e) => {
-                e.currentTarget.style.borderColor = "rgba(201,168,76,0.5)";
-              }}
-              onBlur={(e) => {
-                e.currentTarget.style.borderColor = "#2a2010";
-              }}
             />
-          </div>
+          </Field>
 
-          {/* Password */}
-          <div>
-            <label
-              htmlFor="password"
-              className="block font-sans uppercase tracking-[0.18em] mb-2"
-              style={{ fontSize: "10px", color: "#a09068" }}
-            >
-              Senha
-            </label>
+          <Field id="password" label="Senha">
             <div className="relative">
-              <input
+              <Input
                 id="password"
                 type={showPassword ? "text" : "password"}
                 value={password}
@@ -187,156 +89,68 @@ export default function LoginForm() {
                 required
                 autoComplete="current-password"
                 placeholder="••••••••"
-                style={{
-                  width: "100%",
-                  background: "#1a1508",
-                  border: "1px solid #2a2010",
-                  borderRadius: "3px",
-                  padding: "12px 44px 12px 14px",
-                  color: "#e8dcc0",
-                  fontSize: "14px",
-                  fontFamily: "var(--font-sans)",
-                  outline: "none",
-                  transition: "border-color 0.2s",
-                }}
-                onFocus={(e) => {
-                  e.currentTarget.style.borderColor = "rgba(201,168,76,0.5)";
-                }}
-                onBlur={(e) => {
-                  e.currentTarget.style.borderColor = "#2a2010";
-                }}
+                className="pr-11"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword((v) => !v)}
                 aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
-                className="absolute right-3 top-1/2 -translate-y-1/2 transition-colors"
-                style={{ color: "rgba(201,168,76,0.4)" }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.color = "rgba(201,168,76,0.8)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.color = "rgba(201,168,76,0.4)";
-                }}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--gold)]/40 hover:text-[var(--gold)]/80 transition-colors focus-visible:outline-2 focus-visible:outline-ring rounded-sm"
               >
                 {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
               </button>
             </div>
-          </div>
+          </Field>
 
-          {/* Forgot password */}
           <div className="text-right">
-            <a
-              href="/forgot-password"
-              className="font-sans transition-colors"
-              style={{ fontSize: "12px", color: "#C9A84C" }}
-              onMouseEnter={(e) => {
-                (e.currentTarget as HTMLAnchorElement).style.color = "#E8C96A";
-              }}
-              onMouseLeave={(e) => {
-                (e.currentTarget as HTMLAnchorElement).style.color = "#C9A84C";
-              }}
+            <Button
+              asChild
+              variant="link"
+              size="sm"
+              className="text-xs px-0 h-auto text-primary hover:text-gold-light"
             >
-              Esqueci minha senha
-            </a>
+              <a href="/forgot-password">Esqueci minha senha</a>
+            </Button>
           </div>
 
-          {/* Error */}
           {error && (
-            <p
-              role="alert"
-              className="font-sans leading-relaxed"
-              style={{ fontSize: "12px", color: "rgba(248,113,113,0.8)" }}
-            >
+            <p role="alert" className="text-xs text-destructive/85 leading-relaxed">
               {error}
             </p>
           )}
 
-          {/* Submit */}
-          <button
+          <Button
             type="submit"
+            variant="gold"
             disabled={loading}
-            className="w-full font-sans font-semibold uppercase tracking-[0.14em] transition-all active:scale-[0.985]"
-            style={{
-              background: loading
-                ? "rgba(201,168,76,0.5)"
-                : "linear-gradient(135deg, #C9A84C 0%, #A07820 100%)",
-              color: "#0d0b07",
-              border: "none",
-              borderRadius: "3px",
-              padding: "14px",
-              fontSize: "13px",
-              cursor: loading ? "not-allowed" : "pointer",
-              boxShadow: loading ? "none" : "0 2px 16px rgba(201,168,76,0.25)",
-            }}
-            onMouseEnter={(e) => {
-              if (!loading) {
-                (e.currentTarget as HTMLButtonElement).style.boxShadow =
-                  "0 4px 24px rgba(201,168,76,0.4)";
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (!loading) {
-                (e.currentTarget as HTMLButtonElement).style.boxShadow =
-                  "0 2px 16px rgba(201,168,76,0.25)";
-              }
-            }}
+            className="w-full uppercase tracking-[0.14em] active:scale-[0.985]"
           >
             {loading ? (
               <span className="flex items-center justify-center gap-2">
-                <Spinner />
-                Entrando...
+                <Spinner /> Entrando...
               </span>
             ) : (
               "Entrar"
             )}
-          </button>
+          </Button>
         </form>
 
-        {/* Divider */}
         <div className="flex items-center gap-4 my-6">
-          <div style={{ flex: 1, height: "1px", background: "#2a2010" }} />
-          <span
-            className="font-sans"
-            style={{ fontSize: "11px", color: "#9a8a6a", letterSpacing: "0.1em" }}
-          >
-            OU
-          </span>
-          <div style={{ flex: 1, height: "1px", background: "#2a2010" }} />
+          <div className="flex-1 h-px bg-[#2a2010]" />
+          <span className="text-[11px] tracking-[0.1em] text-[var(--text-faint)]">OU</span>
+          <div className="flex-1 h-px bg-[#2a2010]" />
         </div>
 
-        {/* Create account */}
-        <button
+        <Button
           type="button"
+          variant="outline"
           onClick={() => router.push("/register")}
-          className="w-full font-sans font-medium uppercase tracking-[0.14em] transition-all"
-          style={{
-            background: "transparent",
-            color: "#9a8a6a",
-            border: "1px solid #2a2010",
-            borderRadius: "3px",
-            padding: "13px",
-            fontSize: "12px",
-            cursor: "pointer",
-          }}
-          onMouseEnter={(e) => {
-            (e.currentTarget as HTMLButtonElement).style.borderColor =
-              "rgba(201,168,76,0.35)";
-            (e.currentTarget as HTMLButtonElement).style.color = "#C9A84C";
-          }}
-          onMouseLeave={(e) => {
-            (e.currentTarget as HTMLButtonElement).style.borderColor = "#2a2010";
-            (e.currentTarget as HTMLButtonElement).style.color = "#9a8a6a";
-          }}
+          className="w-full uppercase tracking-[0.14em] text-xs h-[46px] rounded-sm border-[#2a2010] text-[var(--text-faint)] hover:text-primary hover:border-[var(--border-emphasis)]"
         >
           Criar conta
-        </button>
+        </Button>
 
-        {/* Footer */}
-        <p
-          className="text-center font-sans mt-8"
-          style={{ fontSize: "10px", color: "#3a3020" }}
-        >
+        <p className="text-center text-[10px] mt-8 text-[#3a3020]">
           ©2026 Grupo Aurum. Todos os direitos reservados.
         </p>
       </div>
@@ -344,8 +158,49 @@ export default function LoginForm() {
   );
 }
 
-function RainbowText({ text }: { text: string }) {
-  return <span style={{ color: "#e8e0d0" }}>{text}</span>;
+// ─── Subcomponents ───────────────────────────────────────────────────────────
+
+function Field({
+  id, label, children,
+}: {
+  id: string;
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div>
+      <Label
+        htmlFor={id}
+        className="block text-[10px] uppercase tracking-[0.18em] text-muted-foreground mb-2"
+      >
+        {label}
+      </Label>
+      {children}
+    </div>
+  );
+}
+
+function DecorativeCircles() {
+  // Warm gold rings drawn at the canvas corners. Pure ambience: no info, but
+  // they tint the empty space with the brand without resorting to the now-banned
+  // glassmorphism or radial-glow halos elsewhere in the app.
+  return (
+    <>
+      <Ring className="-top-[180px] -left-[180px] w-[520px] h-[520px] border-[rgba(180,150,60,0.12)] shadow-[0_0_0_40px_rgba(180,150,60,0.04)]" />
+      <Ring className="-top-[100px] -left-[100px] w-[360px] h-[360px] border-[rgba(180,150,60,0.08)]" />
+      <Ring className="-bottom-[200px] -right-[180px] w-[560px] h-[560px] border-[rgba(180,150,60,0.10)] shadow-[0_0_0_40px_rgba(180,150,60,0.03)]" />
+      <Ring className="-bottom-[120px] -right-[100px] w-[380px] h-[380px] border-[rgba(180,150,60,0.06)]" />
+    </>
+  );
+}
+
+function Ring({ className }: { className: string }) {
+  return (
+    <div
+      aria-hidden
+      className={cn("absolute pointer-events-none rounded-full border", className)}
+    />
+  );
 }
 
 function Spinner() {
@@ -359,11 +214,8 @@ function Spinner() {
     >
       <circle
         className="opacity-25"
-        cx="12"
-        cy="12"
-        r="10"
-        stroke="currentColor"
-        strokeWidth="4"
+        cx="12" cy="12" r="10"
+        stroke="currentColor" strokeWidth="4"
       />
       <path
         className="opacity-75"
@@ -371,19 +223,5 @@ function Spinner() {
         d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
       />
     </svg>
-  );
-}
-
-function AurumLogo() {
-  return (
-    <img
-      src="/logo.png"
-      alt="Aurum Grupo — Fundado em Valor"
-      style={{
-        height: "130px",
-        objectFit: "contain",
-        maxWidth: "380px",
-      }}
-    />
   );
 }

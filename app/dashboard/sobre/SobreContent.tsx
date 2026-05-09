@@ -13,6 +13,7 @@ import {
   ChevronLeft,
   Check,
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 const VALORES = [
   "Transparência total",
@@ -93,27 +94,14 @@ export default function SobreContent() {
       <div style={{ maxWidth: "860px", margin: "0 auto", padding: "40px 24px 64px" }}>
 
         {/* Back */}
-        <button
+        <Button
+          variant="ghost"
+          size="sm"
           onClick={() => router.push("/dashboard")}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "6px",
-            background: "none",
-            border: "none",
-            cursor: "pointer",
-            color: "#a09068",
-            fontSize: "13px",
-            fontFamily: "var(--font-sans)",
-            padding: 0,
-            marginBottom: "40px",
-            transition: "color 0.15s",
-          }}
-          onMouseEnter={(e) => { e.currentTarget.style.color = "#C9A84C"; }}
-          onMouseLeave={(e) => { e.currentTarget.style.color = "#a09068"; }}
+          className="mb-10 -ml-3 text-muted-foreground hover:text-primary"
         >
-          <ChevronLeft size={15} /> Voltar
-        </button>
+          <ChevronLeft className="size-[15px]" /> Voltar
+        </Button>
 
         {/* Hero */}
         <div style={{ textAlign: "center", marginBottom: "56px" }}>
@@ -323,27 +311,13 @@ export default function SobreContent() {
             Junte-se a milhares de investidores que estão construindo patrimônio
             de forma inteligente com o Aurum.
           </p>
-          <button
+          <Button
+            variant="gold"
+            size="xl"
             onClick={() => router.push("/dashboard")}
-            style={{
-              background: "linear-gradient(135deg, #C9A84C 0%, #A07820 100%)",
-              border: "none",
-              borderRadius: "8px",
-              padding: "13px 32px",
-              color: "#0d0b07",
-              fontSize: "14px",
-              fontWeight: 600,
-              fontFamily: "var(--font-sans)",
-              cursor: "pointer",
-              letterSpacing: "0.04em",
-              transition: "box-shadow 0.2s",
-              boxShadow: "0 2px 16px rgba(201,168,76,0.25)",
-            }}
-            onMouseEnter={(e) => { e.currentTarget.style.boxShadow = "0 4px 24px rgba(201,168,76,0.4)"; }}
-            onMouseLeave={(e) => { e.currentTarget.style.boxShadow = "0 2px 16px rgba(201,168,76,0.25)"; }}
           >
             Começar agora
-          </button>
+          </Button>
         </div>
 
       </div>
