@@ -730,8 +730,7 @@ export default function ComunidadeContent({ userEmail, userName, userAvatar }: P
                 display: "flex", alignItems: "center",
                 transition: "color 0.15s",
               }}
-              onMouseEnter={(e) => { e.currentTarget.style.color = "#C9A84C"; }}
-              onMouseLeave={(e) => { e.currentTarget.style.color = "#a09068"; }}
+              className="aurum-hover-gold aurum-hover-transition"
             >
               <RefreshCw size={14} />
             </button>
@@ -1599,8 +1598,7 @@ function AuthorLink({
     <Link
       href={`/dashboard/perfil/${encodeURIComponent(username)}`}
       style={{ ...baseStyle, cursor: "pointer", display: inline ? "inline" : undefined }}
-      onMouseEnter={(e) => { e.currentTarget.style.color = "#C9A84C"; }}
-      onMouseLeave={(e) => { e.currentTarget.style.color = "#e8dcc0"; }}
+      className="aurum-hover-gold aurum-hover-transition"
     >
       {text}
     </Link>
@@ -1650,8 +1648,7 @@ function SidebarItem({ icon, label, onClick }: { icon: React.ReactNode; label: s
         fontSize: "12px", fontFamily: "var(--font-sans)",
         textAlign: "left", transition: "all 0.15s",
       }}
-      onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(201,168,76,0.05)"; e.currentTarget.style.color = "#C9A84C"; }}
-      onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "#9a8a6a"; }}
+      className="aurum-hover-gold aurum-hover-bg aurum-hover-transition"
     >
       {icon} {label}
     </button>

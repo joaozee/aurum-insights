@@ -91,8 +91,7 @@ export default function RedeContent({ userEmail }: { userEmail: string }) {
             fontFamily: "var(--font-sans)", padding: 0, marginBottom: "24px",
             transition: "color 0.15s",
           }}
-          onMouseEnter={(e) => { e.currentTarget.style.color = "#C9A84C"; }}
-          onMouseLeave={(e) => { e.currentTarget.style.color = "#a09068"; }}
+          className="aurum-hover-gold aurum-hover-transition"
         >
           <ChevronLeft size={15} /> Voltar para comunidade
         </button>
@@ -226,8 +225,7 @@ function UserRow({
           fontFamily: "var(--font-sans)", cursor: "pointer",
           transition: "background 0.15s",
         }}
-        onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(201,168,76,0.05)"; }}
-        onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+        className="aurum-hover-bg aurum-hover-transition"
       >
         <MessageSquare size={11} /> Mensagem
       </button>

@@ -647,8 +647,7 @@ function TickerSearch({
                 padding: "10px 14px", display: "flex", alignItems: "center", gap: "10px",
                 borderBottom: "1px solid rgba(255,255,255,0.04)",
               }}
-              onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(201,168,76,0.08)"; }}
-              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = "none"; }}
+              className="aurum-hover-bg aurum-hover-transition"
             >
               <div style={{
                 width: "34px", height: "34px", borderRadius: "8px",
@@ -1280,8 +1279,7 @@ export default function CarteiraContent({ userEmail }: Props) {
                       padding: "9px 10px", cursor: "pointer",
                       color: "#a09068", fontSize: "12px", fontFamily: "var(--font-sans)", textAlign: "left",
                     }}
-                    onMouseEnter={e => (e.currentTarget.style.background = "rgba(201,168,76,0.08)")}
-                    onMouseLeave={e => (e.currentTarget.style.background = "none")}
+                    className="aurum-hover-bg aurum-hover-transition"
                   >
                     <Download size={13} /> Exportar CSV
                   </button>

@@ -66,8 +66,7 @@ export default function CursoDetalheContent({
             fontFamily: "var(--font-sans)", padding: 0, marginBottom: "24px",
             transition: "color 0.15s",
           }}
-          onMouseEnter={(e) => { e.currentTarget.style.color = "#C9A84C"; }}
-          onMouseLeave={(e) => { e.currentTarget.style.color = "#a09068"; }}
+          className="aurum-hover-gold aurum-hover-transition"
         >
           <ChevronLeft size={15} /> Voltar para cursos
         </button>
@@ -236,8 +235,7 @@ export default function CursoDetalheContent({
                                 cursor: "pointer", textAlign: "left",
                                 transition: "background 0.15s",
                               }}
-                              onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(201,168,76,0.05)"; }}
-                              onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+                              className="aurum-hover-bg aurum-hover-transition"
                             >
                               <PlayCircle size={13} style={{ color: "#a09068" }} />
                               <span style={{ flex: 1, fontSize: "13px", color: "#9a8a6a", fontFamily: "var(--font-sans)" }}>
@@ -385,8 +383,7 @@ export default function CursoDetalheContent({
                     cursor: "pointer", textAlign: "left",
                     transition: "border-color 0.15s",
                   }}
-                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = "rgba(201,168,76,0.3)"; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = "rgba(201,168,76,0.08)"; }}
+                  className="aurum-hover-border aurum-hover-transition"
                 >
                   <div style={{
                     width: "60px", height: "60px",

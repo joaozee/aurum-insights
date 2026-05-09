@@ -229,8 +229,7 @@ export default function AcoesContent() {
                           cursor: "pointer", textAlign: "left",
                           transition: "background 0.15s",
                         }}
-                        onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(201,168,76,0.05)"; }}
-                        onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+                        className="aurum-hover-bg aurum-hover-transition"
                       >
                         {r.logo && (
                           /* eslint-disable-next-line @next/next/no-img-element */
@@ -406,8 +405,7 @@ export default function AcoesContent() {
                     textDecoration: "none",
                     display: "block",
                   }}
-                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = "rgba(201,168,76,0.3)"; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = "rgba(201,168,76,0.1)"; }}
+                  className="aurum-hover-border aurum-hover-transition"
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   {n.thumb ? (

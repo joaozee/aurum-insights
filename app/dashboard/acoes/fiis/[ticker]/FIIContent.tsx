@@ -474,8 +474,7 @@ function BackButton({ onClick }: { onClick: () => void }) {
         fontFamily: "var(--font-sans)", padding: 0, marginBottom: "16px",
         transition: "color 0.15s",
       }}
-      onMouseEnter={(e) => { e.currentTarget.style.color = "#C9A84C"; }}
-      onMouseLeave={(e) => { e.currentTarget.style.color = "#a09068"; }}
+      className="aurum-hover-gold aurum-hover-transition"
     >
       <ChevronLeft size={15} /> Voltar para análise
     </button>
