@@ -116,6 +116,18 @@
   background: rgba(201, 168, 76, 0.05);
 }
 
+/* Editorial drop cap for long-form prose (Sobre, Manifesto) */
+.aurum-dropcap::first-letter {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 64px;
+  line-height: 0.85;
+  color: var(--gold);
+  float: left;
+  margin-right: 12px;
+  margin-top: 4px;
+}
+
 /* ────────────────────────────────────────────────────────────────────────────
    Responsive overrides
    O app foi escrito majoritariamente com inline styles e larguras fixas em px.

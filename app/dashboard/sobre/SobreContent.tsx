@@ -1,88 +1,31 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import {
-  TrendingUp,
-  Target,
-  Eye,
-  Shield,
-  Users,
-  BarChart2,
-  BookOpen,
-  Cpu,
-  ChevronLeft,
-  Check,
-} from "lucide-react";
+import { ChevronLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-const VALORES = [
-  "Transparência total",
-  "Educação de qualidade",
-  "Inovação constante",
-  "Comunidade colaborativa",
-];
+// ─── Conteúdo ──────────────────────────────────────────────────────────────
+//
+// O texto é o ativo de marca mais forte do app. Mantemos verbatim e deixamos
+// a tipografia carregar a hierarquia, sem cards, ícones coloridos ou MVV
+// boilerplate. A lista de "Diferenciais" vira lista numerada de princípios.
 
-// Cores via paleta Aurum (lib/aurum-colors.ts) para manter coerência com a
-// identidade dourada/warm-dark do app, em vez do rainbow Tailwind-500 que
-// quebrava a marca exatamente na página "Sobre".
-const MVV = [
+const PRINCIPIOS = [
   {
-    icon: Target,
-    label: "Missão",
-    color: "#C58A3D", // chart-2 amber
-    bg: "rgba(197,138,61,0.1)",
-    border: "rgba(197,138,61,0.2)",
-    text: "Empoderar investidores brasileiros através de educação financeira de excelência, análises precisas e uma comunidade colaborativa.",
-    type: "text",
+    label: "Educação que cria autonomia",
+    body: "Cursos estruturados do básico ao avançado. O objetivo não é te prender ao app: é te dar o vocabulário para tomar decisões sozinho, com método.",
   },
   {
-    icon: Eye,
-    label: "Visão",
-    color: "#4F8A82", // chart-7 desat teal
-    bg: "rgba(79,138,130,0.1)",
-    border: "rgba(79,138,130,0.2)",
-    text: "Ser a plataforma de educação financeira mais confiável e completa do Brasil, transformando milhões de vidas através do conhecimento.",
-    type: "text",
+    label: "Análises que sobreviveriam à prova de bolso",
+    body: "Dados em tempo real, indicadores fundamentais, agenda de dividendos. Tudo pensado para um investidor pessoa-física que paga as próprias contas, não para uma mesa de operações.",
   },
   {
-    icon: Shield,
-    label: "Valores",
-    color: "#6E8C4A", // chart-8 olive green
-    bg: "rgba(110,140,74,0.1)",
-    border: "rgba(110,140,74,0.2)",
-    text: "",
-    type: "list",
-  },
-];
-
-const DIFERENCIAIS = [
-  {
-    icon: Users,
-    label: "Comunidade Ativa",
-    text: "Conecte-se com milhares de investidores, compartilhe experiências e aprenda em conjunto.",
-    color: "#8B5470", // chart-5 mauve
-    bg: "rgba(139,84,112,0.1)",
+    label: "Comunidade séria, sem hype",
+    body: "Um espaço para investidores trocarem teses, não receitas mágicas. Moderação real, conteúdo educacional como prioridade, ausência deliberada de gamificação infantilizada.",
   },
   {
-    icon: BarChart2,
-    label: "Análises Profissionais",
-    text: "Receba análises detalhadas de ações, FIIs e tendências de mercado feitas por especialistas.",
-    color: "#C58A3D", // chart-2 amber
-    bg: "rgba(197,138,61,0.1)",
-  },
-  {
-    icon: BookOpen,
-    label: "Cursos Práticos",
-    text: "Aprenda do básico ao avançado com cursos estruturados e certificados reconhecidos.",
-    color: "#6E8C4A", // chart-8 olive
-    bg: "rgba(110,140,74,0.1)",
-  },
-  {
-    icon: Cpu,
-    label: "Tecnologia Avançada",
-    text: "Ferramentas inteligentes de análise, gestão de portfólio e acompanhamento em tempo real.",
-    color: "#5E6B8C", // chart-6 slate blue
-    bg: "rgba(94,107,140,0.1)",
+    label: "Tecnologia que some quando funciona",
+    body: "Carteira, finanças pessoais, screener, dividendos: integrados num só lugar, com a interface saindo da frente quando você precisa só dos números.",
   },
 ];
 
@@ -90,237 +33,172 @@ export default function SobreContent() {
   const router = useRouter();
 
   return (
-    <div style={{ minHeight: "calc(100vh - 58px)", background: "#0a0806" }}>
-      <div style={{ maxWidth: "860px", margin: "0 auto", padding: "40px 24px 64px" }}>
-
-        {/* Back */}
+    <div className="min-h-[calc(100vh-58px)] bg-background">
+      <article className="mx-auto max-w-[720px] px-6 pt-8 pb-24">
         <Button
           variant="ghost"
           size="sm"
           onClick={() => router.push("/dashboard")}
-          className="mb-10 -ml-3 text-muted-foreground hover:text-primary"
+          className="mb-12 -ml-3 text-muted-foreground hover:text-primary"
         >
           <ChevronLeft className="size-[15px]" /> Voltar
         </Button>
 
         {/* Hero */}
-        <div style={{ textAlign: "center", marginBottom: "56px" }}>
-          <img
-            src="/logo.png"
-            alt="Aurum Grupo — Fundado em Valor"
-            style={{
-              height: "160px",
-              objectFit: "contain",
-              maxWidth: "520px",
-              display: "block",
-              margin: "0 auto",
-            }}
-          />
-        </div>
-
-        {/* Nossa História */}
-        <section style={{ marginBottom: "48px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "20px" }}>
-            <TrendingUp size={16} style={{ color: "#C9A84C" }} />
-            <h2 style={{ fontSize: "20px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-display)" }}>
-              Nossa História
-            </h2>
-          </div>
-          <div
-            style={{
-              background: "#130f09",
-              border: "1px solid rgba(201,168,76,0.1)",
-              borderRadius: "12px",
-              padding: "28px 32px",
-            }}
-          >
-            <p style={{ fontSize: "14px", color: "#8a7a5a", fontFamily: "var(--font-sans)", lineHeight: 1.8, marginBottom: "16px" }}>
-              O Grupo Aurum nasceu da crença de que dinheiro é uma ferramenta, não um destino.
-            </p>
-            <p style={{ fontSize: "14px", color: "#8a7a5a", fontFamily: "var(--font-sans)", lineHeight: 1.8, marginBottom: "16px" }}>
-              Somos uma empresa brasileira de educação financeira focada em construção de patrimônio real, com ênfase em
-              investimentos em dividendos, mentalidade de longo prazo e disciplina financeira.
-            </p>
-            <p style={{ fontSize: "14px", color: "#8a7a5a", fontFamily: "var(--font-sans)", lineHeight: 1.8, marginBottom: "16px" }}>
-              Aqui você não encontra promessas de enriquecimento rápido. Encontra método, profundidade e uma comunidade
-              que pensa diferente sobre o futuro.
-            </p>
-            <p style={{ fontSize: "14px", color: "#8a7a5a", fontFamily: "var(--font-sans)", lineHeight: 1.8, marginBottom: "20px" }}>
-              Valor não se cria da noite para o dia. Se cria com consistência, conhecimento e as escolhas certas ao longo do tempo.
-            </p>
-            <p style={{ fontSize: "14px", color: "#C9A84C", fontFamily: "var(--font-display)", fontWeight: 600, letterSpacing: "0.04em", margin: 0 }}>
-              Fundado em Valor. Construído para durar.
-            </p>
-          </div>
-        </section>
-
-        {/* Missão, Visão e Valores */}
-        <section style={{ marginBottom: "48px" }}>
-          <h2
-            style={{
-              fontSize: "20px",
-              fontWeight: 600,
-              color: "#e8dcc0",
-              fontFamily: "var(--font-display)",
-              textAlign: "center",
-              marginBottom: "24px",
-            }}
-          >
-            Missão, Visão e Valores
-          </h2>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "16px" }}>
-            {MVV.map(({ icon: Icon, label, color, bg, border, text, type }) => (
-              <div
-                key={label}
-                style={{
-                  background: "#130f09",
-                  border: `1px solid ${border}`,
-                  borderRadius: "12px",
-                  padding: "24px 20px",
-                }}
-              >
-                <div
-                  style={{
-                    width: "40px",
-                    height: "40px",
-                    borderRadius: "10px",
-                    background: bg,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    marginBottom: "14px",
-                    color,
-                  }}
-                >
-                  <Icon size={20} />
-                </div>
-                <p style={{ fontSize: "15px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-sans)", marginBottom: "10px" }}>
-                  {label}
-                </p>
-                {type === "text" ? (
-                  <p style={{ fontSize: "13px", color: "#a09068", fontFamily: "var(--font-sans)", lineHeight: 1.7, margin: 0 }}>
-                    {text}
-                  </p>
-                ) : (
-                  <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: "8px" }}>
-                    {VALORES.map((v) => (
-                      <li key={v} style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                        <Check size={12} style={{ color, flexShrink: 0 }} />
-                        <span style={{ fontSize: "13px", color: "#a09068", fontFamily: "var(--font-sans)" }}>{v}</span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* O que nos torna únicos */}
-        <section style={{ marginBottom: "48px" }}>
-          <h2
-            style={{
-              fontSize: "20px",
-              fontWeight: 600,
-              color: "#e8dcc0",
-              fontFamily: "var(--font-display)",
-              textAlign: "center",
-              marginBottom: "24px",
-            }}
-          >
-            O que nos torna únicos
-          </h2>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
-            {DIFERENCIAIS.map(({ icon: Icon, label, text, color, bg }) => (
-              <div
-                key={label}
-                style={{
-                  background: "#130f09",
-                  border: "1px solid rgba(201,168,76,0.08)",
-                  borderRadius: "12px",
-                  padding: "22px 24px",
-                  display: "flex",
-                  gap: "16px",
-                  alignItems: "flex-start",
-                  transition: "border-color 0.2s",
-                }}
-                onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.borderColor = "rgba(201,168,76,0.2)"; }}
-                onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.borderColor = "rgba(201,168,76,0.08)"; }}
-              >
-                <div
-                  style={{
-                    width: "38px",
-                    height: "38px",
-                    borderRadius: "10px",
-                    background: bg,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    color,
-                    flexShrink: 0,
-                  }}
-                >
-                  <Icon size={18} />
-                </div>
-                <div>
-                  <p style={{ fontSize: "14px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-sans)", marginBottom: "6px" }}>
-                    {label}
-                  </p>
-                  <p style={{ fontSize: "13px", color: "#a09068", fontFamily: "var(--font-sans)", lineHeight: 1.65, margin: 0 }}>
-                    {text}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* CTA */}
-        <div
-          style={{
-            background: "linear-gradient(135deg, #1a1205 0%, #130f09 50%, #0d0b07 100%)",
-            border: "1px solid rgba(201,168,76,0.2)",
-            borderRadius: "16px",
-            padding: "40px 32px",
-            textAlign: "center",
-          }}
-        >
-          <h3
-            style={{
-              fontSize: "22px",
-              fontWeight: 700,
-              color: "#f0e8d0",
-              fontFamily: "var(--font-display)",
-              marginBottom: "12px",
-              letterSpacing: "-0.01em",
-            }}
-          >
-            Pronto para transformar seus investimentos?
-          </h3>
-          <p
-            style={{
-              fontSize: "14px",
-              color: "#a09068",
-              fontFamily: "var(--font-sans)",
-              lineHeight: 1.7,
-              marginBottom: "28px",
-              maxWidth: "440px",
-              margin: "0 auto 28px",
-            }}
-          >
-            Junte-se a milhares de investidores que estão construindo patrimônio
-            de forma inteligente com o Aurum.
+        <header className="text-center mb-20">
+          <Eyebrow>Sobre o Aurum</Eyebrow>
+          <h1 className="mt-6 font-display font-bold text-[clamp(40px,5vw,56px)] leading-[1.05] tracking-[-0.02em] text-[var(--text-strong)]">
+            Patrimônio se constrói<br />
+            <span className="text-primary">com paciência</span>
+          </h1>
+          <p className="mt-7 text-[15px] leading-[1.65] text-muted-foreground max-w-[440px] mx-auto">
+            Uma plataforma brasileira de educação financeira para quem prefere
+            método a promessas, e tempo a atalhos.
           </p>
-          <Button
-            variant="gold"
-            size="xl"
-            onClick={() => router.push("/dashboard")}
-          >
-            Começar agora
-          </Button>
-        </div>
+        </header>
 
-      </div>
+        {/* Manifesto */}
+        <Section>
+          <SectionEyebrow>Manifesto</SectionEyebrow>
+          <SectionTitle>O que nos move</SectionTitle>
+          <Prose>
+            <p className="aurum-dropcap">
+              O Grupo Aurum nasceu da crença de que dinheiro é uma ferramenta,
+              não um destino. Somos uma empresa brasileira de educação
+              financeira focada em construção de patrimônio real, com ênfase em
+              investimentos em dividendos, mentalidade de longo prazo e
+              disciplina financeira.
+            </p>
+            <p>
+              Aqui você não encontra promessas de enriquecimento rápido.
+              Encontra método, profundidade e uma comunidade que pensa
+              diferente sobre o futuro.
+            </p>
+            <p>
+              Valor não se cria da noite para o dia. Se cria com consistência,
+              conhecimento e as escolhas certas ao longo do tempo.
+            </p>
+          </Prose>
+
+          <Aphorism>
+            Fundado em valor.<br />Construído para durar.
+          </Aphorism>
+        </Section>
+
+        {/* Princípios */}
+        <Section className="mt-24">
+          <SectionEyebrow>Princípios</SectionEyebrow>
+          <SectionTitle>Como pensamos sobre o produto</SectionTitle>
+          <ol className="mt-12 space-y-12">
+            {PRINCIPIOS.map(({ label, body }, i) => (
+              <li
+                key={label}
+                className="grid grid-cols-[64px_1fr] gap-x-6 gap-y-2 sm:grid-cols-[80px_1fr] sm:gap-x-8"
+              >
+                <span
+                  aria-hidden
+                  className="font-display text-[44px] sm:text-[56px] leading-none text-[var(--gold-dim)] tabular-nums"
+                >
+                  {String(i + 1).padStart(2, "0")}
+                </span>
+                <div>
+                  <h3 className="font-sans font-semibold text-[17px] sm:text-[18px] text-[var(--text-default)] mb-2 leading-snug">
+                    {label}
+                  </h3>
+                  <p className="text-[14px] sm:text-[15px] leading-[1.7] text-muted-foreground">
+                    {body}
+                  </p>
+                </div>
+              </li>
+            ))}
+          </ol>
+        </Section>
+
+        {/* Closing CTA */}
+        <Section className="mt-24 pt-16 border-t border-[var(--border-faint)]">
+          <div className="text-center">
+            <h2 className="font-display font-bold text-[clamp(26px,3vw,32px)] leading-tight tracking-[-0.01em] text-[var(--text-strong)]">
+              Comece hoje. Reveja em dez anos.
+            </h2>
+            <p className="mt-5 text-[14px] sm:text-[15px] leading-[1.7] text-muted-foreground max-w-[420px] mx-auto">
+              Você não precisa começar com muito. Precisa começar com método,
+              e voltar consistentemente.
+            </p>
+            <div className="mt-9">
+              <Button
+                variant="gold"
+                size="xl"
+                onClick={() => router.push("/dashboard")}
+              >
+                Voltar ao painel
+              </Button>
+            </div>
+          </div>
+        </Section>
+      </article>
     </div>
+  );
+}
+
+// ─── Subcomponents ───────────────────────────────────────────────────────────
+
+function Section({
+  children,
+  className = "",
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return <section className={className}>{children}</section>;
+}
+
+function SectionEyebrow({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex items-center gap-3 mb-3">
+      <span className="h-px w-8 bg-[var(--gold-dim)]" />
+      <span className="text-[10px] uppercase tracking-[0.18em] text-primary font-medium">
+        {children}
+      </span>
+    </div>
+  );
+}
+
+function Eyebrow({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="inline-block text-[11px] uppercase tracking-[0.22em] text-primary font-medium">
+      {children}
+    </span>
+  );
+}
+
+function SectionTitle({ children }: { children: React.ReactNode }) {
+  return (
+    <h2 className="font-display font-semibold text-[28px] sm:text-[32px] leading-tight tracking-[-0.01em] text-[var(--text-strong)]">
+      {children}
+    </h2>
+  );
+}
+
+// Editorial prose block. Drop cap on .aurum-dropcap paragraph (rule lives in
+// globals.css), generous line-height, capped line length via article max-width.
+function Prose({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="mt-7 space-y-5 text-[15px] sm:text-[16px] leading-[1.8] text-[var(--text-body)]">
+      {children}
+    </div>
+  );
+}
+
+// Centered display aphorism. Thin gold rules above and below, Playfair italic,
+// gold. The page's only Committed-color moment.
+function Aphorism({ children }: { children: React.ReactNode }) {
+  return (
+    <figure className="my-16 text-center">
+      <hr className="mx-auto w-12 h-px border-0 bg-[var(--gold-dim)]" />
+      <blockquote className="my-7 font-display italic text-[24px] sm:text-[28px] leading-[1.3] text-primary tracking-[0.01em]">
+        {children}
+      </blockquote>
+      <hr className="mx-auto w-12 h-px border-0 bg-[var(--gold-dim)]" />
+    </figure>
   );
 }
