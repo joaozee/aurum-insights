@@ -6,6 +6,8 @@ import {
   Search, TrendingUp, TrendingDown, BarChart3, DollarSign,
   Bitcoin, Newspaper, ExternalLink, Sparkles, ChevronRight,
 } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { ErrorState } from "@/components/ui/error-state";
 
 interface OverviewIbov { price: number | null; changePct: number | null; spark: number[] }
 interface OverviewMover { symbol: string; name: string; price: number | null; change: number | null; logo?: string }
@@ -54,25 +56,39 @@ export default function AcoesContent() {
   const [showResults, setShowResults] = useState(false);
   const [overview, setOverview] = useState<OverviewResponse | null>(null);
   const [news, setNews] = useState<MarketNewsItem[]>([]);
+  const [overviewLoading, setOverviewLoading] = useState(true);
+  const [overviewError, setOverviewError] = useState<string | null>(null);
+  const [newsLoading, setNewsLoading] = useState(true);
+  const [newsError, setNewsError] = useState<string | null>(null);
 
   const loadOverview = useCallback(async () => {
+    setOverviewLoading(true);
+    setOverviewError(null);
     try {
       const res = await fetch("/api/acoes-overview");
-      if (res.ok) setOverview(await res.json());
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      setOverview(await res.json());
     } catch (err) {
       console.error("[acoes-overview]", err);
+      setOverviewError("Não consegui carregar os dados de mercado.");
+    } finally {
+      setOverviewLoading(false);
     }
   }, []);
 
   const loadNews = useCallback(async () => {
+    setNewsLoading(true);
+    setNewsError(null);
     try {
       const res = await fetch("/api/market-news");
-      if (res.ok) {
-        const data = (await res.json()) as { items?: MarketNewsItem[] };
-        setNews(data.items ?? []);
-      }
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = (await res.json()) as { items?: MarketNewsItem[] };
+      setNews(data.items ?? []);
     } catch (err) {
       console.error("[market-news]", err);
+      setNewsError("Não consegui carregar as notícias.");
+    } finally {
+      setNewsLoading(false);
     }
   }, []);
 
@@ -269,23 +285,39 @@ export default function AcoesContent() {
         </div>
 
         {/* Top row: Ibovespa | Maiores Altas | Maiores Baixas */}
-        <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr 1fr", gap: "12px", marginBottom: "20px" }}>
-          <IbovCard ibov={overview?.ibov ?? null} />
-          <MoversCard
-            title="Maiores Altas"
-            icon={<TrendingUp size={14} />}
-            color="#10b981"
-            movers={overview?.topGainers ?? []}
-            onClick={(s) => router.push(`/dashboard/acoes/${s}`)}
-          />
-          <MoversCard
-            title="Maiores Baixas"
-            icon={<TrendingDown size={14} />}
-            color="#ef4444"
-            movers={overview?.topLosers ?? []}
-            onClick={(s) => router.push(`/dashboard/acoes/${s}`)}
-          />
-        </div>
+        {overviewError ? (
+          <div style={{ marginBottom: "20px" }}>
+            <ErrorState
+              title={overviewError}
+              message="Pode ser uma flutuação na conexão com o brapi."
+              onRetry={loadOverview}
+            />
+          </div>
+        ) : overviewLoading && !overview ? (
+          <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr 1fr", gap: "12px", marginBottom: "20px" }}>
+            <Skeleton className="h-[120px] rounded-[12px]" />
+            <Skeleton className="h-[120px] rounded-[12px]" />
+            <Skeleton className="h-[120px] rounded-[12px]" />
+          </div>
+        ) : (
+          <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr 1fr", gap: "12px", marginBottom: "20px" }}>
+            <IbovCard ibov={overview?.ibov ?? null} />
+            <MoversCard
+              title="Maiores Altas"
+              icon={<TrendingUp size={14} />}
+              color="#10b981"
+              movers={overview?.topGainers ?? []}
+              onClick={(s) => router.push(`/dashboard/acoes/${s}`)}
+            />
+            <MoversCard
+              title="Maiores Baixas"
+              icon={<TrendingDown size={14} />}
+              color="#ef4444"
+              movers={overview?.topLosers ?? []}
+              onClick={(s) => router.push(`/dashboard/acoes/${s}`)}
+            />
+          </div>
+        )}
 
         {/* Mid row: Mercados | Índices | Cripto */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "12px", marginBottom: "24px" }}>
@@ -335,12 +367,29 @@ export default function AcoesContent() {
           </h2>
         </div>
 
+        {newsError && (
+          <div style={{ marginBottom: "16px" }}>
+            <ErrorState
+              title={newsError}
+              message="As notícias vêm de uma fonte externa, pode ter dado timeout."
+              onRetry={loadNews}
+            />
+          </div>
+        )}
+
         <div style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr", gap: "16px" }}>
           {/* News cards (4 maiores destaques) */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-            {news.length === 0 ? (
+            {newsLoading && news.length === 0 ? (
+              <>
+                <NewsCardSkeleton />
+                <NewsCardSkeleton />
+                <NewsCardSkeleton />
+                <NewsCardSkeleton />
+              </>
+            ) : news.length === 0 ? (
               <p style={{ gridColumn: "1 / -1", fontSize: "12px", color: "#a09068", fontFamily: "var(--font-sans)", textAlign: "center", padding: "30px" }}>
-                Carregando notícias...
+                Sem notícias disponíveis no momento.
               </p>
             ) : (
               news.slice(0, 4).map((n) => (
@@ -467,6 +516,26 @@ export default function AcoesContent() {
 }
 
 // ─── Subcomponents ────────────────────────────────────────────────────────────
+
+// Skeleton no formato de um news card. Mantém o tamanho exato pra evitar
+// layout shift quando os dados chegam.
+function NewsCardSkeleton() {
+  return (
+    <div style={{
+      background: "#130f09",
+      border: "1px solid rgba(201,168,76,0.1)",
+      borderRadius: "12px", overflow: "hidden",
+    }}>
+      <Skeleton className="h-[140px] w-full rounded-none" />
+      <div style={{ padding: "12px 14px" }}>
+        <Skeleton className="h-3 w-16 mb-2" />
+        <Skeleton className="h-3.5 w-full mb-1.5" />
+        <Skeleton className="h-3.5 w-[80%] mb-3" />
+        <Skeleton className="h-2.5 w-20" />
+      </div>
+    </div>
+  );
+}
 
 function IbovCard({ ibov }: { ibov: OverviewIbov | null }) {
   const positive = ibov?.changePct !== null && (ibov?.changePct ?? 0) >= 0;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   ChevronRight,
@@ -20,6 +20,8 @@ import { createClient } from "@/lib/supabase/client";
 import { formatRelativeTime, initialFromName } from "@/lib/comunidade";
 import { CHART_PALETTE } from "@/lib/aurum-colors";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { ErrorState } from "@/components/ui/error-state";
 import { cn } from "@/lib/utils";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -141,57 +143,72 @@ export default function HomeContent({
   const [posts, setPosts] = useState<HomePost[]>([]);
   const [postsThisWeek, setPostsThisWeek] = useState<number>(0);
   const [avatarByEmail, setAvatarByEmail] = useState<Map<string, string>>(new Map());
+  const [loadingPosts, setLoadingPosts] = useState(true);
+  const [postsError, setPostsError] = useState<string | null>(null);
+  const [loadAttempt, setLoadAttempt] = useState(0);
+
+  const reloadPosts = useCallback(() => setLoadAttempt((n) => n + 1), []);
 
   useEffect(() => {
     let active = true;
     (async () => {
-      const weekAgo = new Date();
-      weekAgo.setDate(weekAgo.getDate() - 7);
+      setLoadingPosts(true);
+      setPostsError(null);
+      try {
+        const weekAgo = new Date();
+        weekAgo.setDate(weekAgo.getDate() - 7);
 
-      const [postsRes, weekCountRes] = await Promise.all([
-        supabase
-          .from("community_post")
-          .select("id, author_name, author_avatar, author_username, author_email, content, created_at, likes_count, comments_count, reposts_count, moderation_status, repost_of_id")
-          .neq("moderation_status", "rejeitado")
-          .not("content", "is", null)
-          .is("repost_of_id", null)
-          .order("created_at", { ascending: false })
-          .limit(2),
-        supabase
-          .from("community_post")
-          .select("id", { count: "exact", head: true })
-          .neq("moderation_status", "rejeitado")
-          .not("content", "is", null)
-          .gte("created_at", weekAgo.toISOString()),
-      ]);
+        const [postsRes, weekCountRes] = await Promise.all([
+          supabase
+            .from("community_post")
+            .select("id, author_name, author_avatar, author_username, author_email, content, created_at, likes_count, comments_count, reposts_count, moderation_status, repost_of_id")
+            .neq("moderation_status", "rejeitado")
+            .not("content", "is", null)
+            .is("repost_of_id", null)
+            .order("created_at", { ascending: false })
+            .limit(2),
+          supabase
+            .from("community_post")
+            .select("id", { count: "exact", head: true })
+            .neq("moderation_status", "rejeitado")
+            .not("content", "is", null)
+            .gte("created_at", weekAgo.toISOString()),
+        ]);
 
-      if (!active) return;
-      const list = (postsRes.data ?? []) as HomePost[];
-      setPosts(list);
-      setPostsThisWeek(weekCountRes.count ?? 0);
-
-      const emails = Array.from(
-        new Set(list.map((p) => p.author_email).filter((e): e is string => Boolean(e)))
-      );
-      if (emails.length > 0) {
-        const { data: profs } = await supabase
-          .from("user_profile")
-          .select("user_email, avatar_url")
-          .in("user_email", emails);
+        if (postsRes.error) throw postsRes.error;
         if (!active) return;
-        const m = new Map<string, string>();
-        for (const p of (profs ?? []) as { user_email: string; avatar_url: string | null }[]) {
-          if (p.avatar_url) m.set(p.user_email, p.avatar_url);
+        const list = (postsRes.data ?? []) as HomePost[];
+        setPosts(list);
+        setPostsThisWeek(weekCountRes.count ?? 0);
+
+        const emails = Array.from(
+          new Set(list.map((p) => p.author_email).filter((e): e is string => Boolean(e)))
+        );
+        if (emails.length > 0) {
+          const { data: profs } = await supabase
+            .from("user_profile")
+            .select("user_email, avatar_url")
+            .in("user_email", emails);
+          if (!active) return;
+          const m = new Map<string, string>();
+          for (const p of (profs ?? []) as { user_email: string; avatar_url: string | null }[]) {
+            if (p.avatar_url) m.set(p.user_email, p.avatar_url);
+          }
+          setAvatarByEmail(m);
+        } else {
+          setAvatarByEmail(new Map());
         }
-        setAvatarByEmail(m);
-      } else {
-        setAvatarByEmail(new Map());
+      } catch (err) {
+        console.error("[home/posts]", err);
+        if (active) setPostsError("Não consegui carregar os posts da comunidade.");
+      } finally {
+        if (active) setLoadingPosts(false);
       }
     })();
     return () => {
       active = false;
     };
-  }, [supabase]);
+  }, [supabase, loadAttempt]);
 
   const statement = buildStatement(stats, marketData);
 
@@ -294,7 +311,20 @@ export default function HomeContent({
             cta="Ver todos"
             onClick={() => router.push("/dashboard/comunidade")}
           />
-          {posts.length === 0 ? (
+          {postsError ? (
+            <div className="mt-4">
+              <ErrorState
+                title={postsError}
+                message="Pode ser uma flutuação na conexão."
+                onRetry={reloadPosts}
+              />
+            </div>
+          ) : loadingPosts ? (
+            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <PostPreviewSkeleton />
+              <PostPreviewSkeleton />
+            </div>
+          ) : posts.length === 0 ? (
             <button
               onClick={() => router.push("/dashboard/comunidade")}
               className="mt-4 w-full rounded-[10px] border border-[var(--border-faint)] bg-card px-6 py-9 text-center text-[13px] text-muted-foreground transition-colors hover:border-[var(--border-soft)] hover:bg-[var(--bg-card-hover)]"
@@ -685,5 +715,31 @@ function Stat({ icon, count }: { icon: React.ReactNode; count: number }) {
       {icon}
       {count ?? 0}
     </span>
+  );
+}
+
+// Skeleton shaped like a PostPreview, so the section size doesn't shift when
+// the real posts replace the placeholders.
+function PostPreviewSkeleton() {
+  return (
+    <div className="rounded-[10px] border border-[var(--border-faint)] bg-card p-5">
+      <div className="mb-3 flex items-center gap-2.5">
+        <Skeleton className="size-8 rounded-full" />
+        <div className="min-w-0 flex-1 space-y-1.5">
+          <Skeleton className="h-3 w-28" />
+          <Skeleton className="h-2.5 w-16" />
+        </div>
+      </div>
+      <div className="mb-4 space-y-2">
+        <Skeleton className="h-3 w-full" />
+        <Skeleton className="h-3 w-[92%]" />
+        <Skeleton className="h-3 w-[78%]" />
+      </div>
+      <div className="flex gap-5 border-t border-[var(--border-faint)] pt-3">
+        <Skeleton className="h-3 w-8" />
+        <Skeleton className="h-3 w-8" />
+        <Skeleton className="h-3 w-8" />
+      </div>
+    </div>
   );
 }
