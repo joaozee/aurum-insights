@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import {
   Plus, Download, RefreshCw, Upload, TrendingUp, TrendingDown,
-  Wallet, X, Trash2, MoreVertical, Sparkles, Brain, ChevronLeft,
+  Wallet, MoreVertical, Sparkles, Brain,
   DollarSign, Percent, CalendarClock, Zap, BarChart3, Layers, PieChart, Coins,
   type LucideIcon,
 } from "lucide-react";
@@ -15,6 +15,15 @@ import {
   ASSET_CLASS_COLORS,
   SECTOR_COLORS,
 } from "@/lib/aurum-colors";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -155,33 +164,27 @@ function fmtTxDate(iso: string, today: Date): { full: string; ago: string } {
 }
 
 // ─── Style helpers ────────────────────────────────────────────────────────────
+// inputStyle / selectStyle are kept as fallback for the few remaining native
+// <select> elements; new <input> usage prefers the shadcn <Input> component.
 
 const inputStyle: React.CSSProperties = {
-  width: "100%", background: "#1a1508", border: "1px solid #2a2010",
-  borderRadius: "6px", padding: "10px 12px", color: "#e8dcc0",
+  width: "100%", background: "var(--bg-input)", border: "1px solid var(--border-soft)",
+  borderRadius: "6px", padding: "10px 12px", color: "var(--text-default)",
   fontSize: "13px", fontFamily: "var(--font-sans)", outline: "none", boxSizing: "border-box",
 };
 const selectStyle: React.CSSProperties = { ...inputStyle, cursor: "pointer" };
 
 // ─── Shared Components ────────────────────────────────────────────────────────
 
-function ModalHeader({ title, onClose }: { title: string; onClose: () => void }) {
-  return (
-    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
-      <h2 style={{ fontSize: "17px", fontWeight: 600, color: "#f0e8d0", fontFamily: "var(--font-display)" }}>{title}</h2>
-      <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: "#9a8a6a", padding: 0 }}>
-        <X size={18} />
-      </button>
-    </div>
-  );
-}
-
 function FormField({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <label style={{ fontSize: "10px", color: "#a09068", fontFamily: "var(--font-sans)", letterSpacing: "0.12em", textTransform: "uppercase", display: "block", marginBottom: "6px" }}>
+      <Label
+        className="block mb-1.5 text-[10px] uppercase tracking-[0.12em]"
+        style={{ color: "var(--text-muted)" }}
+      >
         {label}
-      </label>
+      </Label>
       {children}
     </div>
   );
@@ -189,14 +192,15 @@ function FormField({ label, children }: { label: string; children: React.ReactNo
 
 function SaveButton({ saving, onClick, label }: { saving: boolean; onClick: () => void; label: string }) {
   return (
-    <button onClick={onClick} disabled={saving} style={{
-      width: "100%", background: saving ? "rgba(201,168,76,0.5)" : "linear-gradient(135deg,#C9A84C,#A07820)",
-      border: "none", borderRadius: "8px", padding: "13px", color: "#0d0b07",
-      fontSize: "14px", fontWeight: 700, fontFamily: "var(--font-sans)",
-      cursor: saving ? "not-allowed" : "pointer", marginTop: "4px",
-    }}>
+    <Button
+      onClick={onClick}
+      disabled={saving}
+      variant="gold"
+      size="lg"
+      className="w-full mt-1 text-sm font-bold tracking-[0.04em]"
+    >
       {saving ? "Salvando..." : label}
-    </button>
+    </Button>
   );
 }
 
@@ -975,15 +979,18 @@ export default function CarteiraContent({ userEmail }: Props) {
         ? "100+ anos"
         : `${paybackYears.toFixed(1)} anos`;
 
+    // Aurum chart palette references (lib/aurum-colors.ts):
+    // [0] gold, [1] amber, [2] terracotta, [3] dusky rose, [4] mauve,
+    // [5] slate blue, [6] desat teal, [7] olive
     return [
-      { label: "Renda Anual em Dividendos", value: fmtK(annualDividends), color: "#22c55e", icon: DollarSign },
+      { label: "Renda Anual em Dividendos", value: fmtK(annualDividends), color: "#34d399", icon: DollarSign },
       { label: "Dividend Yield Médio",      value: `${avgDY.toFixed(2)}%`, color: "#C9A84C", icon: Percent },
-      { label: "Renda Mensal em Dividendos", value: fmtK(annualDividends / 12), color: "#22c55e", icon: Coins },
+      { label: "Renda Mensal em Dividendos", value: fmtK(annualDividends / 12), color: "#34d399", icon: Coins },
 
       {
         label: "Crescimento da Renda (YoY)",
         value: yoyGrowthPct == null ? "—" : `${yoyGrowthPct >= 0 ? "+" : ""}${yoyGrowthPct.toFixed(1)}%`,
-        color: yoyGrowthPct == null ? "#a09068" : yoyGrowthPct >= 0 ? "#22c55e" : "#f87171",
+        color: yoyGrowthPct == null ? "#a09068" : yoyGrowthPct >= 0 ? "#34d399" : "#f87171",
         icon: TrendingUp,
         trend: yoyGrowthPct != null ? { value: yoyGrowthPct, suffix: "%" } : null,
       },
@@ -994,15 +1001,15 @@ export default function CarteiraContent({ userEmail }: Props) {
         color: "#C9A84C",
         icon: Zap,
       },
-      { label: "Payback em Dividendos", value: fmtPayback, color: "#a78bfa", icon: CalendarClock },
+      { label: "Payback em Dividendos", value: fmtPayback, color: CHART_PALETTE[4], icon: CalendarClock },
 
-      { label: "Valor Total Investido", value: fmtK(totalInvested), color: "#8b5cf6", icon: BarChart3 },
-      { label: "Valor da Carteira",     value: fmtK(currentValue),  color: "#3b82f6", icon: Wallet },
+      { label: "Valor Total Investido", value: fmtK(totalInvested), color: CHART_PALETTE[5], icon: BarChart3 },
+      { label: "Valor da Carteira",     value: fmtK(currentValue),  color: CHART_PALETTE[6], icon: Wallet },
       {
         label: "Retorno Total (Preço + Div.)",
         value: `${totalReturnPct >= 0 ? "+" : ""}${totalReturnPct.toFixed(2)}%`,
         sub: fmt(totalGain + advancedMetrics.dividendsReceived),
-        color: totalReturnPct >= 0 ? "#22c55e" : "#f87171",
+        color: totalReturnPct >= 0 ? "#34d399" : "#f87171",
         icon: Zap,
         trend: { value: totalReturnPct, suffix: "%" },
       },
@@ -1011,17 +1018,17 @@ export default function CarteiraContent({ userEmail }: Props) {
         label: "Lucro / Prejuízo",
         value: fmt(totalGain),
         sub: `${totalGainPct >= 0 ? "+" : ""}${totalGainPct.toFixed(2)}%`,
-        color: totalGain >= 0 ? "#22c55e" : "#f87171",
+        color: totalGain >= 0 ? "#34d399" : "#f87171",
         icon: totalGain >= 0 ? TrendingUp : TrendingDown,
       },
       {
         label: "Concentração da Carteira",
         value: `${concentrationPct.toFixed(1)}%`,
         sub: distribution[0] ? `maior: ${distribution[0].ticker}` : "",
-        color: "#f59e0b",
+        color: CHART_PALETTE[1],
         icon: PieChart,
       },
-      { label: "Número de Ativos", value: String(effectiveAssets.length), color: "#06b6d4", icon: Layers },
+      { label: "Número de Ativos", value: String(effectiveAssets.length), color: CHART_PALETTE[6], icon: Layers },
     ];
   }, [annualDividends, avgDY, totalInvested, currentValue, totalGainPct, totalGain, effectiveAssets.length, distribution, advancedMetrics]);
 
@@ -1302,18 +1309,14 @@ export default function CarteiraContent({ userEmail }: Props) {
             </div>
 
             {/* Adicionar Ativo — primary CTA */}
-            <button
+            <Button
+              variant="gold"
+              size="sm"
               onClick={() => { setAssetForm({ name: "", type: "acoes", quantity: "", purchase_price: "", current_price: "", rf_indexer: "CDI", rf_rate: "", rf_amount: "", rf_maturity: "" }); setFormError(""); setModal("asset"); }}
-              style={{
-                display: "flex", alignItems: "center", gap: "6px",
-                background: "linear-gradient(135deg,#C9A84C,#A07820)",
-                border: "none", borderRadius: "8px", padding: "8px 16px",
-                color: "#0d0b07", fontSize: "13px", fontWeight: 600,
-                fontFamily: "var(--font-sans)", cursor: "pointer",
-              }}
+              className="gap-1.5 px-4 text-[13px] font-semibold"
             >
               <Plus size={14} /> Adicionar Ativo
-            </button>
+            </Button>
           </div>
         </div>
 
@@ -1331,9 +1334,9 @@ export default function CarteiraContent({ userEmail }: Props) {
             {/* ── Summary Cards ── */}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "12px", marginBottom: "24px" }}>
               {[
-                { label: "Valor Investido", value: fmt(totalInvested), sub: `${effectiveAssets.length} ativos`, color: "#8b5cf6", icon: Wallet },
-                { label: "Valor Atual", value: fmt(currentValue), sub: "preço de mercado", color: "#3b82f6", icon: TrendingUp },
-                { label: "Ganho / Perda", value: fmt(totalGain), sub: `${totalGain >= 0 ? "+" : ""}${totalGainPct.toFixed(2)}%`, color: totalGain >= 0 ? "#22c55e" : "#f87171", icon: totalGain >= 0 ? TrendingUp : TrendingDown },
+                { label: "Valor Investido", value: fmt(totalInvested), sub: `${effectiveAssets.length} ativos`, color: CHART_PALETTE[5], icon: Wallet },
+                { label: "Valor Atual", value: fmt(currentValue), sub: "preço de mercado", color: CHART_PALETTE[6], icon: TrendingUp },
+                { label: "Ganho / Perda", value: fmt(totalGain), sub: `${totalGain >= 0 ? "+" : ""}${totalGainPct.toFixed(2)}%`, color: totalGain >= 0 ? "#34d399" : "#f87171", icon: totalGain >= 0 ? TrendingUp : TrendingDown },
                 { label: "Dividendos Recebidos", value: fmt(advancedMetrics.dividendsReceived), sub: firstPurchaseLabel, color: "#C9A84C", icon: Coins },
               ].map(({ label, value, sub, color, icon: Icon }) => (
                 <div key={label} style={{ background: "#130f09", border: `1px solid ${color}22`, borderRadius: "12px", padding: "18px 20px" }}>
@@ -1434,10 +1437,10 @@ export default function CarteiraContent({ userEmail }: Props) {
                 <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                   <div style={{
                     width: "32px", height: "32px", borderRadius: "8px",
-                    background: "rgba(245,158,11,0.12)",
+                    background: "rgba(197, 138, 61, 0.12)",
                     display: "flex", alignItems: "center", justifyContent: "center",
                   }}>
-                    <PieChart size={15} style={{ color: "#f59e0b" }} />
+                    <PieChart size={15} style={{ color: CHART_PALETTE[1] }} />
                   </div>
                   <div>
                     <p style={{ fontSize: "15px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-display)", marginBottom: "2px" }}>Distribuição por Ativo</p>
@@ -1485,7 +1488,7 @@ export default function CarteiraContent({ userEmail }: Props) {
                     const top = distribution[0];
                     const concentrated = top.pct > 40;
                     const dim = top.pct > 25;
-                    const color = concentrated ? "#f87171" : dim ? "#f59e0b" : "#22c55e";
+                    const color = concentrated ? "var(--negative)" : dim ? CHART_PALETTE[1] : "var(--positive)";
                     const label = concentrated ? "Alta concentração" : dim ? "Concentração moderada" : "Boa diversificação";
                     return (
                       <div style={{
@@ -1836,22 +1839,22 @@ export default function CarteiraContent({ userEmail }: Props) {
             </div>
 
             {/* ── Otimização IA ── */}
-            <div id="ia" style={{ background: "linear-gradient(135deg, #0f0a1e 0%, #0d0a16 50%, #0a0d1a 100%)", border: "1px solid rgba(139,92,246,0.2)", borderRadius: "16px", padding: "28px 32px", scrollMarginTop: "120px" }}>
+            <div id="ia" style={{ ...card, scrollMarginTop: "120px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                  <div style={{ width: "32px", height: "32px", borderRadius: "8px", background: "rgba(139,92,246,0.15)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                    <Brain size={16} style={{ color: "#8b5cf6" }} />
+                  <div style={{ width: "32px", height: "32px", borderRadius: "8px", background: "rgba(201,168,76,0.12)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <Brain size={16} style={{ color: "var(--gold)" }} />
                   </div>
                   <div>
-                    <p style={{ fontSize: "15px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-display)", marginBottom: "2px" }}>Otimização IA</p>
-                    <p style={{ fontSize: "11px", color: "#a09068", fontFamily: "var(--font-sans)" }}>Recomendações personalizadas para sua carteira</p>
+                    <p style={{ fontSize: "15px", fontWeight: 600, color: "var(--text-default)", fontFamily: "var(--font-display)", marginBottom: "2px" }}>Otimização IA</p>
+                    <p style={{ fontSize: "11px", color: "var(--text-muted)", fontFamily: "var(--font-sans)" }}>Recomendações personalizadas para sua carteira</p>
                   </div>
                 </div>
                 <div style={{ display: "flex", gap: "8px" }}>
-                  <button style={{ background: "rgba(139,92,246,0.1)", border: "1px solid rgba(139,92,246,0.25)", borderRadius: "8px", padding: "7px 14px", color: "#a78bfa", fontSize: "12px", fontFamily: "var(--font-sans)", cursor: "pointer" }}>
+                  <button style={{ background: "transparent", border: "1px solid var(--border-soft)", borderRadius: "8px", padding: "7px 14px", color: "var(--text-muted)", fontSize: "12px", fontFamily: "var(--font-sans)", cursor: "pointer" }} className="aurum-hover-border aurum-hover-transition">
                     Perfil de Risco
                   </button>
-                  <button style={{ background: "linear-gradient(135deg, #8b5cf6, #6d28d9)", border: "none", borderRadius: "8px", padding: "7px 16px", color: "#fff", fontSize: "12px", fontWeight: 600, fontFamily: "var(--font-sans)", cursor: "pointer" }}>
+                  <button style={{ background: "linear-gradient(135deg, var(--gold-light), var(--gold), var(--gold-dim))", border: "none", borderRadius: "8px", padding: "7px 16px", color: "#0d0b07", fontSize: "12px", fontWeight: 700, fontFamily: "var(--font-sans)", cursor: "pointer" }}>
                     Analisar
                   </button>
                 </div>
@@ -1859,29 +1862,29 @@ export default function CarteiraContent({ userEmail }: Props) {
 
               {insights.length === 0 ? (
                 <div style={{ textAlign: "center", padding: "40px 0" }}>
-                  <Sparkles size={32} style={{ color: "#8b5cf6", opacity: 0.4, display: "block", margin: "0 auto 16px" }} />
-                  <p style={{ fontSize: "13px", color: "#a09068", fontFamily: "var(--font-sans)", marginBottom: "6px" }}>
+                  <Sparkles size={32} style={{ color: "var(--gold)", opacity: 0.4, display: "block", margin: "0 auto 16px" }} />
+                  <p style={{ fontSize: "13px", color: "var(--text-muted)", fontFamily: "var(--font-sans)", marginBottom: "6px" }}>
                     Clique em &apos;Analisar&apos; para receber recomendações personalizadas
                   </p>
-                  <p style={{ fontSize: "11px", color: "#9a8a6a", fontFamily: "var(--font-sans)" }}>
-                    Perfil de risco · <span style={{ color: "#a09068" }}>longo prazo</span>
+                  <p style={{ fontSize: "11px", color: "var(--text-faint)", fontFamily: "var(--font-sans)" }}>
+                    Perfil de risco · <span style={{ color: "var(--text-muted)" }}>longo prazo</span>
                   </p>
                 </div>
               ) : (
                 <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
                   {insights.map(insight => (
-                    <div key={insight.id} style={{ background: "rgba(139,92,246,0.06)", border: "1px solid rgba(139,92,246,0.12)", borderRadius: "10px", padding: "16px 20px" }}>
+                    <div key={insight.id} style={{ background: "rgba(201,168,76,0.04)", border: "1px solid var(--border-soft)", borderRadius: "10px", padding: "16px 20px" }}>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "8px" }}>
-                        <p style={{ fontSize: "14px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-display)" }}>{insight.title}</p>
+                        <p style={{ fontSize: "14px", fontWeight: 600, color: "var(--text-default)", fontFamily: "var(--font-display)" }}>{insight.title}</p>
                         {insight.confidence_score && (
-                          <span style={{ fontSize: "10px", color: "#8b5cf6", fontFamily: "var(--font-sans)", background: "rgba(139,92,246,0.1)", padding: "2px 8px", borderRadius: "4px" }}>
+                          <span style={{ fontSize: "10px", color: "var(--gold)", fontFamily: "var(--font-sans)", background: "rgba(201,168,76,0.1)", padding: "2px 8px", borderRadius: "4px" }}>
                             {(Number(insight.confidence_score) * 100).toFixed(0)}% confiança
                           </span>
                         )}
                       </div>
-                      <p style={{ fontSize: "12px", color: "#a09068", fontFamily: "var(--font-sans)", lineHeight: 1.65, marginBottom: "8px" }}>{insight.description}</p>
+                      <p style={{ fontSize: "12px", color: "var(--text-muted)", fontFamily: "var(--font-sans)", lineHeight: 1.65, marginBottom: "8px" }}>{insight.description}</p>
                       {insight.predicted_impact && (
-                        <p style={{ fontSize: "11px", color: "#a78bfa", fontFamily: "var(--font-sans)" }}>
+                        <p style={{ fontSize: "11px", color: "var(--gold)", fontFamily: "var(--font-sans)" }}>
                           Impacto estimado: {insight.predicted_impact}
                           {insight.time_horizon && ` · ${insight.time_horizon}`}
                         </p>
@@ -1896,10 +1899,12 @@ export default function CarteiraContent({ userEmail }: Props) {
       </div>
 
       {/* ── Modal: Adicionar Ativo ── */}
-      {modal === "asset" && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, padding: "24px" }}>
-          <div style={{ background: "#130f09", border: "1px solid rgba(201,168,76,0.15)", borderRadius: "16px", padding: "32px", width: "100%", maxWidth: "440px" }}>
-            <ModalHeader title="Adicionar Ativo" onClose={() => setModal(null)} />
+      <Dialog open={modal === "asset"} onOpenChange={(o) => !o && setModal(null)}>
+        <DialogContent className="sm:max-w-[440px] bg-card border-[rgba(201,168,76,0.15)]">
+          <DialogHeader>
+            <DialogTitle className="font-display text-[17px] text-[var(--text-strong)]">Adicionar Ativo</DialogTitle>
+          </DialogHeader>
+          {modal === "asset" && (
             <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
               {/* Type segmented control */}
               <FormField label="Tipo de Ativo">
@@ -2070,18 +2075,20 @@ export default function CarteiraContent({ userEmail }: Props) {
                 </>
               )}
 
-              {formError && <p style={{ fontSize: "12px", color: "#f87171", fontFamily: "var(--font-sans)" }}>{formError}</p>}
+              {formError && <p style={{ fontSize: "12px", color: "var(--negative)", fontFamily: "var(--font-sans)" }}>{formError}</p>}
               <SaveButton saving={saving} onClick={saveAsset} label="Adicionar Ativo" />
             </div>
-          </div>
-        </div>
-      )}
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* ── Modal: Registrar Transação ── */}
-      {modal === "tx" && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, padding: "24px" }}>
-          <div style={{ background: "#130f09", border: "1px solid rgba(201,168,76,0.15)", borderRadius: "16px", padding: "32px", width: "100%", maxWidth: "440px" }}>
-            <ModalHeader title="Registrar Transação" onClose={() => setModal(null)} />
+      <Dialog open={modal === "tx"} onOpenChange={(o) => !o && setModal(null)}>
+        <DialogContent className="sm:max-w-[440px] bg-card border-[rgba(201,168,76,0.15)]">
+          <DialogHeader>
+            <DialogTitle className="font-display text-[17px] text-[var(--text-strong)]">Registrar Transação</DialogTitle>
+          </DialogHeader>
+          {modal === "tx" && (
             <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
               <FormField label="Ticker">
                 <TickerSearch
@@ -2125,12 +2132,12 @@ export default function CarteiraContent({ userEmail }: Props) {
               <FormField label="Notas (opcional)">
                 <input value={txForm.notes} onChange={e => setTxForm(p => ({ ...p, notes: e.target.value }))} style={inputStyle} placeholder="Observações..." />
               </FormField>
-              {formError && <p style={{ fontSize: "12px", color: "#f87171", fontFamily: "var(--font-sans)" }}>{formError}</p>}
+              {formError && <p style={{ fontSize: "12px", color: "var(--negative)", fontFamily: "var(--font-sans)" }}>{formError}</p>}
               <SaveButton saving={saving} onClick={saveTx} label="Registrar Transação" />
             </div>
-          </div>
-        </div>
-      )}
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -2164,27 +2171,17 @@ function CarteiraStickyNav() {
           <a
             key={s.id}
             href={`#${s.id}`}
+            className="aurum-hover-row aurum-hover-gold aurum-hover-transition"
             style={{
               fontSize: "11px",
               fontWeight: 500,
               fontFamily: "var(--font-sans)",
-              color: "#9a8a6a",
+              color: "var(--text-faint)",
               padding: "5px 12px",
               borderRadius: "20px",
-              border: "1px solid rgba(201,168,76,0.12)",
+              border: "1px solid var(--border-soft)",
               textDecoration: "none",
               whiteSpace: "nowrap",
-              transition: "all 0.15s",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = "rgba(201,168,76,0.08)";
-              e.currentTarget.style.color = "#C9A84C";
-              e.currentTarget.style.borderColor = "rgba(201,168,76,0.3)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = "transparent";
-              e.currentTarget.style.color = "#9a8a6a";
-              e.currentTarget.style.borderColor = "rgba(201,168,76,0.12)";
             }}
           >
             {s.label}
