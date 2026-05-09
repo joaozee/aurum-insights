@@ -107,10 +107,10 @@ async function safeJson(url: string, revalidate = 300): Promise<unknown> {
 }
 
 export async function GET() {
-  // Datas para janela de 12 meses do IPCA (formato DD/MM/YYYY exigido pelo brapi)
+  // brapi inflation já retorna o IPCA acumulado 12m de cada mês — basta pegar o valor mais recente
   const today = new Date();
-  const oneYearAgo = new Date(today);
-  oneYearAgo.setMonth(oneYearAgo.getMonth() - 13); // pega 13 meses pra garantir 12 valores fechados
+  const sixMonthsAgo = new Date(today);
+  sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
   const fmtBr = (d: Date) =>
     `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
 
@@ -125,7 +125,7 @@ export async function GET() {
     safeJson(`${BASE}/v2/crypto?coin=BTC,ETH,SOL&currency=BRL`, 60),
     safeJson(`${BASE}/v2/prime-rate?country=brazil&sortBy=date&sortOrder=desc`, 3600),
     safeJson(
-      `${BASE}/v2/inflation?historical=true&start=${fmtBr(oneYearAgo)}&end=${fmtBr(today)}&sortBy=date&sortOrder=desc`,
+      `${BASE}/v2/inflation?historical=true&start=${fmtBr(sixMonthsAgo)}&end=${fmtBr(today)}&sortBy=date&sortOrder=desc`,
       3600
     ),
   ]);
@@ -196,17 +196,15 @@ export async function GET() {
   const selicLatest = selicSeries[0];
   const selicValue = selicLatest?.value ? parseFloat(selicLatest.value) : null;
 
-  // IPCA acumulado 12 meses — composição multiplicativa dos últimos 12 valores mensais
-  const ipcaSeries = (ipcaData as { inflation?: BrapiSeriesPoint[] })?.inflation ?? [];
-  const last12 = ipcaSeries.slice(0, 12);
-  let ipcaAcc: number | null = null;
-  if (last12.length > 0) {
-    const factor = last12.reduce((acc, p) => {
-      const v = parseFloat(p.value);
-      return Number.isFinite(v) ? acc * (1 + v / 100) : acc;
-    }, 1);
-    ipcaAcc = (factor - 1) * 100;
-  }
+  // IPCA acumulado 12 meses — brapi já retorna esse valor pronto para cada mês
+  const ipcaSeries = (ipcaData as { inflation?: { value: number | string }[] })?.inflation ?? [];
+  const ipcaLatest = ipcaSeries[0]?.value;
+  const ipcaAcc: number | null =
+    typeof ipcaLatest === "number"
+      ? ipcaLatest
+      : typeof ipcaLatest === "string" && Number.isFinite(parseFloat(ipcaLatest))
+        ? parseFloat(ipcaLatest)
+        : null;
 
   // CDI ≈ Selic - 0,10pp (brapi não tem endpoint dedicado pro CDI;
   // na prática o CDI segue a Meta Selic com spread fixo de 0,10pp)

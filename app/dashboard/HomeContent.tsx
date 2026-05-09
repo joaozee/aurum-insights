@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   TrendingUp,
@@ -12,9 +13,11 @@ import {
   Sparkles,
   Heart,
   MessageCircle,
-  Share2,
+  Repeat2,
 } from "lucide-react";
 import type { MarketItem } from "@/app/api/market/route";
+import { createClient } from "@/lib/supabase/client";
+import { formatRelativeTime, initialFromName } from "@/lib/comunidade";
 
 const QUICK_ACCESS = [
   {
@@ -51,28 +54,17 @@ const QUICK_ACCESS = [
   },
 ];
 
-const NEWS_MOCK = [
-  {
-    id: 1,
-    author: "Aurum Investimentos",
-    time: "2h",
-    content:
-      "IBOV fecha em alta de 1.24% impulsionado pelo setor financeiro. Analistas apontam continuidade para a semana.",
-    likes: 14,
-    comments: 3,
-    shares: 2,
-  },
-  {
-    id: 2,
-    author: "Aurum Investimentos",
-    time: "5h",
-    content:
-      "Dólar recua ante o real com dados positivos da balança comercial. Câmbio opera abaixo dos R$5,10.",
-    likes: 8,
-    comments: 1,
-    shares: 0,
-  },
-];
+interface HomePost {
+  id: string;
+  author_name: string | null;
+  author_avatar: string | null;
+  author_username: string | null;
+  content: string | null;
+  created_at: string;
+  likes_count: number;
+  comments_count: number;
+  reposts_count: number;
+}
 
 interface HomeContentProps {
   firstName: string;
@@ -100,6 +92,25 @@ function capitalize(str: string) {
 export default function HomeContent({ firstName, marketData, quickStats }: HomeContentProps) {
   const router = useRouter();
   const stats = quickStats ?? { assetCount: 0, monthBalance: 0 };
+
+  const supabase = useMemo(() => createClient(), []);
+  const [posts, setPosts] = useState<HomePost[]>([]);
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      const { data } = await supabase
+        .from("community_post")
+        .select("id, author_name, author_avatar, author_username, content, created_at, likes_count, comments_count, reposts_count, moderation_status, repost_of_id")
+        .neq("moderation_status", "rejeitado")
+        .not("content", "is", null)
+        .is("repost_of_id", null)
+        .order("created_at", { ascending: false })
+        .limit(2);
+      if (active) setPosts(((data ?? []) as HomePost[]));
+    })();
+    return () => { active = false; };
+  }, [supabase]);
 
   return (
     <div style={{ minHeight: "calc(100vh - 58px)", background: "#0a0806" }}>
@@ -590,13 +601,12 @@ export default function HomeContent({ firstName, marketData, quickStats }: HomeC
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "1fr 1fr",
+              gridTemplateColumns: posts.length > 0 ? "1fr 1fr" : "1fr",
               gap: "14px",
             }}
           >
-            {NEWS_MOCK.map(({ id, author, time, content, likes, comments, shares }) => (
+            {posts.length === 0 ? (
               <div
-                key={id}
                 onClick={() => router.push("/dashboard/comunidade")}
                 role="link"
                 tabIndex={0}
@@ -605,114 +615,118 @@ export default function HomeContent({ firstName, marketData, quickStats }: HomeC
                   background: "#130f09",
                   border: "1px solid rgba(201,168,76,0.08)",
                   borderRadius: "12px",
-                  padding: "20px",
+                  padding: "30px 20px",
                   cursor: "pointer",
-                  transition: "border-color 0.2s, box-shadow 0.2s",
-                }}
-                onMouseEnter={(e) => {
-                  (e.currentTarget as HTMLDivElement).style.borderColor =
-                    "rgba(201,168,76,0.2)";
-                  (e.currentTarget as HTMLDivElement).style.boxShadow =
-                    "0 4px 20px rgba(0,0,0,0.3)";
-                }}
-                onMouseLeave={(e) => {
-                  (e.currentTarget as HTMLDivElement).style.borderColor =
-                    "rgba(201,168,76,0.08)";
-                  (e.currentTarget as HTMLDivElement).style.boxShadow = "none";
+                  textAlign: "center",
+                  color: "#7a6a4a",
+                  fontSize: "13px",
+                  fontFamily: "var(--font-sans)",
                 }}
               >
-                {/* Author */}
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "10px",
-                    marginBottom: "14px",
-                  }}
-                >
+                Ainda não há posts na comunidade. Seja o primeiro a compartilhar.
+              </div>
+            ) : (
+              posts.map((p) => {
+                const initial = initialFromName(p.author_name);
+                return (
                   <div
+                    key={p.id}
+                    onClick={() => router.push("/dashboard/comunidade")}
+                    role="link"
+                    tabIndex={0}
+                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") router.push("/dashboard/comunidade"); }}
                     style={{
-                      width: "32px",
-                      height: "32px",
-                      borderRadius: "50%",
-                      overflow: "hidden",
-                      flexShrink: 0,
+                      background: "#130f09",
+                      border: "1px solid rgba(201,168,76,0.08)",
+                      borderRadius: "12px",
+                      padding: "20px",
+                      cursor: "pointer",
+                      transition: "border-color 0.2s, box-shadow 0.2s",
+                    }}
+                    onMouseEnter={(e) => {
+                      (e.currentTarget as HTMLDivElement).style.borderColor = "rgba(201,168,76,0.2)";
+                      (e.currentTarget as HTMLDivElement).style.boxShadow = "0 4px 20px rgba(0,0,0,0.3)";
+                    }}
+                    onMouseLeave={(e) => {
+                      (e.currentTarget as HTMLDivElement).style.borderColor = "rgba(201,168,76,0.08)";
+                      (e.currentTarget as HTMLDivElement).style.boxShadow = "none";
                     }}
                   >
-                    <img
-                      src="/selo.png"
-                      alt="Aurum"
-                      style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                    />
-                  </div>
-                  <div>
+                    {/* Author */}
+                    <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "14px" }}>
+                      <div
+                        style={{
+                          width: "32px",
+                          height: "32px",
+                          borderRadius: "50%",
+                          overflow: "hidden",
+                          flexShrink: 0,
+                          background: p.author_avatar
+                            ? `url(${p.author_avatar}) center/cover no-repeat`
+                            : "linear-gradient(135deg, #C9A84C, #8a6a20)",
+                          color: "#fff",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontSize: "13px",
+                          fontWeight: 700,
+                          fontFamily: "var(--font-sans)",
+                        }}
+                      >
+                        {!p.author_avatar && initial}
+                      </div>
+                      <div style={{ minWidth: 0 }}>
+                        <p style={{ fontSize: "13px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-sans)", lineHeight: 1.3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {p.author_name ?? "Anônimo"}
+                        </p>
+                        <p style={{ fontSize: "11px", color: "#4a3a1a", fontFamily: "var(--font-sans)" }}>
+                          {formatRelativeTime(p.created_at)}
+                        </p>
+                      </div>
+                    </div>
+
                     <p
                       style={{
                         fontSize: "13px",
-                        fontWeight: 600,
-                        color: "#e8dcc0",
+                        color: "#8a7a5a",
                         fontFamily: "var(--font-sans)",
-                        lineHeight: 1.3,
+                        lineHeight: 1.65,
+                        marginBottom: "16px",
+                        display: "-webkit-box",
+                        WebkitLineClamp: 4,
+                        WebkitBoxOrient: "vertical",
+                        overflow: "hidden",
                       }}
                     >
-                      {author}
+                      {p.content}
                     </p>
-                    <p
-                      style={{
-                        fontSize: "11px",
-                        color: "#4a3a1a",
-                        fontFamily: "var(--font-sans)",
-                      }}
-                    >
-                      {time} atrás
-                    </p>
+
+                    <div style={{ display: "flex", gap: "18px", paddingTop: "12px", borderTop: "1px solid rgba(201,168,76,0.06)" }}>
+                      {[
+                        { icon: Heart, count: p.likes_count },
+                        { icon: MessageCircle, count: p.comments_count },
+                        { icon: Repeat2, count: p.reposts_count },
+                      ].map(({ icon: Icon, count }, i) => (
+                        <span
+                          key={i}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "5px",
+                            color: "#4a3a1a",
+                            fontSize: "12px",
+                            fontFamily: "var(--font-sans)",
+                          }}
+                        >
+                          <Icon size={13} />
+                          {count ?? 0}
+                        </span>
+                      ))}
+                    </div>
                   </div>
-                </div>
-
-                <p
-                  style={{
-                    fontSize: "13px",
-                    color: "#8a7a5a",
-                    fontFamily: "var(--font-sans)",
-                    lineHeight: 1.65,
-                    marginBottom: "16px",
-                  }}
-                >
-                  {content}
-                </p>
-
-                {/* Interactions */}
-                <div
-                  style={{
-                    display: "flex",
-                    gap: "18px",
-                    paddingTop: "12px",
-                    borderTop: "1px solid rgba(201,168,76,0.06)",
-                  }}
-                >
-                  {[
-                    { icon: Heart, count: likes },
-                    { icon: MessageCircle, count: comments },
-                    { icon: Share2, count: shares },
-                  ].map(({ icon: Icon, count }, i) => (
-                    <span
-                      key={i}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "5px",
-                        color: "#4a3a1a",
-                        fontSize: "12px",
-                        fontFamily: "var(--font-sans)",
-                      }}
-                    >
-                      <Icon size={13} />
-                      {count}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            ))}
+                );
+              })
+            )}
           </div>
         </section>
       </div>

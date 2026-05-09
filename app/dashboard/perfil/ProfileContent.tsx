@@ -493,9 +493,12 @@ export default function ProfileContent({ mode, currentUserEmail, currentUserName
                 marginBottom: "8px",
               }}
             >
-              <p style={{ fontSize: "10px", color: "#7a6a4a", fontFamily: "var(--font-sans)", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: "4px" }}>
-                Nível Atual
-              </p>
+              <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "4px", position: "relative" }}>
+                <p style={{ fontSize: "10px", color: "#7a6a4a", fontFamily: "var(--font-sans)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+                  Nível Atual
+                </p>
+                <NivelTooltip />
+              </div>
               <div style={{ display: "flex", alignItems: "baseline", gap: "8px", marginBottom: "8px" }}>
                 <span
                   style={{
@@ -510,7 +513,7 @@ export default function ProfileContent({ mode, currentUserEmail, currentUserName
                   {tier.name}
                 </span>
                 <span style={{ fontSize: "11px", color: "#7a6a4a", fontFamily: "var(--font-sans)" }}>
-                  Nível {tier.level}
+                  Nível {tier.level} · {bundle.points.total_points} XP
                 </span>
               </div>
               <div style={{ marginBottom: "6px" }}>
@@ -523,7 +526,7 @@ export default function ProfileContent({ mode, currentUserEmail, currentUserName
                 </div>
               </div>
               <p style={{ fontSize: "10px", color: "#5a4a2a", fontFamily: "var(--font-sans)" }}>
-                {Math.max(0, tier.max - bundle.points.total_points)} pts para o próximo nível
+                {Math.max(0, tier.max - bundle.points.total_points)} XP para o próximo nível
               </p>
             </div>
           </div>
@@ -998,8 +1001,8 @@ function SettingsRow({
         {icon}
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <p style={{ fontSize: "12px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-sans)", marginBottom: "1px" }}>{label}</p>
-        {sub && <p style={{ fontSize: "10px", color: "#7a6a4a", fontFamily: "var(--font-sans)" }}>{sub}</p>}
+        <p style={{ fontSize: "12px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-sans)", marginBottom: "3px", lineHeight: 1.3 }}>{label}</p>
+        {sub && <p style={{ fontSize: "10px", color: "#7a6a4a", fontFamily: "var(--font-sans)", lineHeight: 1.3 }}>{sub}</p>}
       </div>
       <ArrowRight size={12} style={{ color: "#5a4a2a" }} />
     </button>
@@ -1181,5 +1184,69 @@ function SavedTab({ supabase, email }: { supabase: any; email: string }) {
         </div>
       )}
     </Card>
+  );
+}
+
+function NivelTooltip() {
+  const [open, setOpen] = useState(false);
+  return (
+    <div
+      style={{ position: "relative", display: "inline-flex" }}
+      onMouseEnter={() => setOpen(true)}
+      onMouseLeave={() => setOpen(false)}
+      onFocus={() => setOpen(true)}
+      onBlur={() => setOpen(false)}
+    >
+      <button
+        type="button"
+        aria-label="Como funciona o sistema de níveis"
+        style={{
+          background: "transparent", border: "none", cursor: "help",
+          padding: 0, color: "#5a4a2a",
+          display: "flex", alignItems: "center",
+        }}
+      >
+        <HelpCircle size={11} />
+      </button>
+      {open && (
+        <div
+          role="tooltip"
+          style={{
+            position: "absolute",
+            top: "100%",
+            left: "50%",
+            transform: "translateX(-50%)",
+            marginTop: "8px",
+            width: "260px",
+            background: "#0d0b07",
+            border: "1px solid rgba(201,168,76,0.2)",
+            borderRadius: "8px",
+            padding: "12px 14px",
+            boxShadow: "0 8px 28px rgba(0,0,0,0.6)",
+            zIndex: 30,
+            fontFamily: "var(--font-sans)",
+          }}
+        >
+          <p style={{ fontSize: "11px", fontWeight: 700, color: "#e8dcc0", marginBottom: "8px", letterSpacing: "0.04em" }}>
+            COMO GANHAR XP
+          </p>
+          <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: "5px" }}>
+            <li style={{ fontSize: "11px", color: "#9a8a6a", lineHeight: 1.4 }}>📝 Postar na comunidade — <strong style={{ color: "#C9A84C" }}>+10 XP</strong></li>
+            <li style={{ fontSize: "11px", color: "#9a8a6a", lineHeight: 1.4 }}>💬 Comentar — <strong style={{ color: "#C9A84C" }}>+3 XP</strong></li>
+            <li style={{ fontSize: "11px", color: "#9a8a6a", lineHeight: 1.4 }}>❤️ Receber curtidas — <strong style={{ color: "#C9A84C" }}>+1 XP</strong></li>
+            <li style={{ fontSize: "11px", color: "#9a8a6a", lineHeight: 1.4 }}>🎓 Concluir aula — <strong style={{ color: "#C9A84C" }}>+15 XP</strong></li>
+            <li style={{ fontSize: "11px", color: "#9a8a6a", lineHeight: 1.4 }}>🏆 Concluir curso — <strong style={{ color: "#C9A84C" }}>+200 XP</strong></li>
+          </ul>
+          <div style={{ marginTop: "10px", paddingTop: "10px", borderTop: "1px solid rgba(201,168,76,0.1)" }}>
+            <p style={{ fontSize: "11px", fontWeight: 700, color: "#e8dcc0", marginBottom: "6px", letterSpacing: "0.04em" }}>
+              NÍVEIS
+            </p>
+            <p style={{ fontSize: "10px", color: "#7a6a4a", lineHeight: 1.5 }}>
+              Bronze 0–99 · Prata 100–499 · Ouro 500–1.999 · Platina 2.000+
+            </p>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

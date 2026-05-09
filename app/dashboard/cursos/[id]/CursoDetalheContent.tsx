@@ -9,16 +9,47 @@ import {
 import {
   type Curso, CATEGORIA_LABEL, NIVEL_LABEL,
 } from "@/lib/cursos-data";
+import { enrollInCourse, progressFromLessons } from "@/lib/enrollment";
 
-export default function CursoDetalheContent({ curso }: { curso: Curso }) {
+interface InitialEnrollment {
+  progress: number;
+  completed_lessons: string[];
+  started_at: string | null;
+  completed_at: string | null;
+}
+
+export default function CursoDetalheContent({
+  curso, userEmail, initialEnrollment,
+}: {
+  curso: Curso;
+  userEmail: string;
+  initialEnrollment: InitialEnrollment | null;
+}) {
   const router = useRouter();
   const [moduloAberto, setModuloAberto] = useState<string | null>(curso.modulos[0]?.id ?? null);
+  const [enrollment, setEnrollment] = useState<InitialEnrollment | null>(initialEnrollment);
+  const [enrolling, setEnrolling] = useState(false);
+
+  const matriculado = enrollment !== null;
+  const progresso = enrollment ? progressFromLessons(curso, enrollment.completed_lessons) : 0;
 
   const primeiraAula = curso.modulos[0]?.aulas[0];
 
-  function continuarCurso() {
-    if (primeiraAula) {
-      router.push(`/dashboard/cursos/${curso.id}/aulas/${primeiraAula.id}`);
+  async function handleCta() {
+    if (matriculado) {
+      // Continuar a partir da próxima aula não-concluída
+      const completed = new Set(enrollment?.completed_lessons ?? []);
+      const next = curso.modulos.flatMap((m) => m.aulas).find((a) => !completed.has(a.id))
+        ?? primeiraAula;
+      if (next) router.push(`/dashboard/cursos/${curso.id}/aulas/${next.id}`);
+      return;
+    }
+    setEnrolling(true);
+    const ok = await enrollInCourse(userEmail, curso.id);
+    setEnrolling(false);
+    if (ok) {
+      setEnrollment({ progress: 0, completed_lessons: [], started_at: new Date().toISOString().slice(0, 10), completed_at: null });
+      if (primeiraAula) router.push(`/dashboard/cursos/${curso.id}/aulas/${primeiraAula.id}`);
     }
   }
 
@@ -234,7 +265,7 @@ export default function CursoDetalheContent({ curso }: { curso: Curso }) {
               border: "1px solid rgba(16,185,129,0.2)",
               borderRadius: "14px", padding: "24px",
             }}>
-              {curso.matriculado ? (
+              {matriculado ? (
                 <>
                   <div style={{
                     display: "flex", alignItems: "center", gap: "8px",
@@ -270,7 +301,8 @@ export default function CursoDetalheContent({ curso }: { curso: Curso }) {
               )}
 
               <button
-                onClick={continuarCurso}
+                onClick={handleCta}
+                disabled={enrolling}
                 style={{
                   width: "100%",
                   background: "linear-gradient(135deg, #C9A84C 0%, #A07820 100%)",
@@ -288,29 +320,41 @@ export default function CursoDetalheContent({ curso }: { curso: Curso }) {
                 onMouseLeave={(e) => { e.currentTarget.style.boxShadow = "0 2px 14px rgba(201,168,76,0.25)"; }}
               >
                 <Play size={13} fill="#0d0b07" />
-                {curso.matriculado ? "Continuar Curso" : "Comprar Curso"}
+                {enrolling ? "Matriculando..." : matriculado ? "Continuar Curso" : "Matricular"}
               </button>
 
-              {curso.matriculado && curso.progresso !== undefined && (
-                <button
+              {matriculado && (
+                <div
                   style={{
                     width: "100%",
                     background: "transparent",
-                    border: "1px solid rgba(201,168,76,0.3)",
+                    border: "1px solid rgba(201,168,76,0.2)",
                     borderRadius: "8px",
-                    padding: "10px 18px",
+                    padding: "10px 14px",
                     color: "#C9A84C",
                     fontSize: "12px", fontWeight: 500,
-                    fontFamily: "var(--font-sans)", cursor: "pointer",
-                    display: "flex", alignItems: "center", justifyContent: "center", gap: "6px",
-                    transition: "background 0.15s",
+                    fontFamily: "var(--font-sans)",
+                    display: "flex", flexDirection: "column", gap: "6px",
                   }}
-                  onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(201,168,76,0.05)"; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
                 >
-                  <Award size={12} />
-                  Prova Concluída ({curso.progresso}%)
-                </button>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                      <Award size={12} /> Progresso
+                    </span>
+                    <span style={{ fontWeight: 700 }}>{progresso}%</span>
+                  </div>
+                  <div style={{
+                    width: "100%", height: "6px",
+                    background: "rgba(201,168,76,0.1)", borderRadius: "3px",
+                    overflow: "hidden",
+                  }}>
+                    <div style={{
+                      width: `${progresso}%`, height: "100%",
+                      background: "linear-gradient(90deg, #C9A84C, #E8C96A)",
+                      transition: "width 0.3s",
+                    }} />
+                  </div>
+                </div>
               )}
             </div>
 

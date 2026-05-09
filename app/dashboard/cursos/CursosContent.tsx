@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
   GraduationCap, Search, ChevronDown, Star, BookOpen,
@@ -8,8 +8,9 @@ import {
 } from "lucide-react";
 import {
   CURSOS, CONTEUDO_GRATUITO, CATEGORIA_LABEL, NIVEL_LABEL,
-  type CursoCategoria, type ConteudoTipo,
+  type CursoCategoria, type ConteudoTipo, type Curso,
 } from "@/lib/cursos-data";
+import { fetchEnrollments, progressFromLessons, type EnrollmentRow } from "@/lib/enrollment";
 
 type Filtro = "todos" | CursoCategoria;
 type Ordenacao = "recentes" | "populares" | "preco";
@@ -33,16 +34,40 @@ const TIPO_LABEL: Record<ConteudoTipo, string> = {
   video: "Vídeo",
 };
 
-export default function CursosContent() {
+interface CursosContentProps {
+  userEmail: string;
+}
+
+export default function CursosContent({ userEmail }: CursosContentProps) {
   const router = useRouter();
   const [busca, setBusca] = useState("");
   const [filtro, setFiltro] = useState<Filtro>("todos");
   const [ordenacao, setOrdenacao] = useState<Ordenacao>("recentes");
   const [meusCursos, setMeusCursos] = useState(false);
   const [favoritos, setFavoritos] = useState(false);
+  const [enrollments, setEnrollments] = useState<Map<string, EnrollmentRow>>(new Map());
+
+  const reload = useCallback(() => {
+    fetchEnrollments(userEmail).then(setEnrollments);
+  }, [userEmail]);
+
+  useEffect(() => { reload(); }, [reload]);
+
+  // Mescla cursos estáticos com estado de matrícula real do Supabase
+  const cursosComEnrollment = useMemo<Curso[]>(() => {
+    return CURSOS.map((c) => {
+      const row = enrollments.get(c.id);
+      if (!row) return { ...c, matriculado: false, progresso: 0 };
+      return {
+        ...c,
+        matriculado: true,
+        progresso: progressFromLessons(c, row.completed_lessons),
+      };
+    });
+  }, [enrollments]);
 
   const cursosFiltrados = useMemo(() => {
-    let lista = CURSOS;
+    let lista = cursosComEnrollment;
     if (filtro !== "todos") lista = lista.filter((c) => c.categoria === filtro);
     if (meusCursos) lista = lista.filter((c) => c.matriculado);
     if (busca.trim()) {
@@ -57,7 +82,7 @@ export default function CursosContent() {
       lista = [...lista].sort((a, b) => a.preco - b.preco);
     }
     return lista;
-  }, [busca, filtro, ordenacao, meusCursos]);
+  }, [busca, filtro, ordenacao, meusCursos, cursosComEnrollment]);
 
   return (
     <div style={{ minHeight: "calc(100vh - 58px)", background: "#0a0806" }}>

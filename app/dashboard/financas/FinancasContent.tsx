@@ -499,7 +499,7 @@ function DonutChartSVG({ data, total }: { data: [string, number][]; total: numbe
           {hovSlice ? `${((hovSlice.val / total) * 100).toFixed(0)}%` : data.length}
         </text>
         <text x={CX} y={CY + 9} textAnchor="middle" fontSize={7.5} fill="#a09068" fontFamily="var(--font-sans)">
-          {hovSlice ? hovSlice.cat.slice(0, 8) : "categorias"}
+          {hovSlice ? hovSlice.cat.slice(0, 8) : data.length === 1 ? "categoria" : "categorias"}
         </text>
       </svg>
 

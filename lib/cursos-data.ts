@@ -20,6 +20,8 @@ export interface Modulo {
 
 export interface Curso {
   id: string;
+  // UUID estável usado como course_id no Supabase (FK em user_enrollment, etc).
+  dbId: string;
   titulo: string;
   descricao: string;
   imagem: string;
@@ -67,6 +69,7 @@ export const NIVEL_LABEL: Record<CursoNivel, string> = {
 export const CURSOS: Curso[] = [
   {
     id: "investimentos-do-zero",
+    dbId: "a1c0b001-1111-4001-8001-000000000001",
     titulo: "Investimentos do Zero ao Avançado",
     descricao:
       "Curso completo para quem quer começar a investir do zero e dominar as principais estratégias do mercado financeiro.",
@@ -131,6 +134,7 @@ export const CURSOS: Curso[] = [
   },
   {
     id: "dividendos-renda-passiva",
+    dbId: "a1c0b001-1111-4001-8001-000000000002",
     titulo: "Dividendos: Viva de Renda Passiva",
     descricao: "Estratégias comprovadas para construir uma carteira que gera renda mensal.",
     imagem:
@@ -185,6 +189,7 @@ export const CURSOS: Curso[] = [
   },
   {
     id: "analise-fundamentalista",
+    dbId: "a1c0b001-1111-4001-8001-000000000003",
     titulo: "Análise Fundamentalista Completa",
     descricao: "Aprenda a analisar empresas como um profissional e encontre as melhores oportunidades da bolsa.",
     imagem:

@@ -43,3 +43,56 @@
 .aurum-zebra-row:hover {
   background: rgba(201, 168, 76, 0.05);
 }
+
+/* ────────────────────────────────────────────────────────────────────────────
+   Responsive overrides
+   O app foi escrito majoritariamente com inline styles e larguras fixas em px.
+   Em telas <= 768px essas regras forçam grids/sidebars de 1 coluna, escondem
+   sidebars laterais não-essenciais, e diminuem padding pra evitar overflow.
+   ──────────────────────────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  /* Quebra qualquer grid 2-col com sidebar fixa (ex: "1fr 300px", "1fr 340px", "240px 1fr 280px") */
+  div[style*="grid-template-columns: 1fr 1fr"],
+  div[style*="grid-template-columns: 1fr 300px"],
+  div[style*="grid-template-columns: 1fr 340px"],
+  div[style*="grid-template-columns: 1.6fr 1fr"],
+  div[style*="grid-template-columns: 240px 1fr 280px"],
+  div[style*="grid-template-columns: repeat(2, 1fr)"],
+  div[style*="grid-template-columns: repeat(3, 1fr)"],
+  div[style*="grid-template-columns: repeat(4, 1fr)"] {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Esconde sidebars laterais 'sticky' em telas pequenas (Comunidade) */
+  aside[style*="position: sticky"][style*="top: 78px"] {
+    display: none !important;
+  }
+
+  /* Padding mais apertado em containers wide */
+  div[style*="max-width: 1280px"],
+  div[style*="max-width: 1200px"],
+  div[style*="max-width: 1100px"] {
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+  }
+
+  /* Navbar — esconde labels de texto, deixa só ícones */
+  nav button[style*="border-radius: 20px"] span {
+    display: none;
+  }
+
+  /* H1 no Hero da Home */
+  h1[style*="clamp(36px"] {
+    font-size: 28px !important;
+  }
+}
+
+/* Telas muito pequenas — reduz mais um pouco */
+@media (max-width: 480px) {
+  div[style*="padding: 32px 24px"] {
+    padding: 20px 14px !important;
+  }
+  div[style*="padding: 48px 24px"] {
+    padding: 24px 14px !important;
+  }
+}

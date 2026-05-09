@@ -9,16 +9,23 @@ import {
 import {
   type Curso, CATEGORIA_LABEL, getProximaAula,
 } from "@/lib/cursos-data";
+import { setLessonComplete } from "@/lib/enrollment";
 
 interface Props {
   curso: Curso;
   moduloAtualId: string;
   aulaAtualId: string;
+  userEmail: string;
+  initialCompletedLessons: string[];
 }
 
-export default function AulaContent({ curso, moduloAtualId, aulaAtualId }: Props) {
+export default function AulaContent({
+  curso, moduloAtualId, aulaAtualId, userEmail, initialCompletedLessons,
+}: Props) {
   const router = useRouter();
   const [moduloAberto, setModuloAberto] = useState<string | null>(moduloAtualId);
+  const [completed, setCompleted] = useState<Set<string>>(new Set(initialCompletedLessons));
+  const [marking, setMarking] = useState(false);
 
   const moduloAtual = curso.modulos.find((m) => m.id === moduloAtualId)!;
   const aulaAtual = moduloAtual.aulas.find((a) => a.id === aulaAtualId)!;
@@ -26,30 +33,37 @@ export default function AulaContent({ curso, moduloAtualId, aulaAtualId }: Props
   const aulaIndex = moduloAtual.aulas.findIndex((a) => a.id === aulaAtualId);
   const proxima = getProximaAula(curso.id, aulaAtualId);
 
-  // Progresso simples: aulas anteriores na ordem flat
   const flatAulas = useMemo(
     () => curso.modulos.flatMap((m) => m.aulas.map((a) => ({ moduloId: m.id, aulaId: a.id }))),
     [curso]
   );
-  const idxAtualGlobal = flatAulas.findIndex((x) => x.aulaId === aulaAtualId);
   const totalAulas = flatAulas.length;
-  const progressoCurso = Math.round(((idxAtualGlobal + 1) / totalAulas) * 100);
+  const progressoCurso = totalAulas === 0 ? 0 : Math.round((completed.size / totalAulas) * 100);
 
   function aulaConcluida(globalIdx: number) {
-    return globalIdx < idxAtualGlobal;
+    const aulaId = flatAulas[globalIdx]?.aulaId;
+    return aulaId ? completed.has(aulaId) : false;
   }
 
   function moduloProgresso(moduloId: string) {
     const aulas = curso.modulos.find((m) => m.id === moduloId)?.aulas ?? [];
     if (aulas.length === 0) return 0;
-    const concluidas = aulas.filter((a) => {
-      const idx = flatAulas.findIndex((x) => x.aulaId === a.id);
-      return idx < idxAtualGlobal;
-    }).length;
+    const concluidas = aulas.filter((a) => completed.has(a.id)).length;
     return Math.round((concluidas / aulas.length) * 100);
   }
 
-  function irParaProxima() {
+  async function marcarConcluida() {
+    if (marking || completed.has(aulaAtualId)) return;
+    setMarking(true);
+    const next = new Set(completed);
+    next.add(aulaAtualId);
+    setCompleted(next);
+    await setLessonComplete(userEmail, curso.id, aulaAtualId, true);
+    setMarking(false);
+  }
+
+  async function irParaProxima() {
+    await marcarConcluida();
     if (proxima) {
       router.push(`/dashboard/cursos/${curso.id}/aulas/${proxima.aulaId}`);
     }

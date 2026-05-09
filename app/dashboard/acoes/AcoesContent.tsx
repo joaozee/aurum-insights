@@ -30,42 +30,21 @@ interface SearchResult {
   logo?: string;
 }
 
-const NEWS_DESTAQUE = [
-  {
-    id: "1",
-    titulo: "Banco do Brasil reporta lucro de R$ 9,6 bilhões no 3T25",
-    categoria: "MERCADO",
-    data: "11/11/2025 — 14:21",
-    img: "https://images.unsplash.com/photo-1550565118-3a14e8d0386f?auto=format&fit=crop&w=600&q=70",
-  },
-  {
-    id: "2",
-    titulo: "Selic mantida em 10,75%; Copom sinaliza próximos passos",
-    categoria: "MACRO",
-    data: "11/11/2025 — 09:30",
-    img: "https://images.unsplash.com/photo-1554224155-6726b3ff858f?auto=format&fit=crop&w=600&q=70",
-  },
-  {
-    id: "3",
-    titulo: "Petrobras anuncia novos dividendos extraordinários",
-    categoria: "DIVIDENDOS",
-    data: "10/11/2025 — 18:00",
-    img: "https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&w=600&q=70",
-  },
-  {
-    id: "4",
-    titulo: "Vale (VALE3) apresenta produção recorde de minério de ferro",
-    categoria: "MERCADO",
-    data: "10/11/2025 — 11:42",
-    img: "https://images.unsplash.com/photo-1542744173-8e7e53415bb0?auto=format&fit=crop&w=600&q=70",
-  },
-];
+interface MarketNewsItem {
+  id: string;
+  title: string;
+  link: string;
+  pubDate: string | null;
+  category: string | null;
+  thumb: string | null;
+}
 
-const NEWS_LIDAS = [
-  "Por que esse banco está dando dividendos altos para os acionistas?",
-  "Petrobras (PETR4) atualiza o plano de ações sobre o que pode mudar?",
-  "10 ideias para você investir começar a investir hoje em ações suspeitas",
-];
+function fmtNewsDate(iso: string | null): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "";
+  return d.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+}
 
 export default function AcoesContent() {
   const router = useRouter();
@@ -74,6 +53,7 @@ export default function AcoesContent() {
   const [searchLoading, setSearchLoading] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const [overview, setOverview] = useState<OverviewResponse | null>(null);
+  const [news, setNews] = useState<MarketNewsItem[]>([]);
 
   const loadOverview = useCallback(async () => {
     try {
@@ -84,7 +64,19 @@ export default function AcoesContent() {
     }
   }, []);
 
-  useEffect(() => { loadOverview(); }, [loadOverview]);
+  const loadNews = useCallback(async () => {
+    try {
+      const res = await fetch("/api/market-news");
+      if (res.ok) {
+        const data = (await res.json()) as { items?: MarketNewsItem[] };
+        setNews(data.items ?? []);
+      }
+    } catch (err) {
+      console.error("[market-news]", err);
+    }
+  }, []);
+
+  useEffect(() => { loadOverview(); loadNews(); }, [loadOverview, loadNews]);
 
   // Debounced search — busca ações E FIIs em paralelo
   useEffect(() => {
@@ -344,46 +336,76 @@ export default function AcoesContent() {
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr", gap: "16px" }}>
-          {/* News cards */}
+          {/* News cards (4 maiores destaques) */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-            {NEWS_DESTAQUE.map((n) => (
-              <div key={n.id} style={{
-                background: "#130f09",
-                border: "1px solid rgba(201,168,76,0.1)",
-                borderRadius: "12px", overflow: "hidden",
-                cursor: "pointer", transition: "border-color 0.15s",
-              }}
-                onMouseEnter={(e) => { e.currentTarget.style.borderColor = "rgba(201,168,76,0.3)"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.borderColor = "rgba(201,168,76,0.1)"; }}
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={n.img} alt="" style={{ width: "100%", height: "140px", objectFit: "cover" }} />
-                <div style={{ padding: "12px 14px" }}>
-                  <span style={{
-                    fontSize: "9px", fontWeight: 700, color: "#C9A84C",
-                    background: "rgba(201,168,76,0.1)",
-                    padding: "3px 8px", borderRadius: "4px",
-                    letterSpacing: "0.06em",
-                    fontFamily: "var(--font-sans)",
-                  }}>
-                    {n.categoria}
-                  </span>
-                  <p style={{
-                    fontSize: "13px", fontWeight: 600, color: "#e8dcc0",
-                    fontFamily: "var(--font-sans)",
-                    marginTop: "8px", marginBottom: "6px", lineHeight: 1.4,
-                  }}>
-                    {n.titulo}
-                  </p>
-                  <p style={{ fontSize: "10px", color: "#5a4a2a", fontFamily: "var(--font-sans)" }}>
-                    {n.data}
-                  </p>
-                </div>
-              </div>
-            ))}
+            {news.length === 0 ? (
+              <p style={{ gridColumn: "1 / -1", fontSize: "12px", color: "#7a6a4a", fontFamily: "var(--font-sans)", textAlign: "center", padding: "30px" }}>
+                Carregando notícias...
+              </p>
+            ) : (
+              news.slice(0, 4).map((n) => (
+                <a
+                  key={n.id}
+                  href={n.link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    background: "#130f09",
+                    border: "1px solid rgba(201,168,76,0.1)",
+                    borderRadius: "12px", overflow: "hidden",
+                    cursor: "pointer", transition: "border-color 0.15s",
+                    textDecoration: "none",
+                    display: "block",
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = "rgba(201,168,76,0.3)"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = "rgba(201,168,76,0.1)"; }}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  {n.thumb ? (
+                    <img src={n.thumb} alt="" style={{ width: "100%", height: "140px", objectFit: "cover" }} />
+                  ) : (
+                    <div style={{
+                      width: "100%", height: "140px",
+                      background: "linear-gradient(135deg, #1a1410 0%, #2a1f12 100%)",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                    }}>
+                      <Newspaper size={28} style={{ color: "#5a4a2a" }} />
+                    </div>
+                  )}
+                  <div style={{ padding: "12px 14px" }}>
+                    {n.category && (
+                      <span style={{
+                        fontSize: "9px", fontWeight: 700, color: "#C9A84C",
+                        background: "rgba(201,168,76,0.1)",
+                        padding: "3px 8px", borderRadius: "4px",
+                        letterSpacing: "0.06em",
+                        fontFamily: "var(--font-sans)",
+                        textTransform: "uppercase",
+                      }}>
+                        {n.category}
+                      </span>
+                    )}
+                    <p style={{
+                      fontSize: "13px", fontWeight: 600, color: "#e8dcc0",
+                      fontFamily: "var(--font-sans)",
+                      marginTop: "8px", marginBottom: "6px", lineHeight: 1.4,
+                      display: "-webkit-box",
+                      WebkitLineClamp: 3,
+                      WebkitBoxOrient: "vertical",
+                      overflow: "hidden",
+                    }}>
+                      {n.title}
+                    </p>
+                    <p style={{ fontSize: "10px", color: "#5a4a2a", fontFamily: "var(--font-sans)" }}>
+                      {fmtNewsDate(n.pubDate)}
+                    </p>
+                  </div>
+                </a>
+              ))
+            )}
           </div>
 
-          {/* As mais lidas */}
+          {/* As mais recentes */}
           <div style={{
             background: "#130f09",
             border: "1px solid rgba(201,168,76,0.1)",
@@ -395,38 +417,48 @@ export default function AcoesContent() {
               fontFamily: "var(--font-sans)", letterSpacing: "0.08em",
               marginBottom: "16px", textTransform: "uppercase",
             }}>
-              As mais lidas hoje
+              Mais recentes
             </p>
             <ol style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: "14px" }}>
-              {NEWS_LIDAS.map((n, i) => (
-                <li key={i} style={{ display: "flex", gap: "10px" }}>
-                  <span style={{
-                    fontSize: "18px", fontWeight: 700, color: "#C9A84C",
-                    fontFamily: "var(--font-display)",
-                    lineHeight: 1, flexShrink: 0, minWidth: "20px",
+              {news.slice(4, 7).map((n, i) => (
+                <li key={n.id}>
+                  <a href={n.link} target="_blank" rel="noopener noreferrer" style={{
+                    display: "flex", gap: "10px", textDecoration: "none",
                   }}>
-                    {i + 1}
-                  </span>
-                  <p style={{
-                    fontSize: "12px", color: "#c8b89a",
-                    fontFamily: "var(--font-sans)", lineHeight: 1.5,
-                    cursor: "pointer",
-                  }}>
-                    {n}
-                  </p>
+                    <span style={{
+                      fontSize: "18px", fontWeight: 700, color: "#C9A84C",
+                      fontFamily: "var(--font-display)",
+                      lineHeight: 1, flexShrink: 0, minWidth: "20px",
+                    }}>
+                      {i + 1}
+                    </span>
+                    <p style={{
+                      fontSize: "12px", color: "#c8b89a",
+                      fontFamily: "var(--font-sans)", lineHeight: 1.5,
+                      cursor: "pointer",
+                    }}>
+                      {n.title}
+                    </p>
+                  </a>
                 </li>
               ))}
             </ol>
-            <button style={{
-              marginTop: "16px",
-              background: "transparent", border: "none",
-              color: "#C9A84C", fontSize: "11px", fontWeight: 500,
-              fontFamily: "var(--font-sans)", cursor: "pointer",
-              padding: 0,
-              display: "flex", alignItems: "center", gap: "4px",
-            }}>
-              Ver lista completa <ChevronRight size={11} />
-            </button>
+            <a
+              href="https://www.infomoney.com.br/"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                marginTop: "16px",
+                background: "transparent", border: "none",
+                color: "#C9A84C", fontSize: "11px", fontWeight: 500,
+                fontFamily: "var(--font-sans)", cursor: "pointer",
+                padding: 0,
+                display: "flex", alignItems: "center", gap: "4px",
+                textDecoration: "none",
+              }}
+            >
+              Ver mais no InfoMoney <ChevronRight size={11} />
+            </a>
           </div>
         </div>
       </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -46,15 +46,73 @@ export default function ComunidadeContent({ userEmail, userName, userAvatar }: P
   const [topicos, setTopicos] = useState<string[]>(["acoes", "dividendos", "macroeconomia"]);
   const [algoritmo, setAlgoritmo] = useState<FeedAlgorithm>("relevance");
 
+  // Sidebar direita — dados reais (substitui hardcoded antigo)
+  const [topMovers, setTopMovers] = useState<{ symbol: string; name: string; change: number | null }[]>([]);
+  const [topInvestors, setTopInvestors] = useState<{ name: string; points: number; rank: number }[]>([]);
+
+  // Upload de imagem do composer
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [pendingImage, setPendingImage] = useState<File | null>(null);
+  const [pendingImagePreview, setPendingImagePreview] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+
   const userInitial = initialFromName(userName);
+
+  function handlePickImage() {
+    fileInputRef.current?.click();
+  }
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (!file.type.startsWith("image/")) return;
+    if (file.size > 5 * 1024 * 1024) return; // 5MB
+    setPendingImage(file);
+    const reader = new FileReader();
+    reader.onload = () => setPendingImagePreview(reader.result as string);
+    reader.readAsDataURL(file);
+  }
+
+  function clearPendingImage() {
+    setPendingImage(null);
+    setPendingImagePreview(null);
+  }
+
+  async function uploadPendingImage(): Promise<string | null> {
+    if (!pendingImage) return null;
+    setUploading(true);
+    try {
+      const ext = pendingImage.name.split(".").pop() || "jpg";
+      const path = `${userEmail}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+      const { error } = await supabase.storage
+        .from("community-uploads")
+        .upload(path, pendingImage, { upsert: false, contentType: pendingImage.type });
+      if (error) return null;
+      const { data: pub } = supabase.storage.from("community-uploads").getPublicUrl(path);
+      return pub.publicUrl;
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  const [followingEmails, setFollowingEmails] = useState<Set<string>>(new Set());
+
+  const loadFollowing = useCallback(async () => {
+    const { data } = await supabase
+      .from("user_follow")
+      .select("following_email")
+      .eq("follower_email", userEmail);
+    setFollowingEmails(new Set((data ?? []).map((r: { following_email: string }) => r.following_email)));
+  }, [supabase, userEmail]);
 
   const loadPosts = useCallback(async () => {
     const { data } = await supabase
       .from("community_post")
       .select("*")
-      .eq("moderation_status", "aprovado")
+      .neq("moderation_status", "rejeitado")
       .order("created_at", { ascending: false })
-      .limit(50);
+      .limit(80);
     const list = (data ?? []) as CommunityPost[];
     setPosts(list);
 
@@ -126,29 +184,79 @@ export default function ComunidadeContent({ userEmail, userName, userAvatar }: P
     }
   }, [supabase, userEmail]);
 
+  const loadSidebarData = useCallback(async () => {
+    // Top movers — top 3 altas do dia via /api/acoes-overview
+    try {
+      const res = await fetch("/api/acoes-overview");
+      if (res.ok) {
+        const data = (await res.json()) as { topGainers?: { symbol: string; name: string; change: number | null }[] };
+        setTopMovers((data.topGainers ?? []).slice(0, 3).map((m) => ({
+          symbol: m.symbol, name: m.name, change: m.change,
+        })));
+      }
+    } catch {}
+
+    // Top investidores — query real em user_points
+    const { data: pts } = await supabase
+      .from("user_points")
+      .select("user_email, total_points")
+      .order("total_points", { ascending: false })
+      .limit(3);
+
+    const emails = (pts ?? []).map((p: { user_email: string }) => p.user_email);
+    let nameByEmail = new Map<string, string>();
+    if (emails.length > 0) {
+      const { data: profs } = await supabase
+        .from("user_profile")
+        .select("user_email, user_name")
+        .in("user_email", emails);
+      nameByEmail = new Map(
+        (profs ?? []).map((p: { user_email: string; user_name: string | null }) =>
+          [p.user_email, p.user_name ?? p.user_email.split("@")[0]] as [string, string]
+        )
+      );
+    }
+    setTopInvestors(
+      (pts ?? []).map((p: { user_email: string; total_points: number }, i: number) => ({
+        name: nameByEmail.get(p.user_email) ?? p.user_email.split("@")[0],
+        points: p.total_points ?? 0,
+        rank: i + 1,
+      }))
+    );
+  }, [supabase]);
+
   useEffect(() => {
     loadPosts();
     loadConnections();
     loadReactions();
     loadPreferences();
     loadMyReposts();
-  }, [loadPosts, loadConnections, loadReactions, loadPreferences, loadMyReposts]);
+    loadSidebarData();
+    loadFollowing();
+  }, [loadPosts, loadConnections, loadReactions, loadPreferences, loadMyReposts, loadSidebarData, loadFollowing]);
 
   async function handlePost() {
-    if (!composerText.trim() || posting) return;
+    if ((!composerText.trim() && !pendingImage) || posting) return;
     setPosting(true);
+    let imageUrl: string | null = null;
+    if (pendingImage) {
+      imageUrl = await uploadPendingImage();
+    }
     const { error } = await supabase.from("community_post").insert({
-      content: composerText.trim(),
+      content: composerText.trim() || null,
       author_name: userName,
       author_email: userEmail,
       author_avatar: userAvatar,
       post_type: "text",
       is_premium_only: isPremium,
+      moderation_status: "aprovado",
+      images: imageUrl ? [imageUrl] : [],
     });
     setPosting(false);
     if (!error) {
       setComposerText("");
       setIsPremium(false);
+      clearPendingImage();
       loadPosts();
     }
   }
@@ -220,6 +328,7 @@ export default function ComunidadeContent({ userEmail, userName, userAvatar }: P
         post_type: "text",
         repost_of_id: targetId,
         is_premium_only: false,
+        moderation_status: "aprovado",
       });
       loadPosts();
     }
@@ -237,6 +346,7 @@ export default function ComunidadeContent({ userEmail, userName, userAvatar }: P
       post_type: "text",
       repost_of_id: targetId,
       is_premium_only: false,
+      moderation_status: "aprovado",
     });
     if (!error) {
       setQuoteTarget(null);
@@ -301,13 +411,57 @@ export default function ComunidadeContent({ userEmail, userName, userAvatar }: P
   }
 
   const filteredPosts = useMemo(() => {
-    if (!busca.trim()) return posts;
-    const b = busca.toLowerCase();
-    return posts.filter((p) =>
-      (p.content ?? "").toLowerCase().includes(b) ||
-      (p.author_name ?? "").toLowerCase().includes(b)
-    );
-  }, [posts, busca]);
+    let list = posts;
+
+    if (busca.trim()) {
+      const b = busca.toLowerCase();
+      list = list.filter((p) =>
+        (p.content ?? "").toLowerCase().includes(b) ||
+        (p.author_name ?? "").toLowerCase().includes(b)
+      );
+    }
+
+    const now = Date.now();
+    const ageHours = (p: CommunityPost) =>
+      Math.max(0.5, (now - new Date(p.created_at).getTime()) / 3_600_000);
+
+    const engagementScore = (p: CommunityPost) =>
+      (p.likes_count ?? 0) + 2 * (p.comments_count ?? 0) + 3 * (p.reposts_count ?? 0);
+
+    const topicMatch = (p: CommunityPost) => {
+      if (topicos.length === 0) return 0;
+      const tags = p.tags ?? [];
+      const hits = tags.filter((t) => topicos.includes(t)).length;
+      return hits;
+    };
+
+    const relevanceScore = (p: CommunityPost) => {
+      // Score combinado: tópicos de interesse + engajamento + recência + bônus de quem você segue
+      const topicBoost = topicMatch(p) * 25;
+      const followBoost = followingEmails.has(p.author_email ?? "") ? 30 : 0;
+      const engagement = engagementScore(p);
+      const recency = 50 / Math.sqrt(ageHours(p));
+      return topicBoost + followBoost + engagement + recency;
+    };
+
+    if (algoritmo === "engagement") {
+      list = [...list].sort((a, b) => engagementScore(b) - engagementScore(a)
+        || new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    } else if (algoritmo === "relevance") {
+      list = [...list].sort((a, b) => relevanceScore(b) - relevanceScore(a));
+    }
+    // chronological: já vem ordenado por created_at desc na query
+
+    return list;
+  }, [posts, busca, algoritmo, topicos, followingEmails]);
+
+  const feedHeading = useMemo(() => {
+    switch (algoritmo) {
+      case "engagement": return "Feed por Engajamento";
+      case "relevance":  return "Feed Personalizado";
+      default:           return "Feed Cronológico";
+    }
+  }, [algoritmo]);
 
   return (
     <div style={{ minHeight: "calc(100vh - 58px)", background: "#0a0806" }}>
@@ -412,6 +566,13 @@ export default function ComunidadeContent({ userEmail, userName, userAvatar }: P
             border: "1px solid rgba(201,168,76,0.1)",
             borderRadius: "12px", padding: "16px",
           }}>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleFileChange}
+              style={{ display: "none" }}
+            />
             <div style={{ display: "flex", gap: "10px", marginBottom: "12px" }}>
               <Avatar initial={userInitial} size={36} url={userAvatar} />
               <textarea
@@ -429,12 +590,35 @@ export default function ComunidadeContent({ userEmail, userName, userAvatar }: P
                 }}
               />
             </div>
+            {pendingImagePreview && (
+              <div style={{
+                position: "relative", marginBottom: "12px",
+                borderRadius: "10px", overflow: "hidden",
+                border: "1px solid rgba(201,168,76,0.1)",
+                maxHeight: "300px",
+              }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={pendingImagePreview} alt="" style={{ width: "100%", display: "block", maxHeight: "300px", objectFit: "cover" }} />
+                <button
+                  onClick={clearPendingImage}
+                  aria-label="Remover imagem"
+                  style={{
+                    position: "absolute", top: "8px", right: "8px",
+                    width: "28px", height: "28px", borderRadius: "50%",
+                    background: "rgba(0,0,0,0.7)", border: "none", cursor: "pointer",
+                    color: "#fff", display: "flex", alignItems: "center", justifyContent: "center",
+                  }}
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            )}
             <div style={{
               display: "flex", justifyContent: "space-between", alignItems: "center",
               paddingTop: "10px", borderTop: "1px solid rgba(201,168,76,0.06)",
             }}>
               <div style={{ display: "flex", gap: "6px" }}>
-                <ComposerIconBtn icon={<ImageIcon size={14} />} label="Imagem" />
+                <ComposerIconBtn icon={<ImageIcon size={14} />} label="Imagem" onClick={handlePickImage} />
                 <button
                   onClick={() => setIsPremium((v) => !v)}
                   style={{
@@ -455,23 +639,23 @@ export default function ComunidadeContent({ userEmail, userName, userAvatar }: P
               </div>
               <button
                 onClick={handlePost}
-                disabled={!composerText.trim() || posting}
+                disabled={(!composerText.trim() && !pendingImage) || posting || uploading}
                 style={{
-                  background: composerText.trim() && !posting
+                  background: (composerText.trim() || pendingImage) && !posting && !uploading
                     ? "linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)"
                     : "rgba(139,92,246,0.2)",
                   border: "none", borderRadius: "8px",
                   padding: "8px 18px",
-                  color: composerText.trim() && !posting ? "#fff" : "#7a6a8a",
+                  color: (composerText.trim() || pendingImage) && !posting && !uploading ? "#fff" : "#7a6a8a",
                   fontSize: "12px", fontWeight: 600,
                   fontFamily: "var(--font-sans)",
-                  cursor: composerText.trim() && !posting ? "pointer" : "not-allowed",
+                  cursor: (composerText.trim() || pendingImage) && !posting && !uploading ? "pointer" : "not-allowed",
                   letterSpacing: "0.04em",
-                  boxShadow: composerText.trim() && !posting ? "0 2px 12px rgba(139,92,246,0.3)" : "none",
+                  boxShadow: (composerText.trim() || pendingImage) && !posting && !uploading ? "0 2px 12px rgba(139,92,246,0.3)" : "none",
                   transition: "box-shadow 0.15s",
                 }}
               >
-                {posting ? "..." : "Postar"}
+                {posting || uploading ? "..." : "Postar"}
               </button>
             </div>
           </div>
@@ -479,7 +663,7 @@ export default function ComunidadeContent({ userEmail, userName, userAvatar }: P
           {/* Feed header */}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "4px 4px" }}>
             <h2 style={{ fontSize: "14px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-display)" }}>
-              Feed Cronológico
+              {feedHeading}
             </h2>
             <button
               onClick={loadPosts}
@@ -535,25 +719,32 @@ export default function ComunidadeContent({ userEmail, userName, userAvatar }: P
 
         {/* ─── RIGHT SIDEBAR ─── */}
         <aside style={{ display: "flex", flexDirection: "column", gap: "12px", position: "sticky", top: "78px" }}>
-          <RightCard title="Notícias do mercado" icon={<Newspaper size={13} />}>
-            <RightItem
-              label="Banco do Brasil registra lucro de R$ 9,6 bi"
-              meta="BBAS3 · há 2h"
-            />
-            <RightItem
-              label="Selic mantida em 10,75%, sinaliza Copom"
-              meta="Macro · há 5h"
-            />
-            <RightItem
-              label="Petrobras anuncia novos dividendos extraordinários"
-              meta="PETR4 · há 1d"
-            />
+          <RightCard title="Maiores altas hoje" icon={<Newspaper size={13} />}>
+            {topMovers.length === 0 ? (
+              <p style={{ fontSize: "11px", color: "#7a6a4a", fontFamily: "var(--font-sans)" }}>
+                Carregando dados do mercado...
+              </p>
+            ) : (
+              topMovers.map((m) => (
+                <RightItem
+                  key={m.symbol}
+                  label={m.name}
+                  meta={`${m.symbol} · ${m.change !== null ? (m.change > 0 ? "+" : "") + m.change.toFixed(2) + "%" : "—"}`}
+                />
+              ))
+            )}
           </RightCard>
 
           <RightCard title="Top investidores" icon={<TrendingUp size={13} />}>
-            <TopInvestor name="Investidor 1" returnPct={28.4} rank={1} />
-            <TopInvestor name="Investidor 2" returnPct={19.7} rank={2} />
-            <TopInvestor name="Investidor 3" returnPct={14.2} rank={3} />
+            {topInvestors.length === 0 ? (
+              <p style={{ fontSize: "11px", color: "#7a6a4a", fontFamily: "var(--font-sans)" }}>
+                Sem ranking ainda.
+              </p>
+            ) : (
+              topInvestors.map((inv) => (
+                <TopInvestor key={inv.rank} name={inv.name} points={inv.points} rank={inv.rank} />
+              ))
+            )}
           </RightCard>
         </aside>
       </div>
@@ -1380,10 +1571,11 @@ function SidebarItem({ icon, label, onClick }: { icon: React.ReactNode; label: s
   );
 }
 
-function ComposerIconBtn({ icon, label }: { icon: React.ReactNode; label: string }) {
+function ComposerIconBtn({ icon, label, onClick }: { icon: React.ReactNode; label: string; onClick?: () => void }) {
   return (
     <button
       aria-label={label}
+      onClick={onClick}
       style={{
         display: "flex", alignItems: "center", gap: "5px",
         padding: "5px 10px", borderRadius: "6px",
@@ -1495,17 +1687,17 @@ function RightItem({ label, meta }: { label: string; meta: string }) {
   );
 }
 
-function TopInvestor({ name, returnPct, rank }: { name: string; returnPct: number; rank: number }) {
+function TopInvestor({ name, points, rank }: { name: string; points: number; rank: number }) {
   const medal = rank === 1 ? "🥇" : rank === 2 ? "🥈" : "🥉";
   return (
     <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
       <span style={{ fontSize: "16px" }}>{medal}</span>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <p style={{ fontSize: "12px", color: "#e8dcc0", fontFamily: "var(--font-sans)", marginBottom: "2px" }}>
+        <p style={{ fontSize: "12px", color: "#e8dcc0", fontFamily: "var(--font-sans)", marginBottom: "2px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           {name}
         </p>
-        <p style={{ fontSize: "10px", color: "#10b981", fontFamily: "var(--font-sans)", fontWeight: 600 }}>
-          +{returnPct.toFixed(1)}%
+        <p style={{ fontSize: "10px", color: "#C9A84C", fontFamily: "var(--font-sans)", fontWeight: 600 }}>
+          {points.toLocaleString("pt-BR")} XP
         </p>
       </div>
     </div>

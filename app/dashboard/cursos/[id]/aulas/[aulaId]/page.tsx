@@ -25,5 +25,25 @@ export default async function AulaPage({ params }: Props) {
   const data = getAula(id, aulaId);
   if (!data) notFound();
 
-  return <AulaContent curso={data.curso} moduloAtualId={data.modulo.id} aulaAtualId={data.aula.id} />;
+  // Verifica matrícula — se não matriculado, redireciona pra página do curso
+  const { data: enroll } = await supabase
+    .from("user_enrollment")
+    .select("completed_lessons")
+    .eq("user_email", user.email!)
+    .eq("course_id", data.curso.dbId)
+    .maybeSingle();
+
+  if (!enroll) {
+    redirect(`/dashboard/cursos/${id}`);
+  }
+
+  return (
+    <AulaContent
+      curso={data.curso}
+      moduloAtualId={data.modulo.id}
+      aulaAtualId={data.aula.id}
+      userEmail={user.email!}
+      initialCompletedLessons={(enroll.completed_lessons as string[] | null) ?? []}
+    />
+  );
 }

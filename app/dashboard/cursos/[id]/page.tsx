@@ -25,5 +25,28 @@ export default async function CursoPage({ params }: Props) {
   const curso = getCurso(id);
   if (!curso) notFound();
 
-  return <CursoDetalheContent curso={curso} />;
+  // Carrega matrícula do usuário (server-side) para hidratar a UI sem flicker
+  const { data: enroll } = await supabase
+    .from("user_enrollment")
+    .select("progress, completed_lessons, started_at, completed_at")
+    .eq("user_email", user.email!)
+    .eq("course_id", curso.dbId)
+    .maybeSingle();
+
+  return (
+    <CursoDetalheContent
+      curso={curso}
+      userEmail={user.email!}
+      initialEnrollment={
+        enroll
+          ? {
+              progress: (enroll.progress as number | null) ?? 0,
+              completed_lessons: (enroll.completed_lessons as string[] | null) ?? [],
+              started_at: (enroll.started_at as string | null) ?? null,
+              completed_at: (enroll.completed_at as string | null) ?? null,
+            }
+          : null
+      }
+    />
+  );
 }

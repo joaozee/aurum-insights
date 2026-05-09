@@ -1352,6 +1352,11 @@ export default function CarteiraContent({ userEmail }: Props) {
           </div>
         </div>
 
+        {/* Sticky in-page nav */}
+        {!loading && (
+          <CarteiraStickyNav />
+        )}
+
         {loading ? (
           <div style={{ textAlign: "center", padding: "80px 0", color: "#7a6a4a", fontFamily: "var(--font-sans)", fontSize: "13px" }}>
             Carregando carteira...
@@ -1380,7 +1385,7 @@ export default function CarteiraContent({ userEmail }: Props) {
             </div>
 
             {/* ── Evolution Chart ── */}
-            <div style={{ ...card, marginBottom: "20px" }}>
+            <div id="evolucao" style={{ ...card, marginBottom: "20px", scrollMarginTop: "120px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
                 <div>
                   <p style={{ fontSize: "15px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-display)", marginBottom: "3px" }}>Evolução do Patrimônio</p>
@@ -1412,7 +1417,7 @@ export default function CarteiraContent({ userEmail }: Props) {
             </div>
 
             {/* ── KPIs ── */}
-            <div style={{ ...card, marginBottom: "20px" }}>
+            <div id="kpis" style={{ ...card, marginBottom: "20px", scrollMarginTop: "120px" }}>
               <p style={{ fontSize: "15px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-display)", marginBottom: "16px" }}>KPIs Financeiros</p>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "12px" }}>
                 {kpis.map(({ label, value, sub, color, icon: Icon }) => {
@@ -1459,7 +1464,7 @@ export default function CarteiraContent({ userEmail }: Props) {
             </div>
 
             {/* ── Distribution ── */}
-            <div style={{ ...card, marginBottom: "20px" }}>
+            <div id="distribuicao" style={{ ...card, marginBottom: "20px", scrollMarginTop: "120px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "20px", gap: "16px" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                   <div style={{
@@ -1543,10 +1548,10 @@ export default function CarteiraContent({ userEmail }: Props) {
             </div>
 
             {/* ── Meus Ativos ── */}
-            <div style={{ marginBottom: "24px" }}>
+            <div id="ativos" style={{ marginBottom: "24px", scrollMarginTop: "120px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
                 <p style={{ fontSize: "16px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-display)" }}>Meus Ativos</p>
-                <span style={{ fontSize: "12px", color: "#7a6a4a", fontFamily: "var(--font-sans)" }}>{effectiveAssets.length} posições</span>
+                <span style={{ fontSize: "12px", color: "#7a6a4a", fontFamily: "var(--font-sans)" }}>{effectiveAssets.length} {effectiveAssets.length === 1 ? "posição" : "posições"}</span>
               </div>
 
               {effectiveAssets.length === 0 ? (
@@ -1865,7 +1870,7 @@ export default function CarteiraContent({ userEmail }: Props) {
             </div>
 
             {/* ── Otimização IA ── */}
-            <div style={{ background: "linear-gradient(135deg, #0f0a1e 0%, #0d0a16 50%, #0a0d1a 100%)", border: "1px solid rgba(139,92,246,0.2)", borderRadius: "16px", padding: "28px 32px" }}>
+            <div id="ia" style={{ background: "linear-gradient(135deg, #0f0a1e 0%, #0d0a16 50%, #0a0d1a 100%)", border: "1px solid rgba(139,92,246,0.2)", borderRadius: "16px", padding: "28px 32px", scrollMarginTop: "120px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                   <div style={{ width: "32px", height: "32px", borderRadius: "8px", background: "rgba(139,92,246,0.15)", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -2161,5 +2166,65 @@ export default function CarteiraContent({ userEmail }: Props) {
         </div>
       )}
     </div>
+  );
+}
+
+function CarteiraStickyNav() {
+  const sections: { id: string; label: string }[] = [
+    { id: "evolucao",     label: "Evolução" },
+    { id: "kpis",         label: "KPIs" },
+    { id: "distribuicao", label: "Distribuição" },
+    { id: "ativos",       label: "Ativos" },
+    { id: "ia",           label: "IA" },
+  ];
+  return (
+    <nav
+      aria-label="Seções da carteira"
+      style={{
+        position: "sticky",
+        top: "58px",
+        zIndex: 30,
+        marginBottom: "16px",
+        background: "rgba(10,8,6,0.92)",
+        backdropFilter: "blur(8px)",
+        WebkitBackdropFilter: "blur(8px)",
+        borderTop: "1px solid rgba(201,168,76,0.06)",
+        borderBottom: "1px solid rgba(201,168,76,0.08)",
+        padding: "10px 0",
+      }}
+    >
+      <div style={{ display: "flex", gap: "6px", overflowX: "auto", flexWrap: "wrap" }}>
+        {sections.map((s) => (
+          <a
+            key={s.id}
+            href={`#${s.id}`}
+            style={{
+              fontSize: "11px",
+              fontWeight: 500,
+              fontFamily: "var(--font-sans)",
+              color: "#9a8a6a",
+              padding: "5px 12px",
+              borderRadius: "20px",
+              border: "1px solid rgba(201,168,76,0.12)",
+              textDecoration: "none",
+              whiteSpace: "nowrap",
+              transition: "all 0.15s",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = "rgba(201,168,76,0.08)";
+              e.currentTarget.style.color = "#C9A84C";
+              e.currentTarget.style.borderColor = "rgba(201,168,76,0.3)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "transparent";
+              e.currentTarget.style.color = "#9a8a6a";
+              e.currentTarget.style.borderColor = "rgba(201,168,76,0.12)";
+            }}
+          >
+            {s.label}
+          </a>
+        ))}
+      </div>
+    </nav>
   );
 }

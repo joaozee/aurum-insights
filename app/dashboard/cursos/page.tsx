@@ -12,5 +12,5 @@ export default async function CursosPage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  return <CursosContent />;
+  return <CursosContent userEmail={user.email!} />;
 }

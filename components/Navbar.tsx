@@ -10,9 +10,9 @@ import {
   Users,
   TrendingUp,
   Settings,
-  Bell,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import NotificationsBell from "./NotificationsBell";
 
 const NAV_ITEMS = [
   { label: "Início", href: "/dashboard", icon: Home },
@@ -27,9 +27,10 @@ interface NavbarProps {
   userName: string;
   userInitial: string;
   userAvatar?: string | null;
+  userEmail: string;
 }
 
-export default function Navbar({ userName, userInitial, userAvatar }: NavbarProps) {
+export default function Navbar({ userName, userInitial, userAvatar, userEmail }: NavbarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -171,7 +172,7 @@ export default function Navbar({ userName, userInitial, userAvatar }: NavbarProp
         {/* Right icons */}
         <div style={{ display: "flex", alignItems: "center", gap: "6px", flexShrink: 0 }}>
           <NavIconBtn label="Configurações"><Settings size={16} /></NavIconBtn>
-          <NavIconBtn label="Notificações"><Bell size={16} /></NavIconBtn>
+          <NotificationsBell userEmail={userEmail} />
 
           {/* Avatar + Dropdown */}
           <div style={{ position: "relative" }} ref={menuRef}>
