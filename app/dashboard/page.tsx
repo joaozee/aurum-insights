@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import HomeContent from "./HomeContent";
+import HomeContent, { type AssetBreakdown } from "./HomeContent";
 import type { Metadata } from "next";
 import type { MarketItem } from "@/app/api/market/route";
 
@@ -27,23 +27,34 @@ function formatPrice(symbol: string, price: number): string {
   return price.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+interface BrapiHistoricalPoint {
+  date: number;
+  close: number;
+}
+
 async function getMarketData(): Promise<MarketItem[]> {
   const BASE = "https://brapi.dev/api";
   const headers = brapiHeaders();
 
   try {
-    // Busca IBOV, S&P 500 e Dólar num único request — todos em tempo real
+    // Busca IBOV, S&P 500 e Dólar com spark intraday (range=1d, interval=1h)
+    // num único request, pra alimentar as mini sparklines do Home.
     const res = await fetch(
-      `${BASE}/quote/%5EBVSP,%5EGSPC,USDBRL=X`,
+      `${BASE}/quote/%5EBVSP,%5EGSPC,USDBRL=X?range=1d&interval=1h`,
       { headers, next: { revalidate: 300 } }
     );
     const data = await res.json();
     const pcts: Record<string, number> = {};
     const prices: Record<string, number> = {};
+    const sparks: Record<string, number[]> = {};
 
     for (const r of data?.results ?? []) {
       pcts[r.symbol] = r.regularMarketChangePercent ?? 0;
       prices[r.symbol] = r.regularMarketPrice ?? 0;
+      const hist: BrapiHistoricalPoint[] = r.historicalDataPrice ?? [];
+      sparks[r.symbol] = hist
+        .map((h) => h.close)
+        .filter((v) => Number.isFinite(v));
     }
 
     const map: { label: string; symbol: string }[] = [
@@ -61,13 +72,14 @@ async function getMarketData(): Promise<MarketItem[]> {
         value: `${pct >= 0 ? "+" : ""}${pct.toFixed(2)}%`,
         price: formatPrice(symbol, price),
         positive: pct >= 0,
+        spark: sparks[symbol] ?? [],
       };
     });
   } catch {
     return [
-      { label: "IBOV", value: "--", price: "--", raw: 0, positive: true },
-      { label: "S&P 500", value: "--", price: "--", raw: 0, positive: true },
-      { label: "Dólar", value: "--", price: "--", raw: 0, positive: false },
+      { label: "IBOV", value: "--", price: "--", raw: 0, positive: true, spark: [] },
+      { label: "S&P 500", value: "--", price: "--", raw: 0, positive: true, spark: [] },
+      { label: "Dólar", value: "--", price: "--", raw: 0, positive: false, spark: [] },
     ];
   }
 }
@@ -98,11 +110,22 @@ export default async function DashboardPage() {
   const lastDay  = new Date(today.getFullYear(), today.getMonth() + 1, 0).toISOString().split("T")[0];
 
   const [assetsRes, txRes] = await Promise.all([
-    supabase.from("asset").select("id", { count: "exact", head: true }).eq("user_email", userEmail),
+    // Pega o tipo de cada ativo do user pra montar o breakdown por classe.
+    supabase.from("asset").select("type").eq("user_email", userEmail),
     supabase.from("finance_transaction").select("type, amount").eq("user_email", userEmail).gte("transaction_date", firstDay).lte("transaction_date", lastDay),
   ]);
 
-  const assetCount = assetsRes.count ?? 0;
+  // Aggregate asset count by class. The 'asset' table uses the same constants
+  // as Carteira ("acoes" | "fiis" | "renda_fixa" | "cripto" | "fundos" legacy).
+  const breakdown: AssetBreakdown = { acoes: 0, fiis: 0, renda_fixa: 0, cripto: 0, fundos: 0, total: 0 };
+  for (const a of (assetsRes.data ?? []) as { type: string }[]) {
+    const k = a.type as keyof AssetBreakdown;
+    if (k in breakdown && k !== "total") {
+      breakdown[k] = (breakdown[k] as number) + 1;
+    }
+    breakdown.total += 1;
+  }
+
   let monthIncome = 0, monthExpense = 0;
   for (const t of (txRes.data ?? []) as { type: string; amount: number }[]) {
     if (t.type === "entrada") monthIncome += Number(t.amount);
@@ -114,7 +137,8 @@ export default async function DashboardPage() {
     <HomeContent
       firstName={firstName}
       marketData={marketData}
-      quickStats={{ assetCount, monthBalance }}
+      quickStats={{ assetCount: breakdown.total, monthBalance }}
+      assetBreakdown={breakdown}
     />
   );
 }

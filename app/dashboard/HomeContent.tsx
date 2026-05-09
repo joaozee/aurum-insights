@@ -7,10 +7,19 @@ import {
   Heart,
   MessageCircle,
   Repeat2,
+  TrendingUp,
+  TrendingDown,
+  Wallet,
+  BookOpen,
+  Users,
+  Plus,
+  ArrowRight,
 } from "lucide-react";
 import type { MarketItem } from "@/app/api/market/route";
 import { createClient } from "@/lib/supabase/client";
 import { formatRelativeTime, initialFromName } from "@/lib/comunidade";
+import { CHART_PALETTE } from "@/lib/aurum-colors";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -28,6 +37,15 @@ interface HomePost {
   reposts_count: number;
 }
 
+export interface AssetBreakdown {
+  acoes: number;
+  fiis: number;
+  renda_fixa: number;
+  cripto: number;
+  fundos: number;
+  total: number;
+}
+
 interface HomeContentProps {
   firstName: string;
   marketData: MarketItem[];
@@ -35,6 +53,7 @@ interface HomeContentProps {
     assetCount: number;
     monthBalance: number;
   };
+  assetBreakdown?: AssetBreakdown;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -56,8 +75,6 @@ function capitalize(str: string) {
   return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
 }
 
-// Builds the contextual hero statement: prioritises month balance > assets >
-// market summary > onboarding. Never templated; the answer changes with data.
 function buildStatement(
   stats: { assetCount: number; monthBalance: number },
   marketData: MarketItem[],
@@ -67,19 +84,16 @@ function buildStatement(
   if (stats.assetCount === 0 && stats.monthBalance === 0) {
     return "Bom momento pra começar. Cadastre seu primeiro ativo ou registre uma despesa do mês.";
   }
-
   if (stats.monthBalance > 0) {
     return `Mês positivo: ${fmtBRLSigned(stats.monthBalance)} no saldo. Boa hora pra revisar a alocação.`;
   }
   if (stats.monthBalance < 0) {
     return `Mês fechando em ${fmtBRL(stats.monthBalance)}. Bom momento pra olhar os gastos.`;
   }
-
   if (stats.assetCount > 0 && ibov) {
     const dir = ibov.positive ? "em alta" : "em baixa";
     return `${stats.assetCount} ${stats.assetCount === 1 ? "ativo" : "ativos"} acompanhados. Mercado ${dir} hoje.`;
   }
-
   return "Acompanhe sua jornada de patrimônio com método.";
 }
 
@@ -95,11 +109,33 @@ function resolveAvatar(
   return fallback ?? null;
 }
 
+const CLASS_LABELS: Record<keyof Omit<AssetBreakdown, "total">, string> = {
+  acoes: "Ações",
+  fiis: "FIIs",
+  renda_fixa: "Renda Fixa",
+  cripto: "Cripto",
+  fundos: "Fundos",
+};
+
+const CLASS_COLORS: Record<keyof Omit<AssetBreakdown, "total">, string> = {
+  acoes: CHART_PALETTE[5],      // slate blue
+  fiis: CHART_PALETTE[2],       // terracotta
+  renda_fixa: CHART_PALETTE[7], // olive
+  cripto: CHART_PALETTE[0],     // gold
+  fundos: CHART_PALETTE[4],     // mauve
+};
+
 // ─── Component ───────────────────────────────────────────────────────────────
 
-export default function HomeContent({ firstName, marketData, quickStats }: HomeContentProps) {
+export default function HomeContent({
+  firstName,
+  marketData,
+  quickStats,
+  assetBreakdown,
+}: HomeContentProps) {
   const router = useRouter();
   const stats = quickStats ?? { assetCount: 0, monthBalance: 0 };
+  const breakdown = assetBreakdown ?? { acoes: 0, fiis: 0, renda_fixa: 0, cripto: 0, fundos: 0, total: 0 };
   const supabase = useMemo(() => createClient(), []);
 
   const [posts, setPosts] = useState<HomePost[]>([]);
@@ -161,35 +197,59 @@ export default function HomeContent({ firstName, marketData, quickStats }: HomeC
 
   return (
     <div className="bg-background min-h-[calc(100vh-58px)]">
-      <div className="mx-auto max-w-[960px] px-6 pt-12 pb-20 sm:pt-16">
+      <div className="mx-auto max-w-[1080px] px-6 pt-10 pb-20 sm:pt-14">
         {/* ─── Hero ──────────────────────────────────────────────────── */}
-        <header className="mb-12 sm:mb-14">
+        <header className="mb-10">
           <Eyebrow>{getGreeting()}</Eyebrow>
-          <h1 className="mt-4 font-display font-bold tracking-[-0.02em] leading-[1.05] text-[var(--text-strong)] text-[clamp(36px,4.5vw,52px)]">
+          <h1 className="mt-3 font-display font-bold tracking-[-0.02em] leading-[1.05] text-[var(--text-strong)] text-[clamp(36px,4.5vw,52px)]">
             {getGreeting()},{" "}
             <span className="text-primary">{capitalize(firstName)}</span>
           </h1>
-          <p className="mt-5 max-w-[560px] text-[15px] sm:text-[17px] leading-[1.6] text-[var(--text-body)]">
+          <p className="mt-4 max-w-[560px] text-[15px] sm:text-[17px] leading-[1.6] text-[var(--text-body)]">
             {statement}
           </p>
-          <MarketStrip data={marketData} />
         </header>
 
-        {/* ─── Dashboard list (replaces 4-card Quick Access grid) ────── */}
-        <section className="border-t border-[var(--border-faint)]">
-          <DashboardRow
-            href="/dashboard/carteira"
+        {/* ─── Mercado strip ──────────────────────────────────────────── */}
+        <section className="mb-10">
+          <SectionHeader
+            label="Mercado agora"
+            cta="Análise completa"
+            onClick={() => router.push("/dashboard/acoes")}
+          />
+          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+            {marketData.map((item) => (
+              <MarketCard key={item.label} item={item} />
+            ))}
+          </div>
+        </section>
+
+        {/* ─── Carteira widget ────────────────────────────────────────── */}
+        <section className="mb-10">
+          <SectionHeader
             label="Sua carteira"
-            stat={
-              stats.assetCount > 0
-                ? `${stats.assetCount} ${stats.assetCount === 1 ? "ativo" : "ativos"}`
-                : "Vazia"
-            }
-            hint={stats.assetCount === 0 ? "Comece registrando" : undefined}
+            cta="Ver detalhes"
             onClick={() => router.push("/dashboard/carteira")}
           />
+          <div className="mt-4">
+            {breakdown.total === 0 ? (
+              <CarteiraEmpty
+                onClick={() => router.push("/dashboard/carteira")}
+              />
+            ) : (
+              <CarteiraOverview
+                breakdown={breakdown}
+                onClick={() => router.push("/dashboard/carteira")}
+              />
+            )}
+          </div>
+        </section>
+
+        {/* ─── Painel: 3 quick links ──────────────────────────────────── */}
+        <section className="mb-12 border-t border-[var(--border-faint)]">
           <DashboardRow
             href="/dashboard/financas"
+            icon={Wallet}
             label="Suas finanças"
             stat={
               stats.monthBalance !== 0
@@ -208,6 +268,7 @@ export default function HomeContent({ firstName, marketData, quickStats }: HomeC
           />
           <DashboardRow
             href="/dashboard/cursos"
+            icon={BookOpen}
             label="Cursos"
             stat="Continue aprendendo"
             hint="Renda Fixa, Análise Fundamentalista, FIIs"
@@ -215,6 +276,7 @@ export default function HomeContent({ firstName, marketData, quickStats }: HomeC
           />
           <DashboardRow
             href="/dashboard/comunidade"
+            icon={Users}
             label="Comunidade"
             stat={
               postsThisWeek > 0
@@ -226,22 +288,21 @@ export default function HomeContent({ firstName, marketData, quickStats }: HomeC
         </section>
 
         {/* ─── Comunidade em destaque ─────────────────────────────────── */}
-        <section className="mt-16">
+        <section className="mb-14">
           <SectionHeader
             label="Comunidade em destaque"
             cta="Ver todos"
             onClick={() => router.push("/dashboard/comunidade")}
           />
-
           {posts.length === 0 ? (
             <button
               onClick={() => router.push("/dashboard/comunidade")}
-              className="mt-5 w-full rounded-[10px] border border-[var(--border-faint)] bg-card px-6 py-9 text-center text-[13px] text-muted-foreground transition-colors hover:border-[var(--border-soft)] hover:bg-[var(--bg-card-hover)]"
+              className="mt-4 w-full rounded-[10px] border border-[var(--border-faint)] bg-card px-6 py-9 text-center text-[13px] text-muted-foreground transition-colors hover:border-[var(--border-soft)] hover:bg-[var(--bg-card-hover)]"
             >
               Ainda não há posts. Seja o primeiro a compartilhar.
             </button>
           ) : (
-            <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
               {posts.map((p) => (
                 <PostPreview
                   key={p.id}
@@ -255,7 +316,7 @@ export default function HomeContent({ firstName, marketData, quickStats }: HomeC
         </section>
 
         {/* ─── Footer link to Sobre ──────────────────────────────────── */}
-        <footer className="mt-16 border-t border-[var(--border-faint)] pt-8 text-center">
+        <footer className="border-t border-[var(--border-faint)] pt-8 text-center">
           <button
             onClick={() => router.push("/dashboard/sobre")}
             className="inline-flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground transition-colors hover:text-primary"
@@ -279,48 +340,256 @@ function Eyebrow({ children }: { children: React.ReactNode }) {
   );
 }
 
-// Inline market strip below the hero statement. Not a sidebar card; a quiet
-// data line. Tabular-nums so percentages align across rows.
-function MarketStrip({ data }: { data: MarketItem[] }) {
-  if (data.length === 0) return null;
+function SectionHeader({
+  label,
+  cta,
+  onClick,
+}: {
+  label: string;
+  cta?: string;
+  onClick?: () => void;
+}) {
   return (
-    <div className="mt-7 flex flex-wrap items-baseline gap-x-5 gap-y-2 text-[12px] sm:text-[13px] tabular-nums">
-      {data.map((item, i) => (
-        <span key={item.label} className="flex items-baseline gap-1.5">
-          {i > 0 && (
-            <span aria-hidden className="text-[var(--text-faint)] mr-3">·</span>
-          )}
-          <span className="text-muted-foreground font-medium">{item.label}</span>
-          <span
-            className={cn(
-              "font-semibold",
-              item.positive ? "text-[var(--positive)]" : "text-[var(--negative)]",
-            )}
-          >
-            {item.value}
-          </span>
-        </span>
-      ))}
+    <div className="flex items-baseline justify-between">
+      <h2 className="font-display text-[18px] sm:text-[20px] font-semibold tracking-[-0.01em] text-[var(--text-default)]">
+        {label}
+      </h2>
+      {cta && onClick && (
+        <button
+          onClick={onClick}
+          className="inline-flex items-center gap-1 text-[12px] text-primary transition-colors hover:text-[var(--gold-light)]"
+        >
+          {cta}
+          <ChevronRight className="size-3" />
+        </button>
+      )}
     </div>
   );
 }
 
-// One row of the dashboard list. NOT a card. Three columns: label+hint, stat,
-// chevron. Border-bottom only; the section's border-top creates the frame.
+// ─── Mercado card with sparkline ─────────────────────────────────────────────
+
+function MarketCard({ item }: { item: MarketItem }) {
+  const tone = item.positive ? "positive" : "negative";
+  const lineColor = item.positive ? "var(--positive)" : "var(--negative)";
+
+  return (
+    <div className="group relative overflow-hidden rounded-[10px] border border-[var(--border-faint)] bg-card p-4 transition-colors hover:border-[var(--border-soft)]">
+      <div className="flex items-baseline justify-between mb-1.5">
+        <span className="text-[11px] uppercase tracking-[0.12em] font-medium text-muted-foreground">
+          {item.label}
+        </span>
+        <span
+          className={cn(
+            "inline-flex items-center gap-1 text-[12px] font-semibold tabular-nums",
+            tone === "positive"
+              ? "text-[var(--positive)]"
+              : "text-[var(--negative)]",
+          )}
+        >
+          {item.positive ? (
+            <TrendingUp className="size-3" />
+          ) : (
+            <TrendingDown className="size-3" />
+          )}
+          {item.value}
+        </span>
+      </div>
+      <div className="mb-3 flex items-baseline">
+        <span className="font-display text-[22px] font-bold tracking-[-0.01em] tabular-nums text-[var(--text-default)]">
+          {item.price}
+        </span>
+      </div>
+      <Sparkline values={item.spark} color={lineColor} />
+    </div>
+  );
+}
+
+// Inline SVG sparkline. Renders 1d intraday close samples as a smooth path with
+// a faint area fill underneath. Returns null when there's not enough data.
+function Sparkline({
+  values,
+  color,
+  height = 36,
+}: {
+  values: number[];
+  color: string;
+  height?: number;
+}) {
+  if (!values || values.length < 2) {
+    return <div className="h-9 w-full" aria-hidden />;
+  }
+  const w = 200;
+  const h = height;
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const range = max - min || 1;
+  const step = w / (values.length - 1);
+  const pts = values.map((v, i) => {
+    const x = i * step;
+    const y = h - ((v - min) / range) * h;
+    return [x, y] as const;
+  });
+
+  // Build a smooth polyline path using cardinal-like interpolation (cheap).
+  const linePath = pts
+    .map(([x, y], i) => (i === 0 ? `M ${x.toFixed(1)} ${y.toFixed(1)}` : `L ${x.toFixed(1)} ${y.toFixed(1)}`))
+    .join(" ");
+  const areaPath = `${linePath} L ${w} ${h} L 0 ${h} Z`;
+
+  const gradId = `spark-${Math.abs(values.length * (values[0] || 1)).toFixed(0)}-${color.replace(/[^a-z]/gi, "")}`;
+
+  return (
+    <svg
+      viewBox={`0 0 ${w} ${h}`}
+      preserveAspectRatio="none"
+      width="100%"
+      height={h}
+      className="block"
+      aria-hidden
+    >
+      <defs>
+        <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity="0.18" />
+          <stop offset="100%" stopColor={color} stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <path d={areaPath} fill={`url(#${gradId})`} />
+      <path
+        d={linePath}
+        fill="none"
+        stroke={color}
+        strokeWidth={1.5}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+// ─── Carteira widget ─────────────────────────────────────────────────────────
+
+function CarteiraOverview({
+  breakdown,
+  onClick,
+}: {
+  breakdown: AssetBreakdown;
+  onClick: () => void;
+}) {
+  const classes = (Object.keys(CLASS_LABELS) as (keyof typeof CLASS_LABELS)[])
+    .map((k) => ({
+      key: k,
+      label: CLASS_LABELS[k],
+      count: breakdown[k] as number,
+      color: CLASS_COLORS[k],
+    }))
+    .filter((c) => c.count > 0);
+
+  return (
+    <button
+      onClick={onClick}
+      className="group block w-full rounded-[14px] border border-[var(--border-faint)] bg-card p-6 text-left transition-colors hover:border-[var(--border-soft)] sm:p-7"
+    >
+      <div className="grid grid-cols-1 gap-7 sm:grid-cols-[1fr_auto] sm:items-end">
+        {/* Left: count + breakdown */}
+        <div>
+          <p className="text-[11px] uppercase tracking-[0.12em] font-medium text-muted-foreground">
+            Acompanhando
+          </p>
+          <div className="mt-1.5 flex items-baseline gap-2">
+            <span className="font-display text-[40px] font-bold leading-none tracking-[-0.02em] tabular-nums text-[var(--text-strong)]">
+              {breakdown.total}
+            </span>
+            <span className="text-[14px] text-muted-foreground">
+              {breakdown.total === 1 ? "ativo" : "ativos"}
+            </span>
+          </div>
+
+          {/* Stacked allocation bar */}
+          <div className="mt-5 flex h-2 overflow-hidden rounded-full bg-[var(--bg-input)]">
+            {classes.map((c) => (
+              <div
+                key={c.key}
+                style={{
+                  width: `${(c.count / breakdown.total) * 100}%`,
+                  background: c.color,
+                }}
+                aria-label={`${c.label}: ${c.count}`}
+              />
+            ))}
+          </div>
+
+          {/* Legend */}
+          <ul className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-[12px]">
+            {classes.map((c) => (
+              <li key={c.key} className="flex items-center gap-2">
+                <span
+                  className="inline-block size-2 rounded-full"
+                  style={{ background: c.color }}
+                />
+                <span className="text-[var(--text-body)]">
+                  {c.label}{" "}
+                  <span className="text-[var(--text-faint)] tabular-nums">
+                    {c.count}
+                  </span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        {/* Right: arrow */}
+        <div className="flex shrink-0 items-center justify-end gap-2 text-[13px] text-muted-foreground transition-colors group-hover:text-primary">
+          Ver carteira
+          <ArrowRight className="size-4" />
+        </div>
+      </div>
+    </button>
+  );
+}
+
+function CarteiraEmpty({ onClick }: { onClick: () => void }) {
+  return (
+    <div className="rounded-[14px] border border-[var(--border-faint)] bg-card p-7 sm:p-8">
+      <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="max-w-[440px]">
+          <p className="text-[11px] uppercase tracking-[0.12em] font-medium text-muted-foreground">
+            Vazia
+          </p>
+          <h3 className="mt-2 font-display text-[22px] sm:text-[26px] font-semibold tracking-[-0.01em] text-[var(--text-strong)]">
+            Comece pelo primeiro ativo
+          </h3>
+          <p className="mt-2 text-[13px] sm:text-[14px] leading-[1.6] text-muted-foreground">
+            Cadastre uma ação, FII, posição em renda fixa ou cripto. A partir
+            daí o Aurum acompanha preço, dividendos e performance pra você.
+          </p>
+        </div>
+        <Button variant="gold" size="lg" onClick={onClick} className="shrink-0">
+          <Plus className="size-4" />
+          Cadastrar ativo
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Dashboard row ───────────────────────────────────────────────────────────
+
 function DashboardRow({
   label,
   stat,
   hint,
+  icon: Icon,
   statTone,
   onClick,
-  href,
 }: {
+  href: string;
   label: string;
   stat: string;
   hint?: string;
+  icon: React.ComponentType<{ className?: string }>;
   statTone?: "positive" | "negative" | "muted";
   onClick: () => void;
-  href: string;
 }) {
   const toneClass =
     statTone === "positive"
@@ -335,9 +604,9 @@ function DashboardRow({
     <button
       onClick={onClick}
       aria-label={`${label}: ${stat}`}
-      data-href={href}
-      className="group grid w-full grid-cols-[1fr_auto_18px] items-center gap-x-4 sm:gap-x-6 border-b border-[var(--border-faint)] py-5 sm:py-6 text-left transition-colors hover:bg-[var(--bg-card)]/50"
+      className="group grid w-full grid-cols-[28px_1fr_auto_18px] items-center gap-x-4 sm:gap-x-6 border-b border-[var(--border-faint)] py-5 sm:py-6 text-left transition-colors hover:bg-[var(--bg-card)]/50"
     >
+      <Icon className="size-[18px] text-muted-foreground transition-colors group-hover:text-primary" />
       <div className="min-w-0">
         <span className="block font-display text-[18px] sm:text-[20px] font-semibold text-[var(--text-default)] transition-colors group-hover:text-primary">
           {label}
@@ -356,30 +625,7 @@ function DashboardRow({
   );
 }
 
-function SectionHeader({
-  label,
-  cta,
-  onClick,
-}: {
-  label: string;
-  cta: string;
-  onClick: () => void;
-}) {
-  return (
-    <div className="flex items-baseline justify-between">
-      <h2 className="font-display text-[18px] sm:text-[20px] font-semibold tracking-[-0.01em] text-[var(--text-default)]">
-        {label}
-      </h2>
-      <button
-        onClick={onClick}
-        className="inline-flex items-center gap-1 text-[12px] text-primary transition-colors hover:text-[var(--gold-light)]"
-      >
-        {cta}
-        <ChevronRight className="size-3" />
-      </button>
-    </div>
-  );
-}
+// ─── Post preview ────────────────────────────────────────────────────────────
 
 function PostPreview({
   post,

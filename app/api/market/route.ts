@@ -2,10 +2,11 @@ import { NextResponse } from "next/server";
 
 export interface MarketItem {
   label: string;
-  value: string;
-  price: string;
-  raw: number;
+  value: string;       // formatted change percent (eg "+0,42%")
+  price: string;       // formatted price (eg "5,42" or "120.345 pts" or BRL formatted)
+  raw: number;         // raw change percent for sorting/comparing
   positive: boolean;
+  spark: number[];     // intraday close samples for sparkline rendering (~24 points, 1h interval over 1d)
 }
 
 const BASE = "https://brapi.dev/api";
@@ -26,21 +27,32 @@ function formatPrice(symbol: string, price: number): string {
   return price.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+interface BrapiHistoricalPoint {
+  date: number;
+  close: number;
+}
+
 async function fetchQuotes(): Promise<MarketItem[]> {
   const headers = brapiHeaders();
 
-  // Um único request para IBOV, S&P 500 e Dólar — todos em tempo real
-  const res = await fetch(`${BASE}/quote/%5EBVSP,%5EGSPC,USDBRL=X`, {
-    headers,
-    next: { revalidate: 300 },
-  });
+  // Um único request para IBOV, S&P 500 e Dólar com spark intraday (1d / 1h),
+  // pra renderizar mini sparklines na Home sem segundo round-trip.
+  const res = await fetch(
+    `${BASE}/quote/%5EBVSP,%5EGSPC,USDBRL=X?range=1d&interval=1h`,
+    { headers, next: { revalidate: 300 } },
+  );
   const data = await res.json();
   const pcts: Record<string, number> = {};
   const prices: Record<string, number> = {};
+  const sparks: Record<string, number[]> = {};
 
   for (const r of data?.results ?? []) {
     pcts[r.symbol] = r.regularMarketChangePercent ?? 0;
     prices[r.symbol] = r.regularMarketPrice ?? 0;
+    const hist: BrapiHistoricalPoint[] = r.historicalDataPrice ?? [];
+    sparks[r.symbol] = hist
+      .map((h) => h.close)
+      .filter((v) => Number.isFinite(v));
   }
 
   const map: { label: string; symbol: string }[] = [
@@ -58,6 +70,7 @@ async function fetchQuotes(): Promise<MarketItem[]> {
       value: `${pct >= 0 ? "+" : ""}${pct.toFixed(2)}%`,
       price: formatPrice(symbol, price),
       positive: pct >= 0,
+      spark: sparks[symbol] ?? [],
     };
   });
 }
