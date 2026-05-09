@@ -62,6 +62,7 @@ interface HomePost {
   author_name: string | null;
   author_avatar: string | null;
   author_username: string | null;
+  author_email: string | null;
   content: string | null;
   created_at: string;
   likes_count: number;
@@ -98,19 +99,40 @@ export default function HomeContent({ firstName, marketData, quickStats }: HomeC
 
   const supabase = useMemo(() => createClient(), []);
   const [posts, setPosts] = useState<HomePost[]>([]);
+  const [avatarByEmail, setAvatarByEmail] = useState<Map<string, string>>(new Map());
 
   useEffect(() => {
     let active = true;
     (async () => {
       const { data } = await supabase
         .from("community_post")
-        .select("id, author_name, author_avatar, author_username, content, created_at, likes_count, comments_count, reposts_count, moderation_status, repost_of_id")
+        .select("id, author_name, author_avatar, author_username, author_email, content, created_at, likes_count, comments_count, reposts_count, moderation_status, repost_of_id")
         .neq("moderation_status", "rejeitado")
         .not("content", "is", null)
         .is("repost_of_id", null)
         .order("created_at", { ascending: false })
         .limit(2);
-      if (active) setPosts(((data ?? []) as HomePost[]));
+      const list = (data ?? []) as HomePost[];
+      if (!active) return;
+      setPosts(list);
+
+      const emails = Array.from(
+        new Set(list.map((p) => p.author_email).filter((e): e is string => Boolean(e)))
+      );
+      if (emails.length > 0) {
+        const { data: profs } = await supabase
+          .from("user_profile")
+          .select("user_email, avatar_url")
+          .in("user_email", emails);
+        if (!active) return;
+        const m = new Map<string, string>();
+        for (const p of (profs ?? []) as { user_email: string; avatar_url: string | null }[]) {
+          if (p.avatar_url) m.set(p.user_email, p.avatar_url);
+        }
+        setAvatarByEmail(m);
+      } else {
+        setAvatarByEmail(new Map());
+      }
     })();
     return () => { active = false; };
   }, [supabase]);
@@ -587,6 +609,8 @@ export default function HomeContent({ firstName, marketData, quickStats }: HomeC
             ) : (
               posts.map((p) => {
                 const initial = initialFromName(p.author_name);
+                const avatarUrl =
+                  (p.author_email && avatarByEmail.get(p.author_email)) || p.author_avatar;
                 return (
                   <div
                     key={p.id}
@@ -620,8 +644,8 @@ export default function HomeContent({ firstName, marketData, quickStats }: HomeC
                           borderRadius: "50%",
                           overflow: "hidden",
                           flexShrink: 0,
-                          background: p.author_avatar
-                            ? `url(${p.author_avatar}) center/cover no-repeat`
+                          background: avatarUrl
+                            ? `url(${avatarUrl}) center/cover no-repeat`
                             : "linear-gradient(135deg, #C9A84C, #8a6a20)",
                           color: "#fff",
                           display: "flex",
@@ -632,7 +656,7 @@ export default function HomeContent({ firstName, marketData, quickStats }: HomeC
                           fontFamily: "var(--font-sans)",
                         }}
                       >
-                        {!p.author_avatar && initial}
+                        {!avatarUrl && initial}
                       </div>
                       <div style={{ minWidth: 0 }}>
                         <p style={{ fontSize: "13px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-sans)", lineHeight: 1.3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>

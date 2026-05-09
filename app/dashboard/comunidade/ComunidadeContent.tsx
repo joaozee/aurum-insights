@@ -37,6 +37,7 @@ export default function ComunidadeContent({ userEmail, userName, userAvatar }: P
   const [savedPosts, setSavedPosts] = useState<Set<string>>(new Set());
   const [myReposts, setMyReposts] = useState<Set<string>>(new Set());
   const [originalPosts, setOriginalPosts] = useState<Map<string, CommunityPost>>(new Map());
+  const [avatarByEmail, setAvatarByEmail] = useState<Map<string, string>>(new Map());
   const [commentsByPost, setCommentsByPost] = useState<Map<string, PostComment[]>>(new Map());
   const [expandedComments, setExpandedComments] = useState<Set<string>>(new Set());
   const [quoteTarget, setQuoteTarget] = useState<CommunityPost | null>(null);
@@ -120,13 +121,39 @@ export default function ComunidadeContent({ userEmail, userName, userAvatar }: P
     const ids = Array.from(
       new Set(list.map((p) => p.repost_of_id).filter((x): x is string => Boolean(x)))
     );
+    let origList: CommunityPost[] = [];
     if (ids.length > 0) {
       const { data: origs } = await supabase.from("community_post").select("*").in("id", ids);
+      origList = (origs ?? []) as CommunityPost[];
       const m = new Map<string, CommunityPost>();
-      for (const p of (origs ?? []) as CommunityPost[]) m.set(p.id, p);
+      for (const p of origList) m.set(p.id, p);
       setOriginalPosts(m);
     } else {
       setOriginalPosts(new Map());
+    }
+
+    // Resolve author avatars from user_profile so post avatars always reflect
+    // the current profile photo (covers legacy rows with null author_avatar
+    // and propagates avatar changes to old posts).
+    const emails = Array.from(
+      new Set(
+        [...list, ...origList]
+          .map((p) => p.author_email)
+          .filter((x): x is string => Boolean(x))
+      )
+    );
+    if (emails.length > 0) {
+      const { data: profs } = await supabase
+        .from("user_profile")
+        .select("user_email, avatar_url")
+        .in("user_email", emails);
+      const next = new Map<string, string>();
+      for (const p of (profs ?? []) as { user_email: string; avatar_url: string | null }[]) {
+        if (p.avatar_url) next.set(p.user_email, p.avatar_url);
+      }
+      setAvatarByEmail(next);
+    } else {
+      setAvatarByEmail(new Map());
     }
 
     setLoading(false);
@@ -368,7 +395,25 @@ export default function ComunidadeContent({ userEmail, userName, userAvatar }: P
         .eq("parent_type", "community_post")
         .eq("parent_id", post.id)
         .order("created_at", { ascending: true });
-      setCommentsByPost((prev) => new Map(prev).set(post.id, (data ?? []) as PostComment[]));
+      const list = (data ?? []) as PostComment[];
+      setCommentsByPost((prev) => new Map(prev).set(post.id, list));
+
+      const newEmails = Array.from(
+        new Set(list.map((c) => c.author_email).filter((e): e is string => Boolean(e)))
+      ).filter((e) => !avatarByEmail.has(e));
+      if (newEmails.length > 0) {
+        const { data: profs } = await supabase
+          .from("user_profile")
+          .select("user_email, avatar_url")
+          .in("user_email", newEmails);
+        setAvatarByEmail((prev) => {
+          const next = new Map(prev);
+          for (const p of (profs ?? []) as { user_email: string; avatar_url: string | null }[]) {
+            if (p.avatar_url) next.set(p.user_email, p.avatar_url);
+          }
+          return next;
+        });
+      }
     }
   }
 
@@ -705,6 +750,7 @@ export default function ComunidadeContent({ userEmail, userName, userAvatar }: P
                   commentsExpanded={expandedComments.has(main.id)}
                   currentUserName={userName}
                   currentUserAvatar={userAvatar}
+                  avatarByEmail={avatarByEmail}
                   onLike={() => toggleLike(main)}
                   onSave={() => toggleSave(main)}
                   onRepost={() => toggleRepost(main)}
@@ -780,6 +826,7 @@ function PostCard({
   post, main, original, isPureRepost,
   liked, saved, reposted,
   comments, commentsExpanded, currentUserName, currentUserAvatar,
+  avatarByEmail,
   onLike, onSave, onRepost, onQuote, onToggleComments, onAddComment,
 }: {
   post: CommunityPost;          // raw row from feed (could be a repost wrapper)
@@ -793,6 +840,7 @@ function PostCard({
   commentsExpanded: boolean;
   currentUserName: string;
   currentUserAvatar: string | null;
+  avatarByEmail: Map<string, string>;
   onLike: () => void;
   onSave: () => void;
   onRepost: () => void;
@@ -805,6 +853,8 @@ function PostCard({
   const initial = initialFromName(main.author_name);
   const isNews = main.post_type === "news";
   const isQuoteRepost = !isPureRepost && !!post.repost_of_id;
+  const mainAvatar = resolveAvatar(main.author_email, main.author_avatar, avatarByEmail);
+  const repostHeaderAvatar = resolveAvatar(post.author_email, post.author_avatar, avatarByEmail);
 
   // Pure repost referencing a deleted/missing original
   if (isPureRepost && !original) {
@@ -843,7 +893,7 @@ function PostCard({
 
       {/* Header */}
       <div style={{ display: "flex", alignItems: "flex-start", gap: "10px", marginBottom: "10px" }}>
-        <Avatar initial={initial} size={34} url={main.author_avatar} />
+        <Avatar initial={initial} size={34} url={mainAvatar} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
             <AuthorLink username={main.author_username} name={main.author_name} />
@@ -937,7 +987,7 @@ function PostCard({
 
       {/* Embedded original (quote repost only) */}
       {isQuoteRepost && original && (
-        <EmbeddedOriginal post={original} />
+        <EmbeddedOriginal post={original} avatarByEmail={avatarByEmail} />
       )}
       {isQuoteRepost && !original && (
         <div style={{
@@ -1013,7 +1063,7 @@ function PostCard({
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "12px" }}>
               {comments.map((c) => (
-                <CommentRow key={c.id} comment={c} />
+                <CommentRow key={c.id} comment={c} avatarByEmail={avatarByEmail} />
               ))}
             </div>
           )}
@@ -1147,8 +1197,9 @@ function RepostMenuItem({
 
 // ─── Embedded Original (for quote reposts) ────────────────────────────────────
 
-function EmbeddedOriginal({ post }: { post: CommunityPost }) {
+function EmbeddedOriginal({ post, avatarByEmail }: { post: CommunityPost; avatarByEmail?: Map<string, string> }) {
   const initial = initialFromName(post.author_name);
+  const avatar = resolveAvatar(post.author_email, post.author_avatar, avatarByEmail);
   return (
     <div style={{
       marginBottom: "12px",
@@ -1157,7 +1208,7 @@ function EmbeddedOriginal({ post }: { post: CommunityPost }) {
       borderRadius: "10px", padding: "12px 14px",
     }}>
       <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "6px" }}>
-        <Avatar initial={initial} size={24} url={post.author_avatar} />
+        <Avatar initial={initial} size={24} url={avatar} />
         <AuthorLink username={post.author_username} name={post.author_name} small />
         <span style={{ fontSize: "10px", color: "#9a8a6a", fontFamily: "var(--font-sans)" }}>
           · {formatRelativeTime(post.created_at)}
@@ -1186,10 +1237,11 @@ function EmbeddedOriginal({ post }: { post: CommunityPost }) {
 
 // ─── Comment row ──────────────────────────────────────────────────────────────
 
-function CommentRow({ comment }: { comment: PostComment }) {
+function CommentRow({ comment, avatarByEmail }: { comment: PostComment; avatarByEmail?: Map<string, string> }) {
+  const avatar = resolveAvatar(comment.author_email, comment.author_avatar, avatarByEmail);
   return (
     <div style={{ display: "flex", gap: "8px", alignItems: "flex-start" }}>
-      <Avatar initial={initialFromName(comment.author_name)} size={28} url={comment.author_avatar} />
+      <Avatar initial={initialFromName(comment.author_name)} size={28} url={avatar} />
       <div style={{
         flex: 1,
         background: "#0d0b07",
@@ -1532,6 +1584,20 @@ function AuthorLink({
       {text}
     </Link>
   );
+}
+
+// Prefer the live profile avatar (loaded from user_profile) over the snapshot
+// stored on the post/comment row, so old rows reflect the user's current photo.
+function resolveAvatar(
+  email: string | null | undefined,
+  fallback: string | null | undefined,
+  byEmail?: Map<string, string>,
+): string | null {
+  if (email && byEmail) {
+    const live = byEmail.get(email);
+    if (live) return live;
+  }
+  return fallback ?? null;
 }
 
 function Avatar({ initial, size, url }: { initial: string; size: number; url?: string | null }) {
