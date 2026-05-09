@@ -32,3 +32,6 @@ dist-ssr
 .next
 out
 public/logo-preview.jpg
+
+# TypeScript incremental build cache (auto-regenerated, no value in version control)
+tsconfig.tsbuildinfo

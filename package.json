@@ -65,7 +65,6 @@
     "react-dom": "^18.3.1",
     "react-easy-crop": "^4.7.5",
     "react-hook-form": "^7.54.2",
-    "react-hot-toast": "^2.6.0",
     "react-markdown": "^9.0.1",
     "recharts": "^2.15.4",
     "sonner": "^2.0.1",

@@ -1,39 +1,105 @@
-**Welcome to your Base44 project** 
+# Aurum Investimentos
 
-**About**
+Plataforma brasileira que junta tracking de carteira, agenda de dividendos,
+finanças pessoais, cursos estruturados e uma comunidade de investidores
+em um único lugar. Construído para quem prefere método a promessas, e
+tempo a atalhos.
 
-View and Edit  your app on [Base44.com](http://Base44.com) 
+Veja [PRODUCT.md](./PRODUCT.md) para o registro estratégico (público,
+propósito, princípios, anti-referências) e [DESIGN.md](./DESIGN.md) para
+o sistema visual.
 
-This project contains everything you need to run your app locally.
+## Stack
 
-**Edit the code in your local development environment**
+- [Next.js 16](https://nextjs.org) (App Router)
+- [Supabase](https://supabase.com) (auth + DB + storage)
+- [brapi](https://brapi.dev) (cotações B3, FIIs, criptos)
+- [Stripe](https://stripe.com) (assinaturas)
+- [Tailwind CSS](https://tailwindcss.com) + [shadcn/ui](https://ui.shadcn.com)
+- [Sonner](https://sonner.emilkowal.ski) (toasts)
+- [cmdk](https://cmdk.paco.me) (command palette `Ctrl+K`)
+- [Recharts](https://recharts.org) (visualizações)
+- TypeScript estrito + ESLint + Prettier
 
-Any change pushed to the repo will also be reflected in the Base44 Builder.
+## Setup local
 
-**Prerequisites:** 
+1. Clone o repo e instale:
+   ```bash
+   git clone https://github.com/joaozee/aurum-insights
+   cd aurum-insights
+   npm install
+   ```
 
-1. Clone the repository using the project's Git URL 
-2. Navigate to the project directory
-3. Install dependencies: `npm install`
-4. Create an `.env.local` file and set the right environment variables
+2. Crie `.env.local` com:
+   ```bash
+   NEXT_PUBLIC_SUPABASE_URL=https://...supabase.co
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+   BRAPI_TOKEN=...
+   STRIPE_SECRET_KEY=...
+   STRIPE_PUBLISHABLE_KEY=...
+   ```
+
+3. Rode em dev:
+   ```bash
+   npm run dev
+   ```
+
+   Abre em [http://localhost:3000](http://localhost:3000).
+
+## Scripts
+
+| Script | Descrição |
+|---|---|
+| `npm run dev` | Dev server com Turbopack |
+| `npm run build` | Build de produção |
+| `npm run start` | Start produção (após build) |
+| `npm run lint` | ESLint |
+| `npm run typecheck` | `tsc --noEmit` |
+
+## Estrutura
 
 ```
-VITE_BASE44_APP_ID=your_app_id
-VITE_BASE44_APP_BASE_URL=your_backend_url
-
-e.g.
-VITE_BASE44_APP_ID=cbef744a8545c389ef439ea6
-VITE_BASE44_APP_BASE_URL=https://my-to-do-list-81bfaad7.base44.app
+app/                  Next.js App Router
+  (auth)/             Login, register, forgot-password
+  api/                Route handlers (brapi, market, etc)
+  dashboard/          Área autenticada
+    acoes/            Mercado, busca de tickers, FIIs
+    carteira/         Tracking de ativos
+    comunidade/       Feed de posts, mensagens, rede
+    configuracoes/    Conta + suporte
+    cursos/           Catálogo + aulas
+    financas/         Receitas/despesas, metas, eventos
+    perfil/           Perfil próprio + público (/perfil/[username])
+    sobre/            Manifesto + princípios
+components/           Componentes da app
+  ui/                 shadcn/ui + customizações Aurum
+  CommandPalette.tsx  Ctrl+K palette
+  Navbar.tsx
+lib/
+  aurum-colors.ts     Tokens TS (mirror do globals.css)
+  supabase/           Client (browser + server)
+  comunidade.ts       Tipos e helpers da comunidade
+  cursos-data.ts      Catálogo estático de cursos
+public/               Assets (logo, selo, manifest)
+PRODUCT.md            Registro estratégico
+DESIGN.md             Sistema visual
+AURUM_CRITIQUE.md     Relatório /impeccable critique
 ```
 
-Run the app: `npm run dev`
+## Deploy
 
-**Publish your changes**
+Push em `main` aciona auto-deploy na Vercel
+(`https://aurum-app-kappa.vercel.app`).
 
-Open [Base44.com](http://Base44.com) and click on Publish.
+## Convenções
 
-**Docs & Support**
+- Inline `style={...}` é legacy do migration Vite → Next; novo código usa
+  Tailwind + tokens. Veja [DESIGN.md](./DESIGN.md) para a paleta semântica.
+- Hover é via CSS `:hover` (`.aurum-hover-*` utilities em `globals.css`),
+  nunca via `onMouseEnter`.
+- Dark mode é o tema base; sem switcher por enquanto.
+- Tons de texto seguem WCAG AA mínimo (4.5:1 em corpo).
 
-Documentation: [https://docs.base44.com/Integrations/Using-GitHub](https://docs.base44.com/Integrations/Using-GitHub)
+## Licença
 
-Support: [https://app.base44.com/support](https://app.base44.com/support)
+Privado.

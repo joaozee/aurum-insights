@@ -36,8 +36,6 @@
     ".next/dev/types/**/*.ts"
   ],
   "exclude": [
-    "node_modules",
-    "src",
-    "base44"
+    "node_modules"
   ]
 }
