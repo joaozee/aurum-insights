@@ -2,16 +2,25 @@
 
 import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import {
-  Plus, FileText, TrendingUp, TrendingDown, Wallet, X,
+  Plus, FileText, TrendingUp, TrendingDown, Wallet,
   Trash2, Target, Calendar, BarChart2, LayoutDashboard,
   ChevronLeft, ChevronRight, AlertCircle, Check,
   Building2, User,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import {
+  CHART_PALETTE,
   FINANCE_CATEGORY_COLORS,
   EVENT_TYPE_COLORS,
 } from "@/lib/aurum-colors";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -81,10 +90,12 @@ const fmt = (v: number) =>
   v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
 // ─── Shared style helpers ─────────────────────────────────────────────────────
+// inputStyle / selectStyle remain because the file uses native <select> elements
+// that don't have a stable shadcn equivalent yet; both now reference CSS vars.
 
 const inputStyle: React.CSSProperties = {
-  width: "100%", background: "#1a1508", border: "1px solid #2a2010",
-  borderRadius: "6px", padding: "10px 12px", color: "#e8dcc0",
+  width: "100%", background: "var(--bg-input)", border: "1px solid var(--border-soft)",
+  borderRadius: "6px", padding: "10px 12px", color: "var(--text-default)",
   fontSize: "13px", fontFamily: "var(--font-sans)", outline: "none",
   boxSizing: "border-box",
 };
@@ -95,23 +106,15 @@ const selectStyle: React.CSSProperties = {
 
 // ─── Small helper components ──────────────────────────────────────────────────
 
-function ModalHeader({ title, onClose }: { title: string; onClose: () => void }) {
-  return (
-    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
-      <h2 style={{ fontSize: "17px", fontWeight: 600, color: "#f0e8d0", fontFamily: "var(--font-display)" }}>{title}</h2>
-      <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: "#a09068", padding: 0 }}>
-        <X size={18} />
-      </button>
-    </div>
-  );
-}
-
 function FormField({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <label style={{ fontSize: "10px", color: "#a09068", fontFamily: "var(--font-sans)", letterSpacing: "0.12em", textTransform: "uppercase" as const, display: "block", marginBottom: "6px" }}>
+      <Label
+        className="block mb-1.5 text-[10px] uppercase tracking-[0.12em]"
+        style={{ color: "var(--text-muted)" }}
+      >
         {label}
-      </label>
+      </Label>
       {children}
     </div>
   );
@@ -119,19 +122,15 @@ function FormField({ label, children }: { label: string; children: React.ReactNo
 
 function SaveButton({ saving, onClick, label }: { saving: boolean; onClick: () => void; label: string }) {
   return (
-    <button
+    <Button
       onClick={onClick}
       disabled={saving}
-      style={{
-        width: "100%",
-        background: saving ? "rgba(201,168,76,0.5)" : "linear-gradient(135deg,#C9A84C,#A07820)",
-        border: "none", borderRadius: "8px", padding: "13px", color: "#0d0b07",
-        fontSize: "14px", fontWeight: 700, fontFamily: "var(--font-sans)",
-        cursor: saving ? "not-allowed" : "pointer", marginTop: "4px",
-      }}
+      variant="gold"
+      size="lg"
+      className="w-full mt-1 text-sm font-bold tracking-[0.04em]"
     >
       {saving ? "Salvando..." : label}
-    </button>
+    </Button>
   );
 }
 
@@ -958,20 +957,24 @@ export default function FinancasContent({ userEmail }: Props) {
 
         {/* Action buttons */}
         <div style={{ display: "flex", gap: "10px", marginBottom: "24px" }}>
-          <button
+          <Button
+            variant="gold"
+            size="default"
             onClick={() => openTxModal("saida")}
-            style={{ display: "flex", alignItems: "center", gap: "6px", background: "linear-gradient(135deg,#C9A84C,#A07820)", border: "none", borderRadius: "8px", padding: "9px 18px", color: "#0d0b07", fontSize: "13px", fontWeight: 600, fontFamily: "var(--font-sans)", cursor: "pointer" }}
+            className="gap-1.5 px-4 text-[13px] font-semibold"
           >
             <Plus size={14} /> Nova Transação
-          </button>
-          <button
+          </Button>
+          <Button
             disabled
+            variant="outline"
+            size="default"
             title="Em breve — leitura automática de extratos PDF"
-            style={{ display: "flex", alignItems: "center", gap: "6px", background: "#130f09", border: "1px solid #2a2010", borderRadius: "8px", padding: "9px 18px", color: "#9a8a6a", fontSize: "13px", fontFamily: "var(--font-sans)", cursor: "not-allowed", opacity: 0.6 }}
+            className="gap-1.5 px-4 text-[13px] cursor-not-allowed opacity-60"
           >
             <FileText size={14} /> Importar PDF
-            <span style={{ fontSize: "9px", padding: "2px 6px", borderRadius: "4px", background: "rgba(201,168,76,0.1)", color: "#C9A84C", fontWeight: 600, marginLeft: "2px" }}>EM BREVE</span>
-          </button>
+            <span className="ml-0.5 text-[9px] py-0.5 px-1.5 rounded bg-[rgba(201,168,76,0.1)] text-[var(--gold)] font-semibold">EM BREVE</span>
+          </Button>
         </div>
 
         {/* Tabs */}
@@ -1018,9 +1021,9 @@ export default function FinancasContent({ userEmail }: Props) {
                     icon={Wallet}
                     label="Saldo Livre"
                     value={fmt(balance)}
-                    color={balance >= 0 ? "#8b5cf6" : "#f87171"}
-                    bg={balance >= 0 ? "rgba(139,92,246,0.06)" : "rgba(248,113,113,0.06)"}
-                    border={balance >= 0 ? "rgba(139,92,246,0.15)" : "rgba(248,113,113,0.15)"}
+                    color={balance >= 0 ? CHART_PALETTE[5] : "#f87171"}
+                    bg={balance >= 0 ? "rgba(94,107,140,0.08)" : "rgba(248,113,113,0.06)"}
+                    border={balance >= 0 ? "rgba(94,107,140,0.18)" : "rgba(248,113,113,0.15)"}
                     sub={balance > 0 ? "disponível para investir" : balance < 0 ? "déficit no mês" : "no equilíbrio"}
                   />
                 </div>
@@ -1249,7 +1252,7 @@ export default function FinancasContent({ userEmail }: Props) {
                   {[
                     { label: "Entradas",         value: fmt(reportIncome),  color: "#22c55e", icon: TrendingUp,   sub: `${reportTx.filter(t => t.type === "entrada").length} transações` },
                     { label: "Gastos",           value: fmt(reportExpense), color: "#f87171", icon: TrendingDown, sub: `Média ${fmt(reportExpense / reportMonthsCount)}/mês` },
-                    { label: "Saldo",            value: fmt(reportBalance), color: reportBalance >= 0 ? "#8b5cf6" : "#f87171", icon: Wallet, sub: "Entradas − Gastos" },
+                    { label: "Saldo",            value: fmt(reportBalance), color: reportBalance >= 0 ? CHART_PALETTE[5] : "#f87171", icon: Wallet, sub: "Entradas − Gastos" },
                     { label: "Taxa de Poupança", value: reportIncome > 0 ? `${((reportBalance / reportIncome) * 100).toFixed(1)}%` : "—", color: "#C9A84C", icon: Target, sub: "% economizado" },
                   ].map(({ label, value, color, icon: Icon, sub }) => (
                     <div key={label} style={{ background: "#130f09", border: `1px solid ${color}22`, borderRadius: "10px", padding: "16px 18px" }}>
@@ -1426,7 +1429,8 @@ export default function FinancasContent({ userEmail }: Props) {
                     </div>
                     <button
                       onClick={() => { setGoalForm({ title: "", category: "", target_amount: "", current_amount: "0", target_date: "", monthly_contribution: "", description: "" }); setFormError(""); setModal("goal"); }}
-                      style={{ display: "flex", alignItems: "center", gap: "6px", background: "rgba(139,92,246,0.1)", border: "1px solid rgba(139,92,246,0.2)", borderRadius: "8px", padding: "7px 14px", color: "#8b5cf6", fontSize: "12px", fontWeight: 600, fontFamily: "var(--font-sans)", cursor: "pointer" }}
+                      style={{ display: "flex", alignItems: "center", gap: "6px", background: "rgba(201,168,76,0.1)", border: "1px solid rgba(201,168,76,0.2)", borderRadius: "8px", padding: "7px 14px", color: "var(--gold)", fontSize: "12px", fontWeight: 600, fontFamily: "var(--font-sans)", cursor: "pointer" }}
+                      className="aurum-hover-bg aurum-hover-transition"
                     >
                       <Plus size={12} /> Nova Meta
                     </button>
@@ -1443,7 +1447,7 @@ export default function FinancasContent({ userEmail }: Props) {
                         const pct = g.target_amount > 0 ? Math.min((Number(g.current_amount) / Number(g.target_amount)) * 100, 100) : 0;
                         const daysLeft = Math.ceil((new Date(g.target_date).getTime() - Date.now()) / 86400000);
                         return (
-                          <div key={g.id} style={{ background: "#130f09", border: "1px solid rgba(139,92,246,0.12)", borderRadius: "12px", padding: "20px 24px" }}>
+                          <div key={g.id} style={{ background: "#130f09", border: "1px solid rgba(139,84,112,0.18)", borderRadius: "12px", padding: "20px 24px" }}>
                             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "12px" }}>
                               <div>
                                 <p style={{ fontSize: "15px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-display)", marginBottom: "3px" }}>{g.title}</p>
@@ -1459,11 +1463,11 @@ export default function FinancasContent({ userEmail }: Props) {
                               </div>
                             </div>
                             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
-                              <span style={{ fontSize: "12px", color: "#8b5cf6", fontFamily: "var(--font-sans)", fontWeight: 600 }}>{fmt(Number(g.current_amount))}</span>
+                              <span style={{ fontSize: "12px", color: CHART_PALETTE[4], fontFamily: "var(--font-sans)", fontWeight: 600 }}>{fmt(Number(g.current_amount))}</span>
                               <span style={{ fontSize: "12px", color: "#a09068", fontFamily: "var(--font-sans)" }}>meta: {fmt(Number(g.target_amount))}</span>
                             </div>
                             <div style={{ height: "6px", background: "rgba(255,255,255,0.05)", borderRadius: "3px", overflow: "hidden" }}>
-                              <div style={{ height: "100%", width: `${pct}%`, background: "linear-gradient(90deg,#8b5cf6,#a78bfa)", borderRadius: "3px" }} />
+                              <div style={{ height: "100%", width: `${pct}%`, background: `linear-gradient(90deg, ${CHART_PALETTE[4]}, ${CHART_PALETTE[5]})`, borderRadius: "3px" }} />
                             </div>
                             <p style={{ fontSize: "11px", color: "#a09068", fontFamily: "var(--font-sans)", marginTop: "6px" }}>
                               {pct.toFixed(1)}% concluído{Number(g.monthly_contribution) > 0 && ` · ${fmt(Number(g.monthly_contribution))}/mês`}
@@ -1573,7 +1577,8 @@ export default function FinancasContent({ userEmail }: Props) {
                     <p style={{ fontSize: "14px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-display)" }}>Próximos Eventos</p>
                     <button
                       onClick={() => { setEventForm({ title: "", event_type: "vencimento", event_date: now.toISOString().split("T")[0], amount: "", description: "", is_recurring: false, category: "" }); setFormError(""); setModal("event"); }}
-                      style={{ display: "flex", alignItems: "center", gap: "6px", background: "rgba(6,182,212,0.1)", border: "1px solid rgba(6,182,212,0.2)", borderRadius: "8px", padding: "7px 14px", color: "#06b6d4", fontSize: "12px", fontWeight: 600, fontFamily: "var(--font-sans)", cursor: "pointer" }}
+                      style={{ display: "flex", alignItems: "center", gap: "6px", background: "rgba(201,168,76,0.1)", border: "1px solid rgba(201,168,76,0.2)", borderRadius: "8px", padding: "7px 14px", color: "var(--gold)", fontSize: "12px", fontWeight: 600, fontFamily: "var(--font-sans)", cursor: "pointer" }}
+                      className="aurum-hover-bg aurum-hover-transition"
                     >
                       <Plus size={12} /> Novo Evento
                     </button>
@@ -1611,17 +1616,20 @@ export default function FinancasContent({ userEmail }: Props) {
       </div>
 
       {/* ═══════════════════ MODALS ═══════════════════ */}
-      {modal && (
-        <div
-          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, backdropFilter: "blur(4px)" }}
-          onClick={e => { if (e.target === e.currentTarget) setModal(null); }}
-        >
-          <div style={{ background: "#130f09", border: "1px solid rgba(201,168,76,0.15)", borderRadius: "14px", padding: "32px", width: "100%", maxWidth: "440px", boxShadow: "0 24px 64px rgba(0,0,0,0.8)" }}>
-
+      <Dialog open={!!modal} onOpenChange={(o) => !o && setModal(null)}>
+        <DialogContent className="sm:max-w-[440px] bg-card border-[rgba(201,168,76,0.15)]">
+          <DialogHeader>
+            <DialogTitle className="font-display text-[17px] text-[var(--text-strong)]">
+              {modal === "transaction" ? `Nova ${modalTxType === "entrada" ? "Receita" : "Despesa"}` :
+               modal === "budget" ? "Novo Orçamento" :
+               modal === "goal" ? "Nova Meta" :
+               modal === "event" ? "Novo Evento" : ""}
+            </DialogTitle>
+          </DialogHeader>
+          <div>
             {/* ── Transaction ── */}
             {modal === "transaction" && (
               <>
-                <ModalHeader title={`Nova ${modalTxType === "entrada" ? "Receita" : "Despesa"}`} onClose={() => setModal(null)} />
                 <div style={{ display: "flex", gap: "8px", marginBottom: "20px" }}>
                   {(["entrada", "saida"] as const).map(type => (
                     <button key={type} onClick={() => setModalTxType(type)} style={{
@@ -1665,7 +1673,6 @@ export default function FinancasContent({ userEmail }: Props) {
             {/* ── Budget ── */}
             {modal === "budget" && (
               <>
-                <ModalHeader title="Novo Orçamento" onClose={() => setModal(null)} />
                 <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
                   <FormField label="Categoria">
                     <select value={budgetForm.category} onChange={e => setBudgetForm(f => ({ ...f, category: e.target.value }))} style={selectStyle}>
@@ -1690,7 +1697,6 @@ export default function FinancasContent({ userEmail }: Props) {
             {/* ── Goal ── */}
             {modal === "goal" && (
               <>
-                <ModalHeader title="Nova Meta" onClose={() => setModal(null)} />
                 <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
                   <FormField label="Título *">
                     <input value={goalForm.title} onChange={e => setGoalForm(f => ({ ...f, title: e.target.value }))} placeholder="Ex: Fundo de emergência" style={inputStyle} />
@@ -1724,7 +1730,6 @@ export default function FinancasContent({ userEmail }: Props) {
             {/* ── Event ── */}
             {modal === "event" && (
               <>
-                <ModalHeader title="Novo Evento" onClose={() => setModal(null)} />
                 <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
                   <FormField label="Título *">
                     <input value={eventForm.title} onChange={e => setEventForm(f => ({ ...f, title: e.target.value }))} placeholder="Ex: Boleto Internet" style={inputStyle} />
@@ -1754,15 +1759,15 @@ export default function FinancasContent({ userEmail }: Props) {
                     <label htmlFor="recurring" style={{ fontSize: "13px", color: "#a09068", fontFamily: "var(--font-sans)", cursor: "pointer" }}>Recorrente</label>
                   </div>
                 </div>
-                {formError && <p style={{ fontSize: "12px", color: "#f87171", fontFamily: "var(--font-sans)", marginTop: "12px" }}>{formError}</p>}
+                {formError && <p style={{ fontSize: "12px", color: "var(--negative)", fontFamily: "var(--font-sans)", marginTop: "12px" }}>{formError}</p>}
                 <div style={{ marginTop: "20px" }}>
                   <SaveButton saving={saving} onClick={saveEvent} label="Salvar Evento" />
                 </div>
               </>
             )}
           </div>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
