@@ -8,6 +8,7 @@ import {
   Newspaper, ExternalLink, Plus,
 } from "lucide-react";
 import AssetDiscussion from "@/components/AssetDiscussion";
+import { IndicatorHelp } from "@/components/IndicatorHelp";
 
 // ─── Tipos brapi ──────────────────────────────────────────────────────────────
 
@@ -965,9 +966,14 @@ function calculateMetrics(q: BrapiQuoteFull | null): Metrics {
   const lpa = q.earningsPerShare ?? null;
   const payout = lpa !== null && lpa > 0 && sumLast12 > 0 ? (sumLast12 / lpa) * 100 : null;
 
-  // EV/EBIT
+  // EV/EBIT — fallback: revenue × operatingMargin quando IS vem vazio (comum em
+  // tickers que a brapi não popula incomeStatementHistory).
   const ev = q.defaultKeyStatistics?.enterpriseValue ?? null;
-  const ebit = (q.incomeStatementHistory?.incomeStatementHistory ?? [])[0]?.ebit ?? null;
+  const ebitFromIS = (q.incomeStatementHistory?.incomeStatementHistory ?? [])[0]?.ebit ?? null;
+  const ebitFromMargin = q.financialData?.totalRevenue != null && q.financialData?.operatingMargins != null
+    ? q.financialData.totalRevenue * q.financialData.operatingMargins
+    : null;
+  const ebit = ebitFromIS ?? ebitFromMargin;
   const evEbit = ev !== null && ebit !== null && ebit > 0 ? ev / ebit : null;
 
   // Net Debt = totalDebt - totalCash
@@ -975,18 +981,15 @@ function calculateMetrics(q: BrapiQuoteFull | null): Metrics {
   const totalCash = q.financialData?.totalCash ?? null;
   const netDebt = totalDebt !== null && totalCash !== null ? totalDebt - totalCash : null;
 
-  // Equity
+  // Equity / Ativos / Passivos: brapi frequentemente retorna balanceSheet vazio.
+  // Fallback: equity ≈ bookValue × shares; totalAssets de defaultKeyStatistics;
+  // totalLiab derivado da identidade contábil (ativos − PL).
   const bs = q.balanceSheetHistory?.balanceSheetStatements?.[0];
   const equity = bs?.totalStockholderEquity ?? null;
   const totalAssets = bs?.totalAssets ?? null;
   const totalLiab = bs?.totalLiab ?? null;
-
-  const netDebtToEquity = netDebt !== null && equity !== null && equity > 0 ? netDebt / equity : null;
   const ebitda = q.financialData?.ebitda ?? null;
   const netDebtToEbitda = netDebt !== null && ebitda !== null && ebitda > 0 ? netDebt / ebitda : null;
-  const liabilitiesToAssets = totalLiab !== null && totalAssets !== null && totalAssets > 0
-    ? totalLiab / totalAssets
-    : null;
 
   // Lucro: prioriza incomeStatementHistory; fallback para defaultKeyStatistics.netIncomeToCommon
   // (bancos costumam vir com IS vazio na brapi)
@@ -1016,6 +1019,21 @@ function calculateMetrics(q: BrapiQuoteFull | null): Metrics {
   // Capital Ratio = PL / Ativos (proxy do índice de Basileia; banco saudável: ≥ 8%)
   const capitalRatio = finalTotalAssets !== null && finalEquity !== null && finalTotalAssets > 0
     ? finalEquity / finalTotalAssets
+    : null;
+
+  // Dív.Líq./PL agora usa finalEquity (com fallback bookValue × shares)
+  const netDebtToEquity = netDebt !== null && finalEquity !== null && finalEquity > 0
+    ? netDebt / finalEquity
+    : null;
+
+  // Passivos/Ativos: BS direto > derivado da identidade contábil (totalAssets − equity)
+  const totalLiabFromBS = totalLiab;
+  const totalLiabDerived = finalTotalAssets !== null && finalEquity !== null
+    ? finalTotalAssets - finalEquity
+    : null;
+  const finalTotalLiab = totalLiabFromBS ?? totalLiabDerived;
+  const liabilitiesToAssets = finalTotalLiab !== null && finalTotalAssets !== null && finalTotalAssets > 0
+    ? finalTotalLiab / finalTotalAssets
     : null;
 
   const totalRevenue = q.financialData?.totalRevenue ?? null;
@@ -1856,32 +1874,32 @@ function SectorBadge({ label }: { label: string }) {
 function DefaultIndicators({ metrics, quote }: { metrics: Metrics; quote: BrapiQuoteFull }) {
   return (
     <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "10px" }}>
-      <Indicator label="P/L" value={fmtNum(metrics.pl, 2)} />
-      <Indicator label="P/VP" value={fmtNum(metrics.pvp, 2)} />
-      <Indicator label="Dividend Yield" value={metrics.dy !== null ? `${metrics.dy.toFixed(2)}%` : "—"} />
-      <Indicator label="Payout" value={metrics.payout !== null ? `${metrics.payout.toFixed(2)}%` : "—"} />
-      <Indicator label="EV/EBITDA" value={fmtNum(quote.defaultKeyStatistics?.enterpriseToEbitda, 2)} />
-      <Indicator label="EV/EBIT" value={fmtNum(metrics.evEbit, 2)} />
-      <Indicator label="LPA" value={quote.earningsPerShare !== null && quote.earningsPerShare !== undefined ? `R$ ${quote.earningsPerShare.toFixed(2).replace(".", ",")}` : "—"} />
-      <Indicator label="VPA" value={quote.defaultKeyStatistics?.bookValue !== undefined ? `R$ ${quote.defaultKeyStatistics.bookValue.toFixed(2).replace(".", ",")}` : "—"} />
-      <Indicator label="Dívida Líquida" value={fmtMoney(metrics.netDebt)} />
-      <Indicator label="Dív. Líq./PL" value={fmtNum(metrics.netDebtToEquity, 2)} />
-      <Indicator label="Dív. Líq./EBITDA" value={fmtNum(metrics.netDebtToEbitda, 2)} />
-      <Indicator label="Passivos/Ativos" value={fmtPct(metrics.liabilitiesToAssets)} />
-      <Indicator label="Liquidez Corrente" value={fmtNum(quote.financialData?.currentRatio, 2)} />
-      <Indicator label="Margem Bruta" value={fmtPct(quote.financialData?.grossMargins)} />
-      <Indicator label="Margem Líquida" value={fmtPct(quote.financialData?.profitMargins)} />
-      <Indicator label="Margem EBITDA" value={fmtPct(quote.financialData?.ebitdaMargins)} />
-      <Indicator label="Margem Operacional" value={fmtPct(quote.financialData?.operatingMargins)} />
-      <Indicator label="ROE" value={fmtPct(quote.financialData?.returnOnEquity)} />
-      <Indicator label="ROA" value={fmtPct(quote.financialData?.returnOnAssets)} />
-      <Indicator label="CAGR Receita 5A" value={fmtPct(quote.financialData?.revenueGrowth)} />
-      <Indicator label="CAGR Lucro 5A" value={fmtPct(quote.financialData?.earningsGrowth)} />
-      <Indicator label="Receita Líquida" value={fmtMoney(quote.financialData?.totalRevenue)} />
-      <Indicator label="EBITDA" value={fmtMoney(quote.financialData?.ebitda)} />
-      <Indicator label="Lucro Líquido" value={fmtMoney(metrics.netIncome)} />
-      <Indicator label="Free Cash Flow" value={fmtMoney(quote.financialData?.freeCashflow)} />
-      <Indicator label="Beta" value={fmtNum(quote.defaultKeyStatistics?.beta, 2)} />
+      <Indicator helpKey="pl" label="P/L" value={fmtNum(metrics.pl, 2)} />
+      <Indicator helpKey="pvp" label="P/VP" value={fmtNum(metrics.pvp, 2)} />
+      <Indicator helpKey="dy" label="Dividend Yield" value={metrics.dy !== null ? `${metrics.dy.toFixed(2)}%` : "—"} />
+      <Indicator helpKey="payout" label="Payout" value={metrics.payout !== null ? `${metrics.payout.toFixed(2)}%` : "—"} />
+      <Indicator helpKey="evEbitda" label="EV/EBITDA" value={fmtNum(quote.defaultKeyStatistics?.enterpriseToEbitda, 2)} />
+      <Indicator helpKey="evEbit" label="EV/EBIT" value={fmtNum(metrics.evEbit, 2)} />
+      <Indicator helpKey="lpa" label="LPA" value={quote.earningsPerShare !== null && quote.earningsPerShare !== undefined ? `R$ ${quote.earningsPerShare.toFixed(2).replace(".", ",")}` : "—"} />
+      <Indicator helpKey="vpa" label="VPA" value={quote.defaultKeyStatistics?.bookValue !== undefined ? `R$ ${quote.defaultKeyStatistics.bookValue.toFixed(2).replace(".", ",")}` : "—"} />
+      <Indicator helpKey="netDebt" label="Dívida Líquida" value={fmtMoney(metrics.netDebt)} />
+      <Indicator helpKey="netDebtToEquity" label="Dív. Líq./PL" value={fmtNum(metrics.netDebtToEquity, 2)} />
+      <Indicator helpKey="netDebtToEbitda" label="Dív. Líq./EBITDA" value={fmtNum(metrics.netDebtToEbitda, 2)} />
+      <Indicator helpKey="liabToAssets" label="Passivos/Ativos" value={fmtPct(metrics.liabilitiesToAssets)} />
+      <Indicator helpKey="currentRatio" label="Liquidez Corrente" value={fmtNum(quote.financialData?.currentRatio, 2)} />
+      <Indicator helpKey="grossMargin" label="Margem Bruta" value={fmtPct(quote.financialData?.grossMargins)} />
+      <Indicator helpKey="netMargin" label="Margem Líquida" value={fmtPct(quote.financialData?.profitMargins)} />
+      <Indicator helpKey="ebitdaMargin" label="Margem EBITDA" value={fmtPct(quote.financialData?.ebitdaMargins)} />
+      <Indicator helpKey="operatingMargin" label="Margem Operacional" value={fmtPct(quote.financialData?.operatingMargins)} />
+      <Indicator helpKey="roe" label="ROE" value={fmtPct(quote.financialData?.returnOnEquity)} />
+      <Indicator helpKey="roa" label="ROA" value={fmtPct(quote.financialData?.returnOnAssets)} />
+      <Indicator helpKey="cagrRevenue" label="CAGR Receita 5A" value={fmtPct(quote.financialData?.revenueGrowth)} />
+      <Indicator helpKey="cagrEarnings" label="CAGR Lucro 5A" value={fmtPct(quote.financialData?.earningsGrowth)} />
+      <Indicator helpKey="revenue" label="Receita Líquida" value={fmtMoney(quote.financialData?.totalRevenue)} />
+      <Indicator helpKey="ebitda" label="EBITDA" value={fmtMoney(quote.financialData?.ebitda)} />
+      <Indicator helpKey="netIncome" label="Lucro Líquido" value={fmtMoney(metrics.netIncome)} />
+      <Indicator helpKey="fcf" label="Free Cash Flow" value={fmtMoney(quote.financialData?.freeCashflow)} />
+      <Indicator helpKey="beta" label="Beta" value={fmtNum(quote.defaultKeyStatistics?.beta, 2)} />
     </div>
   );
 }
@@ -1894,42 +1912,43 @@ function FinanceIndicators({ metrics, quote }: { metrics: Metrics; quote: BrapiQ
   return (
     <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "10px" }}>
       {/* Valuation */}
-      <Indicator label="P/L" value={fmtNum(metrics.pl, 2)} />
-      <Indicator label="P/VP" value={fmtNum(metrics.pvp, 2)} />
-      <Indicator label="Dividend Yield" value={metrics.dy !== null ? `${metrics.dy.toFixed(2)}%` : "—"} />
-      <Indicator label="Payout" value={metrics.payout !== null ? `${metrics.payout.toFixed(2)}%` : "—"} />
+      <Indicator helpKey="pl" label="P/L" value={fmtNum(metrics.pl, 2)} />
+      <Indicator helpKey="pvp" label="P/VP" value={fmtNum(metrics.pvp, 2)} />
+      <Indicator helpKey="dy" label="Dividend Yield" value={metrics.dy !== null ? `${metrics.dy.toFixed(2)}%` : "—"} />
+      <Indicator helpKey="payout" label="Payout" value={metrics.payout !== null ? `${metrics.payout.toFixed(2)}%` : "—"} />
 
       {/* Por ação */}
-      <Indicator label="LPA" value={lpa !== null && lpa !== undefined ? `R$ ${lpa.toFixed(2).replace(".", ",")}` : "—"} />
-      <Indicator label="VPA" value={vpa !== null && vpa !== undefined ? `R$ ${vpa.toFixed(2).replace(".", ",")}` : "—"} />
+      <Indicator helpKey="lpa" label="LPA" value={lpa !== null && lpa !== undefined ? `R$ ${lpa.toFixed(2).replace(".", ",")}` : "—"} />
+      <Indicator helpKey="vpa" label="VPA" value={vpa !== null && vpa !== undefined ? `R$ ${vpa.toFixed(2).replace(".", ",")}` : "—"} />
       <Indicator
+        helpKey="revPerShare"
         label="Receita / Ação"
         value={metrics.revenuePerShare !== null ? `R$ ${metrics.revenuePerShare.toFixed(2).replace(".", ",")}` : "—"}
       />
-      <Indicator label="Beta" value={fmtNum(quote.defaultKeyStatistics?.beta, 2)} />
+      <Indicator helpKey="beta" label="Beta" value={fmtNum(quote.defaultKeyStatistics?.beta, 2)} />
 
       {/* Rentabilidade */}
-      <Indicator label="ROE" value={fmtPct(quote.financialData?.returnOnEquity)} />
-      <Indicator label="ROA" value={fmtPct(quote.financialData?.returnOnAssets)} />
-      <Indicator label="Margem Líquida" value={fmtPct(quote.financialData?.profitMargins)} />
-      <Indicator label="Margem Bruta" value={fmtPct(quote.financialData?.grossMargins)} />
+      <Indicator helpKey="roe" label="ROE" value={fmtPct(quote.financialData?.returnOnEquity)} />
+      <Indicator helpKey="roa" label="ROA" value={fmtPct(quote.financialData?.returnOnAssets)} />
+      <Indicator helpKey="netMargin" label="Margem Líquida" value={fmtPct(quote.financialData?.profitMargins)} />
+      <Indicator helpKey="grossMargin" label="Margem Bruta" value={fmtPct(quote.financialData?.grossMargins)} />
 
       {/* Estrutura bancária — substitui dívida/EBITDA/liquidez */}
-      <Indicator label="Alavancagem (Ativos/PL)" value={metrics.leverage !== null ? `${metrics.leverage.toFixed(2)}×` : "—"} />
-      <Indicator label="Capital Ratio (PL/Ativos)" value={fmtPctDecimal(metrics.capitalRatio)} />
-      <Indicator label="Receita / Ativos" value={metrics.totalRevenue && metrics.totalAssets ? fmtPctDecimal(metrics.totalRevenue / metrics.totalAssets) : "—"} />
-      <Indicator label="Lucro / Ativos" value={metrics.netIncome && metrics.totalAssets ? fmtPctDecimal(metrics.netIncome / metrics.totalAssets) : "—"} />
+      <Indicator helpKey="leverage" label="Alavancagem (Ativos/PL)" value={metrics.leverage !== null ? `${metrics.leverage.toFixed(2)}×` : "—"} />
+      <Indicator helpKey="capitalRatio" label="Capital Ratio (PL/Ativos)" value={fmtPctDecimal(metrics.capitalRatio)} />
+      <Indicator helpKey="revPerAssets" label="Receita / Ativos" value={metrics.totalRevenue && metrics.totalAssets ? fmtPctDecimal(metrics.totalRevenue / metrics.totalAssets) : "—"} />
+      <Indicator helpKey="profitPerAssets" label="Lucro / Ativos" value={metrics.netIncome && metrics.totalAssets ? fmtPctDecimal(metrics.netIncome / metrics.totalAssets) : "—"} />
 
       {/* Crescimento */}
-      <Indicator label="Crescimento Receita" value={fmtPct(quote.financialData?.revenueGrowth)} />
-      <Indicator label="Crescimento Lucro" value={fmtPct(quote.financialData?.earningsGrowth)} />
+      <Indicator helpKey="revGrowth" label="Crescimento Receita" value={fmtPct(quote.financialData?.revenueGrowth)} />
+      <Indicator helpKey="earnGrowth" label="Crescimento Lucro" value={fmtPct(quote.financialData?.earningsGrowth)} />
 
       {/* Tamanho */}
-      <Indicator label="Receita Líquida" value={fmtMoney(metrics.totalRevenue)} />
-      <Indicator label="Lucro Líquido" value={fmtMoney(metrics.netIncome)} />
-      <Indicator label="Patrimônio Líquido" value={fmtMoney(metrics.equity)} />
-      <Indicator label="Ativos Totais" value={fmtMoney(metrics.totalAssets)} />
-      <Indicator label="Caixa" value={fmtMoney(quote.financialData?.totalCash)} />
+      <Indicator helpKey="revenue" label="Receita Líquida" value={fmtMoney(metrics.totalRevenue)} />
+      <Indicator helpKey="netIncome" label="Lucro Líquido" value={fmtMoney(metrics.netIncome)} />
+      <Indicator helpKey="equity" label="Patrimônio Líquido" value={fmtMoney(metrics.equity)} />
+      <Indicator helpKey="totalAssets" label="Ativos Totais" value={fmtMoney(metrics.totalAssets)} />
+      <Indicator helpKey="cash" label="Caixa" value={fmtMoney(quote.financialData?.totalCash)} />
     </div>
   );
 }
@@ -2132,21 +2151,45 @@ function MiniStat({ label, value, color }: { label: string; value: string; color
   );
 }
 
-function Indicator({ label, value }: { label: string; value: string }) {
+function Indicator({ label, value, helpKey }: { label: string; value: string; helpKey?: string }) {
   return (
     <div style={{
       background: "#0d0b07",
       border: "1px solid rgba(201,168,76,0.06)",
-      borderRadius: "8px", padding: "10px 12px",
+      borderRadius: "8px",
+      padding: "10px 12px",
+      position: "relative",
     }}>
-      <p style={{
-        fontSize: "9px", fontWeight: 600, color: "#a09068",
-        fontFamily: "var(--font-sans)", letterSpacing: "0.05em",
-        marginBottom: "6px", textTransform: "uppercase",
+      <div style={{
+        display: "flex",
+        alignItems: "flex-start",
+        justifyContent: "space-between",
+        gap: "6px",
+        marginBottom: "6px",
       }}>
-        {label}
-      </p>
-      <p style={{ fontSize: "14px", fontWeight: 700, color: "#e8dcc0", fontFamily: "var(--font-display)" }}>
+        <p style={{
+          fontSize: "9px",
+          fontWeight: 600,
+          color: "#a09068",
+          fontFamily: "var(--font-sans)",
+          letterSpacing: "0.05em",
+          textTransform: "uppercase",
+          margin: 0,
+          flex: 1,
+          lineHeight: 1.2,
+        }}>
+          {label}
+        </p>
+        {helpKey && <IndicatorHelp helpKey={helpKey} />}
+      </div>
+      <p style={{
+        fontSize: "14px",
+        fontWeight: 700,
+        color: "#e8dcc0",
+        fontFamily: "var(--font-display)",
+        margin: 0,
+        fontVariantNumeric: "tabular-nums",
+      }}>
         {value}
       </p>
     </div>
