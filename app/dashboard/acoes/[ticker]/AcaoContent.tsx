@@ -6,6 +6,7 @@ import {
   ChevronLeft, TrendingUp, TrendingDown, Info, X, ChevronDown,
   CheckCircle2, XCircle, Building2, Calendar as CalendarIcon,
   Newspaper, ExternalLink, Plus,
+  Calculator, ShieldCheck, Coins, Rocket, Landmark,
 } from "lucide-react";
 import AssetDiscussion from "@/components/AssetDiscussion";
 import { IndicatorHelp } from "@/components/IndicatorHelp";
@@ -258,10 +259,13 @@ export default function AcaoContent({ ticker, userEmail, userName, userAvatar }:
   // Métricas calculadas
   const metrics = useMemo(() => calculateMetrics(quote), [quote]);
   const isFinance = useMemo(() => isFinanceSector(quote), [quote]);
-  const checklist = useMemo(() => buildChecklist(metrics, isFinance), [metrics, isFinance]);
   const dividends = useMemo(() => buildDividends(quote), [quote]);
   const incomeData = useMemo(() => buildIncomeData(quote), [quote]);
   const bazin = useMemo(() => bazinCeiling(quote?.dividendsData?.cashDividends), [quote]);
+  const checklist = useMemo(() => {
+    if (!quote) return { groups: [], passedTotal: 0, total: 0, scorePct: 0 };
+    return buildChecklist({ metrics, quote, dividends, technicals }, isFinance);
+  }, [metrics, quote, dividends, technicals, isFinance]);
 
   if (loading) {
     return (
@@ -1096,118 +1100,326 @@ function rsiColor(rsi: number | null): string {
 
 // ─── Checklist ────────────────────────────────────────────────────────────────
 
-interface ChecklistItem { label: string; description: string; passed: boolean }
-interface ChecklistGroupT { title: string; items: ChecklistItem[]; passed: number; total: number }
+interface ChecklistItem {
+  label: string;
+  description: string;
+  passed: boolean;
+  /** Valor real medido, formatado pra exibição (ex: "26,49%", "5,34", "R$ 12,3 Bi"). Opcional. */
+  current?: string;
+}
 
-function buildDefaultChecklist(m: Metrics): ChecklistGroupT[] {
+interface ChecklistGroupT {
+  title: string;
+  /** Chave da família lucide do ícone do grupo. */
+  iconKey: "calculator" | "shield" | "coins" | "trending" | "rocket" | "bank";
+  items: ChecklistItem[];
+  passed: number;
+  total: number;
+}
+
+interface BuildChecklistArgs {
+  metrics: Metrics;
+  quote: BrapiQuoteFull;
+  dividends: DivList;
+  technicals: Technicals;
+}
+
+// ─── Helpers de formatação dos valores atuais ───────────────────────────────
+function fmtPctFromDec(v: number | null | undefined): string | undefined {
+  if (v === null || v === undefined || isNaN(v)) return undefined;
+  return `${(v * 100).toFixed(2).replace(".", ",")}%`;
+}
+function fmtPctFromAlready(v: number | null | undefined): string | undefined {
+  if (v === null || v === undefined || isNaN(v)) return undefined;
+  return `${v.toFixed(2).replace(".", ",")}%`;
+}
+function fmtNumStr(v: number | null | undefined, dec = 2): string | undefined {
+  if (v === null || v === undefined || isNaN(v)) return undefined;
+  return v.toFixed(dec).replace(".", ",");
+}
+function fmtMoneyShort(v: number | null | undefined): string | undefined {
+  if (v === null || v === undefined || isNaN(v)) return undefined;
+  if (Math.abs(v) >= 1e9) return `R$ ${(v / 1e9).toFixed(2).replace(".", ",")} Bi`;
+  if (Math.abs(v) >= 1e6) return `R$ ${(v / 1e6).toFixed(2).replace(".", ",")} Mi`;
+  if (Math.abs(v) >= 1e3) return `R$ ${(v / 1e3).toFixed(2).replace(".", ",")} mil`;
+  return `R$ ${v.toFixed(2).replace(".", ",")}`;
+}
+/** Histórico de dividendos consistente: anos completos (excl. corrente) com pagamento. */
+function dividendYearsPaid(dividends: DivList): { paid: number; window: number } {
+  const currentYear = new Date().getFullYear();
+  const window = 5;
+  const set = new Set<number>();
+  for (const d of dividends.byYear ?? []) {
+    if (d.year >= currentYear - window && d.year < currentYear && d.total > 0) {
+      set.add(d.year);
+    }
+  }
+  return { paid: set.size, window };
+}
+
+function buildDefaultChecklist(args: BuildChecklistArgs): ChecklistGroupT[] {
+  const { metrics: m, quote: q, dividends, technicals } = args;
+  const fd = q.financialData;
+  const roe = fd?.returnOnEquity ?? null;
+  const profitMargins = fd?.profitMargins ?? null;
+  const currentRatio = fd?.currentRatio ?? null;
+  const fcf = fd?.freeCashflow ?? null;
+  const revGrowth = fd?.revenueGrowth ?? null;
+  const mcap = q.marketCap ?? null;
+  const price = q.regularMarketPrice ?? 0;
+  const avgVol90d = technicals.avgVolume90d;
+  const liquidityRS = avgVol90d !== null && price > 0 ? avgVol90d * price : null;
+
+  const histPaid = dividendYearsPaid(dividends);
+
   return [
     {
       title: "Análise Fundamentalista",
+      iconKey: "calculator",
       items: [
-        { label: "P/L Atrativo", description: "P/L menor que 15", passed: m.pl !== null && m.pl > 0 && m.pl < 15 },
-        { label: "P/VP Atrativo", description: "Preço/Valor Patrimonial menor que 1,5", passed: m.pvp !== null && m.pvp > 0 && m.pvp < 1.5 },
-        { label: "ROE Elevado", description: "Retorno do Equity acima de 15%", passed: false },
-        { label: "Margens Saudáveis", description: "Margem líquida acima de 10%", passed: false },
+        {
+          label: "P/L Atrativo",
+          description: "P/L menor que 15",
+          passed: m.pl !== null && m.pl > 0 && m.pl < 15,
+          current: fmtNumStr(m.pl),
+        },
+        {
+          label: "P/VP Atrativo",
+          description: "Preço/Valor Patrimonial menor que 1,5",
+          passed: m.pvp !== null && m.pvp > 0 && m.pvp < 1.5,
+          current: fmtNumStr(m.pvp),
+        },
+        {
+          label: "ROE Elevado",
+          description: "Retorno sobre o Patrimônio acima de 15%",
+          passed: roe !== null && roe >= 0.15,
+          current: fmtPctFromDec(roe),
+        },
+        {
+          label: "Margem Líquida Forte",
+          description: "Margem líquida acima de 10%",
+          passed: profitMargins !== null && profitMargins >= 0.1,
+          current: fmtPctFromDec(profitMargins),
+        },
       ],
       passed: 0, total: 4,
     },
     {
       title: "Saúde Financeira",
+      iconKey: "shield",
       items: [
-        { label: "Dívida Controlada", description: "Dív. Líq./EBITDA menor que 3", passed: m.netDebtToEbitda !== null && m.netDebtToEbitda < 3 },
-        { label: "Liquidez Corrente OK", description: "Liquidez corrente acima de 1", passed: false },
-        { label: "Passivos sob controle", description: "Passivos/Ativos abaixo de 60%", passed: m.liabilitiesToAssets !== null && m.liabilitiesToAssets < 0.6 },
-        { label: "Free Cash Flow positivo", description: "Geração de caixa positiva", passed: false },
+        {
+          label: "Dívida Controlada",
+          description: "Dív. Líq./EBITDA menor que 3",
+          passed: m.netDebtToEbitda !== null && m.netDebtToEbitda < 3,
+          current: fmtNumStr(m.netDebtToEbitda),
+        },
+        {
+          label: "Liquidez Corrente OK",
+          description: "Liquidez corrente acima de 1",
+          passed: currentRatio !== null && currentRatio > 1,
+          current: fmtNumStr(currentRatio),
+        },
+        {
+          label: "Passivos sob Controle",
+          description: "Passivos/Ativos abaixo de 60%",
+          passed: m.liabilitiesToAssets !== null && m.liabilitiesToAssets < 0.6,
+          current: fmtPctFromDec(m.liabilitiesToAssets),
+        },
+        {
+          label: "Free Cash Flow Positivo",
+          description: "Geração de caixa livre positiva",
+          passed: fcf !== null && fcf > 0,
+          current: fmtMoneyShort(fcf),
+        },
       ],
       passed: 0, total: 4,
     },
     {
       title: "Retorno ao Acionista",
+      iconKey: "coins",
       items: [
-        { label: "Dividend Yield Bom", description: "DY acima de 5%", passed: m.dy !== null && m.dy >= 5 },
-        { label: "Payout Sustentável", description: "Payout entre 30% e 80%", passed: m.payout !== null && m.payout >= 30 && m.payout <= 80 },
-        { label: "Histórico de Dividendos", description: "Distribuição consistente", passed: false },
+        {
+          label: "Dividend Yield Forte",
+          description: "DY igual ou acima de 6%",
+          passed: m.dy !== null && m.dy >= 6,
+          current: fmtPctFromAlready(m.dy),
+        },
+        {
+          label: "Payout Saudável",
+          description: "Payout entre 30% e 70%",
+          passed: m.payout !== null && m.payout >= 30 && m.payout <= 70,
+          current: fmtPctFromAlready(m.payout),
+        },
+        {
+          label: "Histórico Consistente",
+          description: "Pagou em pelo menos 4 dos últimos 5 anos",
+          passed: histPaid.paid >= 4,
+          current: `${histPaid.paid}/${histPaid.window} anos`,
+        },
       ],
       passed: 0, total: 3,
     },
     {
       title: "Posicionamento de Mercado",
+      iconKey: "trending",
       items: [
-        { label: "Valor de Mercado Sólido", description: "Market Cap relevante", passed: false },
-        { label: "Volume de Negociação", description: "Liquidez adequada", passed: false },
-        { label: "Crescimento de Receita", description: "Receita crescente", passed: false },
+        {
+          label: "Mid/Large Cap",
+          description: "Valor de mercado acima de R$ 5 Bi",
+          passed: mcap !== null && mcap >= 5e9,
+          current: fmtMoneyShort(mcap),
+        },
+        {
+          label: "Liquidez Adequada",
+          description: "Volume médio diário acima de R$ 10 Mi",
+          passed: liquidityRS !== null && liquidityRS >= 1e7,
+          current: fmtMoneyShort(liquidityRS),
+        },
+        {
+          label: "Receita em Crescimento",
+          description: "Crescimento de receita positivo",
+          passed: revGrowth !== null && revGrowth > 0,
+          current: fmtPctFromDec(revGrowth),
+        },
       ],
       passed: 0, total: 3,
     },
   ];
 }
 
-function buildFinanceChecklist(m: Metrics): ChecklistGroupT[] {
-  // ROE/ROA da brapi vêm em decimal (0.15 = 15%); aplicamos a mesma heurística do fmtPct
+function buildFinanceChecklist(args: BuildChecklistArgs): ChecklistGroupT[] {
+  const { metrics: m, quote: q } = args;
+  const fd = q.financialData;
+  const roe = fd?.returnOnEquity ?? null;
+  const roa = fd?.returnOnAssets ?? null;
+  const profitMargins = fd?.profitMargins ?? null;
+  const revGrowth = fd?.revenueGrowth ?? null;
+  const earnGrowth = fd?.earningsGrowth ?? null;
+  const mcap = q.marketCap ?? null;
+
   return [
     {
       title: "Valuation Bancário",
+      iconKey: "calculator",
       items: [
-        { label: "P/L Atrativo", description: "P/L abaixo de 12 (banco)", passed: m.pl !== null && m.pl > 0 && m.pl < 12 },
-        { label: "P/VP Abaixo do Patrimônio", description: "P/VP menor que 1,2 indica desconto sobre PL", passed: m.pvp !== null && m.pvp > 0 && m.pvp < 1.2 },
-        { label: "Dividend Yield Forte", description: "DY acima de 6% — bancos brasileiros costumam pagar bem", passed: m.dy !== null && m.dy >= 6 },
-        { label: "Payout Sustentável", description: "Payout entre 30% e 80%", passed: m.payout !== null && m.payout >= 30 && m.payout <= 80 },
+        {
+          label: "P/L Atrativo",
+          description: "P/L abaixo de 12 (típico de banco)",
+          passed: m.pl !== null && m.pl > 0 && m.pl < 12,
+          current: fmtNumStr(m.pl),
+        },
+        {
+          label: "P/VP com Desconto",
+          description: "P/VP menor que 1,2",
+          passed: m.pvp !== null && m.pvp > 0 && m.pvp < 1.2,
+          current: fmtNumStr(m.pvp),
+        },
+        {
+          label: "Dividend Yield Forte",
+          description: "DY igual ou acima de 6%",
+          passed: m.dy !== null && m.dy >= 6,
+          current: fmtPctFromAlready(m.dy),
+        },
+        {
+          label: "Payout Saudável",
+          description: "Payout entre 30% e 70%",
+          passed: m.payout !== null && m.payout >= 30 && m.payout <= 70,
+          current: fmtPctFromAlready(m.payout),
+        },
       ],
       passed: 0, total: 4,
     },
     {
       title: "Saúde Bancária",
+      iconKey: "bank",
       items: [
         {
           label: "Capital Ratio Adequado",
           description: "PL/Ativos acima de 8% (proxy do índice de Basileia)",
           passed: m.capitalRatio !== null && m.capitalRatio >= 0.08,
+          current: fmtPctFromDec(m.capitalRatio),
         },
         {
           label: "Alavancagem Prudente",
-          description: "Ativos/PL abaixo de 14× — bancos saudáveis ficam entre 8× e 14×",
+          description: "Ativos/PL abaixo de 14× — bancos saudáveis: 8× a 14×",
           passed: m.leverage !== null && m.leverage > 0 && m.leverage < 14,
+          current: m.leverage !== null ? `${m.leverage.toFixed(2).replace(".", ",")}×` : undefined,
         },
         {
           label: "Lucro Positivo",
           description: "Lucro líquido positivo no último período",
           passed: m.netIncome !== null && m.netIncome > 0,
+          current: fmtMoneyShort(m.netIncome),
         },
         {
           label: "Patrimônio Sólido",
-          description: "Patrimônio líquido positivo e relevante",
+          description: "Patrimônio líquido positivo",
           passed: m.equity !== null && m.equity > 0,
+          current: fmtMoneyShort(m.equity),
         },
       ],
       passed: 0, total: 4,
     },
     {
       title: "Rentabilidade",
+      iconKey: "coins",
       items: [
-        { label: "ROE Elevado", description: "ROE acima de 15% — alto retorno sobre o patrimônio", passed: false },
-        { label: "ROA Sólido", description: "ROA acima de 1% — eficiência sobre os ativos", passed: false },
-        { label: "Margem Líquida Forte", description: "Margem líquida acima de 20% (típico de banco)", passed: false },
+        {
+          label: "ROE Elevado",
+          description: "ROE acima de 15% — retorno forte sobre o capital",
+          passed: roe !== null && roe >= 0.15,
+          current: fmtPctFromDec(roe),
+        },
+        {
+          label: "ROA Sólido",
+          description: "ROA acima de 1% — eficiência sobre os ativos",
+          passed: roa !== null && roa >= 0.01,
+          current: fmtPctFromDec(roa),
+        },
+        {
+          label: "Margem Líquida Forte",
+          description: "Margem líquida acima de 20% (típico de banco)",
+          passed: profitMargins !== null && profitMargins >= 0.2,
+          current: fmtPctFromDec(profitMargins),
+        },
       ],
       passed: 0, total: 3,
     },
     {
       title: "Crescimento e Mercado",
+      iconKey: "rocket",
       items: [
-        { label: "Receita em Crescimento", description: "Crescimento de receita positivo", passed: false },
-        { label: "Lucro em Crescimento", description: "Crescimento de lucro positivo", passed: false },
-        { label: "Valor de Mercado Sólido", description: "Market Cap relevante", passed: false },
+        {
+          label: "Receita em Crescimento",
+          description: "Crescimento de receita positivo",
+          passed: revGrowth !== null && revGrowth > 0,
+          current: fmtPctFromDec(revGrowth),
+        },
+        {
+          label: "Lucro em Crescimento",
+          description: "Crescimento de lucro positivo",
+          passed: earnGrowth !== null && earnGrowth > 0,
+          current: fmtPctFromDec(earnGrowth),
+        },
+        {
+          label: "Banco de Grande Porte",
+          description: "Valor de mercado acima de R$ 10 Bi",
+          passed: mcap !== null && mcap >= 1e10,
+          current: fmtMoneyShort(mcap),
+        },
       ],
       passed: 0, total: 3,
     },
   ];
 }
 
-function buildChecklist(m: Metrics, isFinance: boolean): {
+function buildChecklist(args: BuildChecklistArgs, isFinance: boolean): {
   groups: ChecklistGroupT[]; passedTotal: number; total: number; scorePct: number;
 } {
   const groups: ChecklistGroupT[] = isFinance
-    ? buildFinanceChecklist(m)
-    : buildDefaultChecklist(m);
+    ? buildFinanceChecklist(args)
+    : buildDefaultChecklist(args);
 
   let passedTotal = 0, total = 0;
   for (const g of groups) {
@@ -1220,13 +1432,15 @@ function buildChecklist(m: Metrics, isFinance: boolean): {
 }
 
 function scoreColor(pct: number): string {
-  if (pct >= 70) return "#34d399";
-  if (pct >= 40) return "#C58A3D";
-  return "#f87171";
+  if (pct >= 85) return "#C9A84C";  // gold premium
+  if (pct >= 65) return "#34d399";  // green
+  if (pct >= 40) return "#C58A3D";  // amber
+  return "#c46a6a";                 // muted red (era #f87171, agressivo demais)
 }
 
 function scoreLabel(pct: number): string {
-  if (pct >= 70) return "Candidato forte";
+  if (pct >= 85) return "Candidato excelente";
+  if (pct >= 65) return "Candidato forte";
   if (pct >= 40) return "Candidato moderado";
   return "Candidato fraco";
 }
@@ -2209,53 +2423,155 @@ function DivStat({ label, value, accent }: { label: string; value: string; accen
   );
 }
 
+function GroupIcon({ iconKey, color }: { iconKey: ChecklistGroupT["iconKey"]; color: string }) {
+  const props = { size: 14, style: { color, flexShrink: 0 }, "aria-hidden": true } as const;
+  switch (iconKey) {
+    case "calculator": return <Calculator {...props} />;
+    case "shield":     return <ShieldCheck {...props} />;
+    case "coins":      return <Coins {...props} />;
+    case "trending":   return <TrendingUp {...props} />;
+    case "rocket":     return <Rocket {...props} />;
+    case "bank":       return <Landmark {...props} />;
+  }
+}
+
 function ChecklistGroup({ group }: { group: ChecklistGroupT }) {
   const [open, setOpen] = useState(group.passed > 0 && group.passed < group.total);
+  const ratio = group.total > 0 ? (group.passed / group.total) * 100 : 0;
+  const tone = scoreColor(ratio);
   return (
     <div style={{
       background: "#0d0b07",
       border: "1px solid rgba(201,168,76,0.08)",
-      borderRadius: "10px", overflow: "hidden",
+      borderRadius: "10px",
+      overflow: "hidden",
     }}>
       <button
         onClick={() => setOpen(!open)}
+        aria-expanded={open}
         style={{
-          width: "100%", display: "flex",
-          justifyContent: "space-between", alignItems: "center",
-          padding: "12px 16px", background: "transparent",
-          border: "none", cursor: "pointer", textAlign: "left",
+          width: "100%",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          padding: "12px 16px",
+          minHeight: "48px",
+          background: "transparent",
+          border: "none",
+          cursor: "pointer",
+          textAlign: "left",
+          transition: "background 0.15s",
         }}
+        onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(201,168,76,0.03)")}
+        onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          <span style={{ fontSize: "13px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-sans)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0 }}>
+          <span style={{
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            width: "24px",
+            height: "24px",
+            background: `${tone}14`,
+            border: `1px solid ${tone}33`,
+            borderRadius: "6px",
+            flexShrink: 0,
+          }}>
+            <GroupIcon iconKey={group.iconKey} color={tone} />
+          </span>
+          <span style={{
+            fontSize: "13px",
+            fontWeight: 600,
+            color: "#e8dcc0",
+            fontFamily: "var(--font-sans)",
+          }}>
             {group.title}
           </span>
           <span style={{
-            fontSize: "11px", fontWeight: 600,
-            color: scoreColor((group.passed / group.total) * 100),
-            background: `${scoreColor((group.passed / group.total) * 100)}1a`,
-            padding: "2px 8px", borderRadius: "4px",
+            fontSize: "11px",
+            fontWeight: 700,
+            color: tone,
+            background: `${tone}1a`,
+            border: `1px solid ${tone}33`,
+            padding: "2px 8px",
+            borderRadius: "4px",
             fontFamily: "var(--font-sans)",
+            fontVariantNumeric: "tabular-nums",
           }}>
             {group.passed}/{group.total}
           </span>
         </div>
-        <ChevronDown size={14} style={{ color: "#a09068", transform: open ? "rotate(180deg)" : "none", transition: "transform 0.2s" }} />
+        <ChevronDown
+          size={14}
+          aria-hidden="true"
+          style={{
+            color: "#a09068",
+            transform: open ? "rotate(180deg)" : "none",
+            transition: "transform 0.2s",
+            flexShrink: 0,
+          }}
+        />
       </button>
       {open && (
-        <div style={{ padding: "0 16px 12px", display: "flex", flexDirection: "column", gap: "6px" }}>
+        <div style={{
+          padding: "4px 16px 14px",
+          display: "flex",
+          flexDirection: "column",
+          gap: "10px",
+          borderTop: "1px solid rgba(201,168,76,0.05)",
+        }}>
           {group.items.map((item, i) => (
-            <div key={i} style={{ display: "flex", gap: "10px", alignItems: "flex-start" }}>
+            <div
+              key={i}
+              style={{
+                display: "flex",
+                gap: "10px",
+                alignItems: "flex-start",
+                paddingTop: i === 0 ? "10px" : 0,
+              }}
+            >
               {item.passed ? (
-                <CheckCircle2 size={13} style={{ color: "#34d399", flexShrink: 0, marginTop: "2px" }} />
+                <CheckCircle2 size={14} style={{ color: "#34d399", flexShrink: 0, marginTop: "1px" }} aria-hidden="true" />
               ) : (
-                <XCircle size={13} style={{ color: "#f87171", flexShrink: 0, marginTop: "2px" }} />
+                <XCircle size={14} style={{ color: "#a86161", flexShrink: 0, marginTop: "1px" }} aria-hidden="true" />
               )}
-              <div>
-                <p style={{ fontSize: "12px", fontWeight: 500, color: "#e8dcc0", fontFamily: "var(--font-sans)", marginBottom: "2px" }}>
-                  {item.label}
-                </p>
-                <p style={{ fontSize: "11px", color: "#a09068", fontFamily: "var(--font-sans)", lineHeight: 1.4 }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "baseline",
+                  gap: "8px",
+                  marginBottom: "2px",
+                }}>
+                  <p style={{
+                    fontSize: "12px",
+                    fontWeight: 600,
+                    color: "#e8dcc0",
+                    fontFamily: "var(--font-sans)",
+                    margin: 0,
+                  }}>
+                    {item.label}
+                  </p>
+                  {item.current && (
+                    <span style={{
+                      fontSize: "11px",
+                      fontWeight: 700,
+                      color: item.passed ? "#34d399" : "#a09068",
+                      fontFamily: "var(--font-display)",
+                      fontVariantNumeric: "tabular-nums",
+                      whiteSpace: "nowrap",
+                    }}>
+                      {item.current}
+                    </span>
+                  )}
+                </div>
+                <p style={{
+                  fontSize: "11px",
+                  color: "#a09068",
+                  fontFamily: "var(--font-sans)",
+                  lineHeight: 1.45,
+                  margin: 0,
+                }}>
                   {item.description}
                 </p>
               </div>
