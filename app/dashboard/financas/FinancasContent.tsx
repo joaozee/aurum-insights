@@ -22,6 +22,17 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { toast } from "sonner";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -566,6 +577,13 @@ export default function FinancasContent({ userEmail }: Props) {
   const [saving, setSaving]       = useState(false);
   const [formError, setFormError] = useState("");
 
+  // Delete confirmation — discriminated union by entity kind
+  type PendingDelete =
+    | { kind: "tx"; tx: FinanceTransaction }
+    | { kind: "budget"; budget: Budget }
+    | { kind: "goal"; goal: FinancialGoal };
+  const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null);
+
   // ── Fetch ─────────────────────────────────────────────────────────────────
 
   const fetchData = useCallback(async () => {
@@ -893,23 +911,36 @@ export default function FinancasContent({ userEmail }: Props) {
     setModal(null); setSaving(false); fetchData();
   }
 
-  async function deleteTx(id: string) {
+  async function confirmDelete() {
+    if (!pendingDelete) return;
     const supabase = createClient();
-    await supabase.from("finance_transaction").delete().eq("id", id);
-    setTransactions(prev => prev.filter(t => t.id !== id));
-    setReportTx(prev => prev.filter(t => t.id !== id));
-  }
-
-  async function deleteGoal(id: string) {
-    const supabase = createClient();
-    await supabase.from("financial_goal").delete().eq("id", id);
-    setGoals(prev => prev.filter(g => g.id !== id));
-  }
-
-  async function deleteBudget(id: string) {
-    const supabase = createClient();
-    await supabase.from("budget").delete().eq("id", id);
-    setBudgets(prev => prev.filter(b => b.id !== id));
+    if (pendingDelete.kind === "tx") {
+      const id = pendingDelete.tx.id;
+      const { error } = await supabase.from("finance_transaction").delete().eq("id", id);
+      if (error) toast.error("Não consegui apagar a transação.", { description: "Tenta de novo em um instante." });
+      else {
+        toast.success("Transação apagada.");
+        setTransactions(prev => prev.filter(t => t.id !== id));
+        setReportTx(prev => prev.filter(t => t.id !== id));
+      }
+    } else if (pendingDelete.kind === "budget") {
+      const id = pendingDelete.budget.id;
+      const { error } = await supabase.from("budget").delete().eq("id", id);
+      if (error) toast.error("Não consegui remover o orçamento.", { description: "Tenta de novo em um instante." });
+      else {
+        toast.success("Orçamento removido.");
+        setBudgets(prev => prev.filter(b => b.id !== id));
+      }
+    } else {
+      const id = pendingDelete.goal.id;
+      const { error } = await supabase.from("financial_goal").delete().eq("id", id);
+      if (error) toast.error("Não consegui apagar a meta.", { description: "Tenta de novo em um instante." });
+      else {
+        toast.success("Meta apagada.");
+        setGoals(prev => prev.filter(g => g.id !== id));
+      }
+    }
+    setPendingDelete(null);
   }
 
   function openTxModal(type: "entrada" | "saida") {
@@ -1151,7 +1182,10 @@ export default function FinancasContent({ userEmail }: Props) {
                     ) : (
                       <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
                         {transactions.slice(0, 8).map(t => (
-                          <TxRow key={t.id} t={t} onDelete={deleteTx} />
+                          <TxRow key={t.id} t={t} onDelete={(id) => {
+                            const tx = transactions.find(x => x.id === id);
+                            if (tx) setPendingDelete({ kind: "tx", tx });
+                          }} />
                         ))}
                       </div>
                     )}
@@ -1189,7 +1223,12 @@ export default function FinancasContent({ userEmail }: Props) {
                               {t.type === "entrada" ? "+" : "-"}{fmt(Number(t.amount))}
                             </td>
                             <td style={{ padding: "10px 0", textAlign: "right" }}>
-                              <button onClick={() => deleteTx(t.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "#857560", padding: "2px" }}>
+                              <button
+                                onClick={() => setPendingDelete({ kind: "tx", tx: t })}
+                                aria-label="Apagar transação"
+                                style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-faint)", padding: "2px" }}
+                                className="aurum-hover-gold aurum-hover-transition"
+                              >
                                 <Trash2 size={13} />
                               </button>
                             </td>
@@ -1406,7 +1445,12 @@ export default function FinancasContent({ userEmail }: Props) {
                               <span style={{ fontSize: "14px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-display)" }}>{b.category}</span>
                               <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
                                 {over && <AlertCircle size={13} style={{ color: "#f87171" }} />}
-                                <button onClick={() => deleteBudget(b.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "#a09068", padding: 0 }}>
+                                <button
+                                  onClick={() => setPendingDelete({ kind: "budget", budget: b })}
+                                  aria-label="Remover orçamento"
+                                  style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", padding: 0 }}
+                                  className="aurum-hover-gold aurum-hover-transition"
+                                >
                                   <Trash2 size={12} />
                                 </button>
                               </div>
@@ -1468,7 +1512,12 @@ export default function FinancasContent({ userEmail }: Props) {
                               </div>
                               <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                                 {pct >= 100 && <Check size={14} style={{ color: "#22c55e" }} />}
-                                <button onClick={() => deleteGoal(g.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "#857560", padding: "2px" }}>
+                                <button
+                                  onClick={() => setPendingDelete({ kind: "goal", goal: g })}
+                                  aria-label="Apagar meta"
+                                  style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-faint)", padding: "2px" }}
+                                  className="aurum-hover-gold aurum-hover-transition"
+                                >
                                   <Trash2 size={13} />
                                 </button>
                               </div>
@@ -1779,6 +1828,56 @@ export default function FinancasContent({ userEmail }: Props) {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* ── Delete confirmation (tx, budget, goal) ── */}
+      <AlertDialog open={!!pendingDelete} onOpenChange={(o) => !o && setPendingDelete(null)}>
+        <AlertDialogContent className="sm:max-w-[440px] bg-card border-[rgba(201,168,76,0.15)]">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-display text-[17px] text-[var(--text-strong)]">
+              {pendingDelete?.kind === "tx" ? "Apagar transação?"
+                : pendingDelete?.kind === "budget" ? "Remover este orçamento?"
+                : "Apagar esta meta?"}
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-[13px] leading-relaxed text-[var(--text-body)]">
+              {pendingDelete?.kind === "tx" && (
+                <>
+                  {pendingDelete.tx.type === "entrada" ? "Entrada" : "Saída"} de{" "}
+                  <span className="font-semibold text-[var(--text-default)]">{fmt(Number(pendingDelete.tx.amount))}</span>
+                  {" em "}
+                  <span className="font-semibold text-[var(--text-default)]">{pendingDelete.tx.category}</span>
+                  {" sai do mês. O saldo livre recalcula na hora."}
+                </>
+              )}
+              {pendingDelete?.kind === "budget" && (
+                <>
+                  O limite de{" "}
+                  <span className="font-semibold text-[var(--text-default)]">{fmt(pendingDelete.budget.monthly_limit)}</span>
+                  {" para "}
+                  <span className="font-semibold text-[var(--text-default)]">{pendingDelete.budget.category}</span>
+                  {" sai do mês. As transações já lançadas continuam."}
+                </>
+              )}
+              {pendingDelete?.kind === "goal" && (
+                <>
+                  &ldquo;<span className="font-semibold text-[var(--text-default)]">{pendingDelete.goal.title}</span>&rdquo; e o
+                  progresso registrado serão removidos. Não dá pra recuperar depois.
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="text-[13px]">Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              className="text-[13px] bg-[var(--negative)] text-[var(--text-strong)] hover:bg-[var(--negative)]/90"
+            >
+              {pendingDelete?.kind === "tx" ? "Apagar transação"
+                : pendingDelete?.kind === "budget" ? "Remover orçamento"
+                : "Apagar meta"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
