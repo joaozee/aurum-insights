@@ -20,6 +20,7 @@ interface BrapiCashDividend {
   rate: number;
   label?: string;
   type?: string;
+  relatedTo?: string;      // Período de referência (ex: "1T2024", "JCP")
 }
 
 interface BrapiHistoricalPrice {
@@ -172,6 +173,8 @@ export default function AcaoContent({ ticker, userEmail, userName, userAvatar }:
   const [novoTicker, setNovoTicker] = useState("");
   const [divChartType, setDivChartType] = useState<"yield" | "value">("yield");
   const [calendarPage, setCalendarPage] = useState(0);
+  const [divStatusFilter, setDivStatusFilter] = useState<"all" | "paid" | "upcoming">("all");
+  const [divTypeFilter, setDivTypeFilter] = useState<"all" | "jcp" | "div">("all");
   const [technicals, setTechnicals] = useState<Technicals>({ rsi14: null, rsi200: null, avgVolume90d: null, avgPrice52w: null });
   const [yearAvgPrices, setYearAvgPrices] = useState<Map<number, number>>(new Map());
   const peersAutoPopulated = useRef(false);
@@ -332,6 +335,21 @@ export default function AcaoContent({ ticker, userEmail, userName, userAvatar }:
   const metrics = useMemo(() => calculateMetrics(quote), [quote]);
   const isFinance = useMemo(() => isFinanceSector(quote), [quote]);
   const dividends = useMemo(() => buildDividends(quote, yearAvgPrices), [quote, yearAvgPrices]);
+  const calendarStatsResult = useMemo(() => calendarStats(dividends.list), [dividends.list]);
+  const filteredDivs = useMemo(() => {
+    return dividends.list.filter((d) => {
+      const status = divStatus(d);
+      if (divStatusFilter === "paid" && status !== "paid") return false;
+      if (divStatusFilter === "upcoming" && status === "paid") return false;
+      const kind = divKind(d);
+      if (divTypeFilter === "jcp" && kind !== "jcp") return false;
+      if (divTypeFilter === "div" && kind !== "div") return false;
+      return true;
+    });
+  }, [dividends.list, divStatusFilter, divTypeFilter]);
+
+  // Reseta página quando filtro muda
+  useEffect(() => { setCalendarPage(0); }, [divStatusFilter, divTypeFilter]);
   const incomeData = useMemo(() => buildIncomeData(quote), [quote]);
   const bazin = useMemo(() => bazinCeiling(quote?.dividendsData?.cashDividends), [quote]);
   const checklist = useMemo(() => {
@@ -803,23 +821,96 @@ export default function AcaoContent({ ticker, userEmail, userName, userAvatar }:
         {/* CALENDÁRIO DE DIVIDENDOS */}
         <Section>
           <SectionHeader title={`Calendário de Dividendos — ${ticker}`}>
-            <CalendarIcon size={14} style={{ color: "#C9A84C" }} />
+            <CalendarIcon size={14} style={{ color: "#C9A84C" }} aria-hidden="true" />
           </SectionHeader>
           {dividends.list.length === 0 ? (
             <Empty text="Nenhum provento registrado para este ativo." />
           ) : (
             <>
-              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                {dividends.list.slice(calendarPage * 8, (calendarPage + 1) * 8).map((d, i) => (
-                  <DivRow key={i} dividend={d} />
-                ))}
-              </div>
-              {dividends.list.length > 8 && (
-                <Pagination
-                  page={calendarPage}
-                  total={Math.ceil(dividends.list.length / 8)}
-                  onChange={setCalendarPage}
+              {/* Stat tiles */}
+              <div style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(3, 1fr)",
+                gap: "10px",
+                marginBottom: "14px",
+              }}>
+                <CalendarStatTile
+                  color="#34d399"
+                  label="Recebido em 12m"
+                  value={`R$ ${calendarStatsResult.total12m.toFixed(2).replace(".", ",")}`}
+                  sub={`${calendarStatsResult.count12m} ${calendarStatsResult.count12m === 1 ? "provento" : "proventos"}`}
                 />
+                {calendarStatsResult.nextPayment ? (
+                  <CalendarStatTile
+                    color="#C9A84C"
+                    label="Próximo pagamento"
+                    value={`R$ ${calendarStatsResult.nextPayment.rate.toFixed(2).replace(".", ",")}`}
+                    sub={`${formatDateShort(calendarStatsResult.nextPayment.paymentDate)} · ${divKindLabel(calendarStatsResult.nextPayment.kind)}`}
+                  />
+                ) : (
+                  <CalendarStatTile
+                    color="#9a8a6a"
+                    label="Próximo pagamento"
+                    value="—"
+                    sub="Nenhum agendado"
+                  />
+                )}
+                <CalendarStatTile
+                  color="#5E6B8C"
+                  label={`Eventos em ${new Date().getFullYear()}`}
+                  value={String(calendarStatsResult.countCurrentYear)}
+                  sub={calendarStatsResult.countCurrentYear === 1 ? "provento" : "proventos"}
+                />
+              </div>
+
+              {/* Filtros */}
+              <div style={{
+                display: "flex",
+                gap: "12px",
+                marginBottom: "12px",
+                flexWrap: "wrap",
+                alignItems: "center",
+              }}>
+                <div style={{ display: "flex", gap: "4px" }} role="group" aria-label="Filtrar por status">
+                  <PillBtn active={divStatusFilter === "all"} onClick={() => setDivStatusFilter("all")}>Todos</PillBtn>
+                  <PillBtn active={divStatusFilter === "upcoming"} onClick={() => setDivStatusFilter("upcoming")}>Próximos</PillBtn>
+                  <PillBtn active={divStatusFilter === "paid"} onClick={() => setDivStatusFilter("paid")}>Pagos</PillBtn>
+                </div>
+                <span style={{ width: "1px", height: "16px", background: "rgba(201,168,76,0.15)" }} aria-hidden="true" />
+                <div style={{ display: "flex", gap: "4px" }} role="group" aria-label="Filtrar por tipo">
+                  <PillBtn active={divTypeFilter === "all"} onClick={() => setDivTypeFilter("all")}>Todos tipos</PillBtn>
+                  <PillBtn active={divTypeFilter === "jcp"} onClick={() => setDivTypeFilter("jcp")}>JCP</PillBtn>
+                  <PillBtn active={divTypeFilter === "div"} onClick={() => setDivTypeFilter("div")}>Dividendos</PillBtn>
+                </div>
+                <span style={{
+                  marginLeft: "auto",
+                  fontSize: "10px",
+                  color: "#7a6d57",
+                  fontFamily: "var(--font-sans)",
+                  fontVariantNumeric: "tabular-nums",
+                }}>
+                  {filteredDivs.length} {filteredDivs.length === 1 ? "evento" : "eventos"}
+                </span>
+              </div>
+
+              {/* Cards */}
+              {filteredDivs.length === 0 ? (
+                <Empty text="Nenhum provento corresponde a esses filtros." />
+              ) : (
+                <>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                    {filteredDivs.slice(calendarPage * 8, (calendarPage + 1) * 8).map((d, i) => (
+                      <DivCard key={`${d.paymentDate}-${i}`} dividend={d} />
+                    ))}
+                  </div>
+                  {filteredDivs.length > 8 && (
+                    <Pagination
+                      page={calendarPage}
+                      total={Math.ceil(filteredDivs.length / 8)}
+                      onChange={setCalendarPage}
+                    />
+                  )}
+                </>
               )}
             </>
           )}
@@ -1598,6 +1689,85 @@ function buildDividends(
   };
 
   return { list, byYear, avg5y: calcAvgYield(5), avg10y: calcAvgYield(10) };
+}
+
+// ─── Calendário de Dividendos — helpers ──────────────────────────────────────
+
+type DivKind = "jcp" | "div" | "bonus";
+type DivStatus = "paid" | "today" | "upcoming";
+
+function divKind(d: BrapiCashDividend): DivKind {
+  const label = `${d.label ?? ""} ${d.type ?? ""}`.toLowerCase();
+  if (label.includes("jcp") || label.includes("juros")) return "jcp";
+  if (label.includes("bonif")) return "bonus";
+  return "div";
+}
+
+function divStatus(d: BrapiCashDividend): DivStatus {
+  const date = d.paymentDate;
+  if (!date) return "paid";
+  const t = new Date(date).getTime();
+  if (isNaN(t)) return "paid";
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const todayT = today.getTime();
+  if (t < todayT) return "paid";
+  if (t < todayT + 86400000) return "today";
+  return "upcoming";
+}
+
+function divKindLabel(k: DivKind): string {
+  return k === "jcp" ? "JCP" : k === "bonus" ? "Bonificação" : "Dividendo";
+}
+
+interface CalendarStatsResult {
+  total12m: number;
+  count12m: number;
+  countCurrentYear: number;
+  nextPayment: { paymentDate: string; rate: number; kind: DivKind; lastDatePrior?: string | null } | null;
+}
+
+/**
+ * Estatísticas resumidas do calendário de dividendos:
+ *   - total12m / count12m: o que foi pago nos últimos 12 meses
+ *   - countCurrentYear: quantos eventos no ano corrente (pagos + previstos)
+ *   - nextPayment: próximo provento agendado (paymentDate > hoje, mais cedo)
+ */
+function calendarStats(divs: BrapiCashDividend[]): CalendarStatsResult {
+  const now = Date.now();
+  const oneYearAgo = now - 365 * 86400000;
+  const currentYear = new Date().getFullYear();
+
+  let total12m = 0;
+  let count12m = 0;
+  let countCurrentYear = 0;
+  let nextPayment: CalendarStatsResult["nextPayment"] = null;
+  let nextDate = Infinity;
+
+  for (const d of divs) {
+    if (!d.paymentDate) continue;
+    const t = new Date(d.paymentDate).getTime();
+    if (isNaN(t)) continue;
+
+    if (t > oneYearAgo && t <= now) {
+      total12m += d.rate ?? 0;
+      count12m += 1;
+    }
+    if (new Date(d.paymentDate).getFullYear() === currentYear) {
+      countCurrentYear += 1;
+    }
+    if (t > now && t < nextDate) {
+      nextDate = t;
+      nextPayment = {
+        paymentDate: d.paymentDate,
+        rate: d.rate ?? 0,
+        kind: divKind(d),
+        lastDatePrior: d.lastDatePrior ?? null,
+      };
+    }
+  }
+
+  return { total12m, count12m, countCurrentYear, nextPayment };
 }
 
 // ─── Income (revenue & profit) ────────────────────────────────────────────────
@@ -3547,31 +3717,232 @@ function RevenueChart({ data }: { data: IncomeYear[] }) {
   );
 }
 
-function DivRow({ dividend }: { dividend: BrapiCashDividend }) {
-  const tipo = dividend.label?.toLowerCase().includes("jcp") || dividend.type?.toLowerCase().includes("jcp")
-    ? "JCP" : "Dividendos";
+function CalendarStatTile({
+  color, label, value, sub,
+}: { color: string; label: string; value: string; sub: string }) {
   return (
     <div style={{
-      display: "flex", justifyContent: "space-between", alignItems: "center",
       background: "#0d0b07",
-      border: "1px solid rgba(201,168,76,0.08)",
-      borderRadius: "8px", padding: "10px 14px",
+      border: `1px solid ${color}22`,
+      borderRadius: "10px",
+      padding: "12px 14px",
+      position: "relative",
+      overflow: "hidden",
     }}>
-      <div>
-        <p style={{ fontSize: "12px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-sans)", marginBottom: "2px" }}>
-          {tipo}
-        </p>
-        <p style={{ fontSize: "10px", color: "#a09068", fontFamily: "var(--font-sans)" }}>
-          {dividend.approvedOn && `aviso: ${formatDate(dividend.approvedOn)}`}
-          {dividend.approvedOn && dividend.paymentDate && " · "}
-          {dividend.paymentDate && `pgto: ${formatDate(dividend.paymentDate)}`}
-        </p>
-      </div>
-      <p style={{ fontSize: "14px", fontWeight: 700, color: "#34d399", fontFamily: "var(--font-display)" }}>
-        R$ {dividend.rate?.toFixed(2).replace(".", ",")}
+      <span
+        aria-hidden="true"
+        style={{
+          position: "absolute",
+          left: 0, top: 0, bottom: 0,
+          width: "3px",
+          background: color,
+          opacity: 0.7,
+        }}
+      />
+      <p style={{
+        fontSize: "9px",
+        fontWeight: 700,
+        color,
+        fontFamily: "var(--font-sans)",
+        letterSpacing: "0.06em",
+        textTransform: "uppercase",
+        margin: 0,
+        marginBottom: "6px",
+      }}>
+        {label}
+      </p>
+      <p style={{
+        fontSize: "16px",
+        fontWeight: 700,
+        color: "#e8dcc0",
+        fontFamily: "var(--font-display)",
+        lineHeight: 1,
+        marginBottom: "4px",
+        margin: 0,
+        fontVariantNumeric: "tabular-nums",
+      }}>
+        {value}
+      </p>
+      <p style={{
+        fontSize: "10px",
+        color: "#9a8a6a",
+        fontFamily: "var(--font-sans)",
+        margin: 0,
+        marginTop: "4px",
+      }}>
+        {sub}
       </p>
     </div>
   );
+}
+
+function DivCard({ dividend }: { dividend: BrapiCashDividend }) {
+  const kind = divKind(dividend);
+  const status = divStatus(dividend);
+
+  // Tom semântico por status
+  const statusTone = status === "upcoming"
+    ? { fg: "#C9A84C", bg: "rgba(201,168,76,0.08)", border: "rgba(201,168,76,0.28)", label: "Próximo" }
+    : status === "today"
+    ? { fg: "#34d399", bg: "rgba(52,211,153,0.1)", border: "rgba(52,211,153,0.35)", label: "Hoje" }
+    : { fg: "#7a6d57", bg: "rgba(154,138,106,0.08)", border: "rgba(154,138,106,0.18)", label: "Pago" };
+
+  // Cor e ícone do tipo
+  const kindTone = kind === "jcp"
+    ? { color: "#C9A84C", bg: "rgba(201,168,76,0.1)", icon: <Coins size={14} aria-hidden="true" /> }
+    : kind === "bonus"
+    ? { color: "#a78bfa", bg: "rgba(167,139,250,0.1)", icon: <Plus size={14} aria-hidden="true" /> }
+    : { color: "#34d399", bg: "rgba(52,211,153,0.1)", icon: <TrendingUp size={14} aria-hidden="true" /> };
+
+  return (
+    <div
+      role="article"
+      aria-label={`${divKindLabel(kind)} de R$ ${dividend.rate?.toFixed(2).replace(".", ",")} em ${formatDateShort(dividend.paymentDate)} — ${statusTone.label}`}
+      style={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        gap: "12px",
+        background: "#0d0b07",
+        border: `1px solid ${status !== "paid" ? statusTone.border : "rgba(201,168,76,0.08)"}`,
+        borderRadius: "10px",
+        padding: "12px 14px",
+        position: "relative",
+        transition: "background 0.15s, border-color 0.15s",
+      }}
+      onMouseEnter={(e) => (e.currentTarget.style.background = "#110c07")}
+      onMouseLeave={(e) => (e.currentTarget.style.background = "#0d0b07")}
+    >
+      <div style={{ display: "flex", gap: "12px", alignItems: "center", minWidth: 0, flex: 1 }}>
+        {/* Tile de tipo */}
+        <span
+          aria-hidden="true"
+          style={{
+            width: "36px",
+            height: "36px",
+            background: kindTone.bg,
+            border: `1px solid ${kindTone.color}33`,
+            borderRadius: "8px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            color: kindTone.color,
+            flexShrink: 0,
+          }}
+        >
+          {kindTone.icon}
+        </span>
+
+        <div style={{ minWidth: 0, flex: 1 }}>
+          {/* Label + status badge */}
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px", flexWrap: "wrap" }}>
+            <span style={{
+              fontSize: "12px",
+              fontWeight: 700,
+              color: "#e8dcc0",
+              fontFamily: "var(--font-sans)",
+              letterSpacing: "0.02em",
+            }}>
+              {divKindLabel(kind)}
+            </span>
+            <span style={{
+              fontSize: "9px",
+              fontWeight: 700,
+              color: statusTone.fg,
+              background: statusTone.bg,
+              border: `1px solid ${statusTone.border}`,
+              padding: "2px 7px",
+              borderRadius: "10px",
+              fontFamily: "var(--font-sans)",
+              letterSpacing: "0.06em",
+              textTransform: "uppercase",
+            }}>
+              {statusTone.label}
+            </span>
+            {dividend.relatedTo && (
+              <span style={{
+                fontSize: "9px",
+                fontWeight: 600,
+                color: "#7a6d57",
+                fontFamily: "var(--font-sans)",
+                letterSpacing: "0.04em",
+              }}>
+                · {dividend.relatedTo}
+              </span>
+            )}
+          </div>
+
+          {/* Datas em hierarquia */}
+          <div style={{
+            display: "flex",
+            gap: "12px",
+            flexWrap: "wrap",
+            fontSize: "10px",
+            color: "#a09068",
+            fontFamily: "var(--font-sans)",
+            fontVariantNumeric: "tabular-nums",
+            lineHeight: 1.4,
+          }}>
+            {dividend.paymentDate && (
+              <span>
+                <span style={{ color: "#7a6d57" }}>Pagamento</span>{" "}
+                <strong style={{ color: "#e8dcc0", fontWeight: 600 }}>
+                  {formatDateShort(dividend.paymentDate)}
+                </strong>
+              </span>
+            )}
+            {dividend.lastDatePrior && (
+              <span>
+                <span style={{ color: "#7a6d57" }}>Data com</span>{" "}
+                <strong style={{ color: "#c8b89a", fontWeight: 600 }}>
+                  {formatDateShort(dividend.lastDatePrior)}
+                </strong>
+              </span>
+            )}
+            {dividend.approvedOn && (
+              <span>
+                <span style={{ color: "#7a6d57" }}>Aprovado</span>{" "}
+                <strong style={{ color: "#9a8a6a", fontWeight: 600 }}>
+                  {formatDateShort(dividend.approvedOn)}
+                </strong>
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div style={{ textAlign: "right", flexShrink: 0 }}>
+        <p style={{
+          fontSize: "16px",
+          fontWeight: 700,
+          color: status === "paid" ? "#c8b89a" : "#34d399",
+          fontFamily: "var(--font-display)",
+          margin: 0,
+          fontVariantNumeric: "tabular-nums",
+          lineHeight: 1,
+        }}>
+          R$ {dividend.rate?.toFixed(2).replace(".", ",")}
+        </p>
+        <p style={{
+          fontSize: "9px",
+          color: "#7a6d57",
+          fontFamily: "var(--font-sans)",
+          margin: "4px 0 0",
+          letterSpacing: "0.04em",
+          textTransform: "uppercase",
+        }}>
+          por ação
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function formatDateShort(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" }).replace(/\.$/, "");
 }
 
 function Pagination({ page, total, onChange }: { page: number; total: number; onChange: (p: number) => void }) {
