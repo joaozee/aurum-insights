@@ -111,7 +111,16 @@ interface BrapiQuote {
   defaultKeyStatistics?: {
     trailingPE?: number | null;
     forwardPE?: number | null;
+    priceToBook?: number | null; // P/VP pra ações
   };
+}
+
+// brapi /v2/fii/indicators retorna esse shape por FII (campos relevantes pra carteira).
+interface BrapiFIIIndicator {
+  symbol: string;
+  pvp?: number | null;              // P/VP (price-to-NAV)
+  dividendYield12m?: number | null;
+  navPerShare?: number | null;
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -727,6 +736,7 @@ export default function CarteiraContent({ userEmail }: Props) {
   const [insights, setInsights] = useState<PortfolioInsight[]>([]);
   const [stockMap, setStockMap] = useState<Record<string, StockInfo>>({});
   const [brapiData, setBrapiData] = useState<Record<string, BrapiQuote>>({});
+  const [fiiIndicators, setFiiIndicators] = useState<Record<string, BrapiFIIIndicator>>({});
   const [loading, setLoading] = useState(true);
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
@@ -787,18 +797,48 @@ export default function CarteiraContent({ userEmail }: Props) {
       (sData ?? []).forEach((s: StockInfo) => { map[s.ticker] = s; });
       setStockMap(map);
 
-      // Fetch real-time data from brapi via server proxy (logo, P/L, DY, sector)
-      try {
-        const res = await fetch(
+      // Tickers que precisam de FII indicators (P/VP via /v2/fii/indicators).
+      // brapi /quote.defaultKeyStatistics não retorna priceToBook pra FIIs;
+      // precisa do endpoint dedicado de fundos.
+      const fiiTickers = assetList
+        .filter(a => a.type === "fiis")
+        .map(a => a.name)
+        .filter(Boolean);
+
+      // Fetch real-time data from brapi via server proxy (logo, P/L, DY, sector,
+      // P/VP de ações via priceToBook). Em paralelo: indicadores de FIIs.
+      const [quoteRes, fiiRes] = await Promise.all([
+        fetch(
           `/api/brapi-quote?tickers=${encodeURIComponent(tickers.join(","))}&dividends=true&modules=summaryProfile,defaultKeyStatistics`,
           { cache: "no-store" }
-        );
-        const json = await res.json();
+        ).then(r => r.json()).catch(err => {
+          console.error("[carteira] brapi-quote fetch failed:", err);
+          return null;
+        }),
+        fiiTickers.length > 0
+          ? fetch(
+              `/api/brapi-fii-indicators?symbols=${encodeURIComponent(fiiTickers.join(","))}`,
+              { cache: "no-store" }
+            ).then(r => r.json()).catch(err => {
+              console.error("[carteira] brapi-fii-indicators fetch failed:", err);
+              return null;
+            })
+          : Promise.resolve(null),
+      ]);
+
+      if (quoteRes) {
         const bMap: Record<string, BrapiQuote> = {};
-        (json.results ?? []).forEach((q: BrapiQuote) => { bMap[q.symbol] = q; });
+        (quoteRes.results ?? []).forEach((q: BrapiQuote) => { bMap[q.symbol] = q; });
         setBrapiData(bMap);
-      } catch (err) {
-        console.error("[carteira] brapi fetch failed:", err);
+      }
+
+      if (fiiRes) {
+        const fMap: Record<string, BrapiFIIIndicator> = {};
+        // brapi v2 retorna { indicators: [...] } ou { data: [...] } dependendo
+        // da versão. Aceita ambos (mesmo defensive pattern do fii-detail proxy).
+        const list: BrapiFIIIndicator[] = fiiRes.indicators ?? fiiRes.data ?? [];
+        list.forEach(ind => { if (ind?.symbol) fMap[ind.symbol] = ind; });
+        setFiiIndicators(fMap);
       }
     }
 
@@ -828,8 +868,23 @@ export default function CarteiraContent({ userEmail }: Props) {
     // to defaultKeyStatistics.trailingPE which has the same data.
     const peRaw = bq?.priceEarnings ?? bq?.defaultKeyStatistics?.trailingPE ?? null;
     const livePE = peRaw != null ? Number(peRaw) : null;
-    return { ...a, live_price: livePrice, live_dy: liveDY, live_pe: livePE };
-  }), [assets, brapiData]);
+    // P/VP source depende do tipo:
+    // - Ações: defaultKeyStatistics.priceToBook (mesma fonte que P/L)
+    // - FIIs:  /v2/fii/indicators retorna campo "pvp" (price-to-NAV)
+    // - Outros tipos (renda fixa, cripto): null, célula mostra "—"
+    const livePVP = (() => {
+      if (a.type === "fiis") {
+        const ind = fiiIndicators[a.name];
+        return ind?.pvp != null ? Number(ind.pvp) : null;
+      }
+      if (a.type === "acoes") {
+        const ptb = bq?.defaultKeyStatistics?.priceToBook;
+        return ptb != null ? Number(ptb) : null;
+      }
+      return null;
+    })();
+    return { ...a, live_price: livePrice, live_dy: liveDY, live_pe: livePE, live_pvp: livePVP };
+  }), [assets, brapiData, fiiIndicators]);
 
   const totalInvested = useMemo(() => effectiveAssets.reduce((s, a) => s + Number(a.quantity) * Number(a.purchase_price), 0), [effectiveAssets]);
   const currentValue  = useMemo(() => effectiveAssets.reduce((s, a) => s + Number(a.quantity) * a.live_price, 0), [effectiveAssets]);
@@ -1701,10 +1756,17 @@ export default function CarteiraContent({ userEmail }: Props) {
                           </div>
                         </div>
 
-                        {/* Bottom metrics bar */}
+                        {/* Bottom metrics bar — P/VP, DY, P/L (rentabilidade já
+                            aparece em "Ganho/Perda" acima, redundante aqui) */}
                         <div style={{ display: "flex", gap: "0", borderTop: "1px solid rgba(255,255,255,0.05)", paddingTop: "12px" }}>
                           {[
-                            { label: "Rentabilidade", value: `${gainPct >= 0 ? "+" : ""}${gainPct.toFixed(2)}%`, color: gain >= 0 ? "#34d399" : "#f87171" },
+                            {
+                              label: "P/VP",
+                              value: a.live_pvp != null
+                                ? Number(a.live_pvp).toFixed(2)
+                                : "—",
+                              color: "#C9A84C",
+                            },
                             {
                               label: "DY",
                               value: a.live_dy != null
