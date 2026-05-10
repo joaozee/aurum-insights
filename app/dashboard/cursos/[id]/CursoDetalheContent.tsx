@@ -428,6 +428,11 @@ export default function CursoDetalheContent({
               <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                 {curso.modulos.map((modulo, idx) => {
                   const aberto = modulosAbertos.has(modulo.id);
+                  const concluidasNoModulo = modulo.aulas.filter((a) => completedSet.has(a.id)).length;
+                  const moduloCompleto = matriculado && concluidasNoModulo === modulo.aulas.length && modulo.aulas.length > 0;
+                  const moduloProg = modulo.aulas.length === 0
+                    ? 0
+                    : Math.round((concluidasNoModulo / modulo.aulas.length) * 100);
                   return (
                     <div key={modulo.id} style={{
                       background: "#0d0b07",
@@ -447,23 +452,63 @@ export default function CursoDetalheContent({
                       >
                         <div style={{
                           width: "28px", height: "28px", borderRadius: "50%",
-                          background: "rgba(201,168,76,0.1)", color: "#C9A84C",
+                          background: moduloCompleto ? "var(--positive)" : "rgba(201,168,76,0.1)",
+                          color: moduloCompleto ? "#0a0806" : "#C9A84C",
                           display: "flex", alignItems: "center", justifyContent: "center",
                           fontSize: "12px", fontWeight: 700, flexShrink: 0,
                           fontFamily: "var(--font-sans)",
+                          transition: "background 0.2s",
                         }}>
-                          {idx + 1}
+                          {moduloCompleto ? <CheckCircle2 size={14} /> : idx + 1}
                         </div>
-                        <div style={{ flex: 1 }}>
+                        <div style={{ flex: 1, minWidth: 0 }}>
                           <p style={{
                             fontSize: "14px", fontWeight: 600, color: "#e8dcc0",
-                            fontFamily: "var(--font-sans)", marginBottom: "2px",
+                            fontFamily: "var(--font-sans)", marginBottom: "5px",
+                            lineHeight: 1.3,
                           }}>
                             {modulo.titulo}
                           </p>
-                          <p style={{ fontSize: "11px", color: "#a09068", fontFamily: "var(--font-sans)" }}>
-                            {modulo.aulas.length} aulas
-                          </p>
+                          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                            <p style={{
+                              fontSize: "11px", color: "#a09068",
+                              fontFamily: "var(--font-sans)",
+                              fontVariantNumeric: "tabular-nums",
+                              flexShrink: 0,
+                            }}>
+                              {modulo.aulas.length} aulas
+                              {matriculado && concluidasNoModulo > 0 && (
+                                <>
+                                  <span style={{ color: "#7a6a4a", margin: "0 6px" }}>·</span>
+                                  <span style={{ color: moduloCompleto ? "var(--positive)" : "#a09068", fontWeight: 500 }}>
+                                    {concluidasNoModulo} {concluidasNoModulo === 1 ? "concluída" : "concluídas"}
+                                  </span>
+                                </>
+                              )}
+                            </p>
+                            {matriculado && modulo.aulas.length > 0 && (
+                              <div
+                                role="progressbar"
+                                aria-valuenow={moduloProg}
+                                aria-valuemin={0}
+                                aria-valuemax={100}
+                                aria-label={`Progresso do módulo ${idx + 1}`}
+                                style={{
+                                  flex: 1, maxWidth: "120px", height: "3px",
+                                  background: "rgba(201,168,76,0.08)",
+                                  borderRadius: "2px", overflow: "hidden",
+                                }}
+                              >
+                                <div style={{
+                                  width: "100%", height: "100%",
+                                  background: moduloCompleto ? "var(--positive)" : "#C9A84C",
+                                  transformOrigin: "left center",
+                                  transform: `scaleX(${moduloProg / 100})`,
+                                  transition: "transform 0.3s cubic-bezier(0.16, 1, 0.3, 1)",
+                                }} />
+                              </div>
+                            )}
+                          </div>
                         </div>
                         <ChevronDown
                           size={16}
@@ -499,22 +544,29 @@ export default function CursoDetalheContent({
                                 key={aula.id}
                                 onClick={() => router.push(`/dashboard/cursos/${curso.id}/aulas/${aula.id}`)}
                                 style={{
-                                  display: "flex", alignItems: "center", gap: "10px",
-                                  padding: "8px 10px", borderRadius: "6px",
+                                  display: "flex", alignItems: "flex-start", gap: "10px",
+                                  padding: "10px 12px", borderRadius: "6px",
                                   background: isProxima ? "rgba(201,168,76,0.06)" : "transparent",
                                   border: "1px solid",
                                   borderColor: isProxima ? "rgba(201,168,76,0.18)" : "transparent",
                                   cursor: "pointer", textAlign: "left",
                                   transition: "background 0.15s, border-color 0.15s",
+                                  minHeight: "40px",
                                 }}
                                 className={isProxima ? undefined : "aurum-hover-bg aurum-hover-transition"}
                               >
-                                <Icon size={13} style={{ color: iconColor, flexShrink: 0 }} />
+                                <Icon size={14} style={{ color: iconColor, flexShrink: 0, marginTop: "2px" }} />
                                 <span style={{
-                                  flex: 1, fontSize: "13px",
+                                  flex: 1, minWidth: 0,
+                                  fontSize: "13px",
                                   color: titleColor,
                                   fontWeight: isProxima ? 600 : 400,
                                   fontFamily: "var(--font-sans)",
+                                  lineHeight: 1.4,
+                                  display: "-webkit-box",
+                                  WebkitLineClamp: 2,
+                                  WebkitBoxOrient: "vertical",
+                                  overflow: "hidden",
                                   textDecoration: concluida ? "line-through" : "none",
                                   textDecorationColor: "rgba(160,144,104,0.5)",
                                 }}>
@@ -525,8 +577,10 @@ export default function CursoDetalheContent({
                                     fontSize: "10px", fontWeight: 600,
                                     color: "#C9A84C",
                                     fontFamily: "var(--font-sans)",
-                                    letterSpacing: "0.06em",
+                                    letterSpacing: "0.08em",
                                     textTransform: "uppercase",
+                                    flexShrink: 0,
+                                    marginTop: "2px",
                                   }}>
                                     Próxima
                                   </span>
@@ -535,6 +589,7 @@ export default function CursoDetalheContent({
                                   fontSize: "11px", color: "#a09068",
                                   fontFamily: "var(--font-sans)",
                                   fontVariantNumeric: "tabular-nums",
+                                  flexShrink: 0, marginTop: "2px",
                                 }}>
                                   {aula.duracaoMin} min
                                 </span>
