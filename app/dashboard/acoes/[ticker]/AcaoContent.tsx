@@ -258,6 +258,7 @@ export default function AcaoContent({ ticker, userEmail, userName, userAvatar }:
   const checklist = useMemo(() => buildChecklist(metrics, isFinance), [metrics, isFinance]);
   const dividends = useMemo(() => buildDividends(quote), [quote]);
   const incomeData = useMemo(() => buildIncomeData(quote), [quote]);
+  const bazin = useMemo(() => bazinCeiling(quote?.dividendsData?.cashDividends), [quote]);
 
   if (loading) {
     return (
@@ -300,50 +301,88 @@ export default function AcaoContent({ ticker, userEmail, userName, userAvatar }:
 
         {/* PREÇO + LOGO */}
         <div style={{
-          background: "#130f09",
-          border: "1px solid rgba(201,168,76,0.1)",
-          borderRadius: "14px", padding: "20px 24px",
+          background: "linear-gradient(180deg, #130f09 0%, #0f0c07 100%)",
+          border: "1px solid rgba(201,168,76,0.12)",
+          borderRadius: "16px",
+          padding: "24px",
           marginBottom: "16px",
         }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "20px", marginBottom: "16px" }}>
-            <div style={{ display: "flex", gap: "14px", alignItems: "center" }}>
+          <div style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            gap: "20px",
+            marginBottom: "20px",
+          }}>
+            <div style={{ display: "flex", gap: "18px", alignItems: "center", minWidth: 0 }}>
               {quote.logourl && (
                 /* eslint-disable-next-line @next/next/no-img-element */
-                <img src={quote.logourl} alt="" style={{
-                  width: "44px", height: "44px", borderRadius: "10px",
-                  background: "#fff", objectFit: "contain", padding: "4px",
-                }} />
+                <img
+                  src={quote.logourl}
+                  alt=""
+                  style={{
+                    width: "64px",
+                    height: "64px",
+                    borderRadius: "14px",
+                    objectFit: "contain",
+                    flexShrink: 0,
+                    filter: "drop-shadow(0 4px 14px rgba(0,0,0,0.4))",
+                  }}
+                />
               )}
-              <div>
+              <div style={{ minWidth: 0 }}>
                 <p style={{
-                  fontSize: "16px", fontWeight: 700, color: "#e8dcc0",
-                  fontFamily: "var(--font-display)", marginBottom: "4px",
+                  fontSize: "20px",
+                  fontWeight: 700,
+                  color: "#e8dcc0",
+                  fontFamily: "var(--font-display)",
+                  marginBottom: "8px",
+                  letterSpacing: "-0.01em",
+                  lineHeight: 1.15,
                 }}>
                   {quote.longName ?? quote.shortName ?? ticker}
                 </p>
                 <span style={{
-                  fontSize: "10px", fontWeight: 700, color: "#C9A84C",
+                  display: "inline-block",
+                  fontSize: "11px",
+                  fontWeight: 700,
+                  color: "#C9A84C",
                   background: "rgba(201,168,76,0.1)",
-                  padding: "3px 8px", borderRadius: "4px",
-                  fontFamily: "var(--font-sans)", letterSpacing: "0.06em",
+                  border: "1px solid rgba(201,168,76,0.25)",
+                  padding: "4px 10px",
+                  borderRadius: "6px",
+                  fontFamily: "var(--font-sans)",
+                  letterSpacing: "0.08em",
                 }}>
                   {ticker}
                 </span>
               </div>
             </div>
-            <div style={{ textAlign: "right" }}>
+            <div style={{ textAlign: "right", flexShrink: 0 }}>
               <p style={{
-                fontSize: "26px", fontWeight: 700, color: "#e8dcc0",
-                fontFamily: "var(--font-display)", letterSpacing: "-0.01em",
+                fontSize: "30px",
+                fontWeight: 700,
+                color: "#e8dcc0",
+                fontFamily: "var(--font-display)",
+                letterSpacing: "-0.02em",
+                lineHeight: 1,
+                marginBottom: "6px",
+                fontVariantNumeric: "tabular-nums",
               }}>
                 R$ {quote.regularMarketPrice?.toFixed(2).replace(".", ",")}
               </p>
               <p style={{
-                fontSize: "12px", fontWeight: 600, color: priceColor,
+                fontSize: "12px",
+                fontWeight: 600,
+                color: priceColor,
                 fontFamily: "var(--font-sans)",
-                display: "flex", alignItems: "center", justifyContent: "flex-end", gap: "4px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "flex-end",
+                gap: "4px",
+                fontVariantNumeric: "tabular-nums",
               }}>
-                {positive ? <TrendingUp size={11} /> : <TrendingDown size={11} />}
+                {positive ? <TrendingUp size={12} aria-hidden="true" /> : <TrendingDown size={12} aria-hidden="true" />}
                 R$ {Math.abs(quote.regularMarketChange ?? 0).toFixed(2).replace(".", ",")} ({positive ? "+" : ""}{quote.regularMarketChangePercent?.toFixed(2)}%)
               </p>
             </div>
@@ -351,7 +390,7 @@ export default function AcaoContent({ ticker, userEmail, userName, userAvatar }:
 
           {/* 4 chips */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "10px" }}>
-            <MetricChip color="#34d399" label="Preço Atual" value={`R$ ${quote.regularMarketPrice?.toFixed(2).replace(".", ",")}`} sub="Cotação atual" />
+            <BazinChip bazin={bazin} currentPrice={quote.regularMarketPrice ?? 0} />
             <MetricChip color="#4F8A82" label="Dividend Yield" value={metrics.dy !== null ? `${metrics.dy.toFixed(2)}%` : "—"} sub="Renda passiva anual" />
             <MetricChip color="#5E6B8C" label="P/L" value={metrics.pl !== null ? metrics.pl.toFixed(2) : "—"} sub="Múltiplo" />
             <MetricChip color="#C9A84C" label="P/VP" value={metrics.pvp !== null ? metrics.pvp.toFixed(2) : "—"} sub="Preço/Patrimônio" />
@@ -813,6 +852,51 @@ export default function AcaoContent({ ticker, userEmail, userName, userAvatar }:
       </div>
     </div>
   );
+}
+
+// ─── Bazin (preço teto) ──────────────────────────────────────────────────────
+
+interface BazinResult {
+  ceiling: number;        // R$ — preço teto
+  avgDividends: number;   // R$ — média anual de dividendos por ação
+  yearsUsed: number;      // 1..5 — quantos anos completos entraram na média
+  yieldRate: number;      // 0.06 (6%)
+}
+
+/**
+ * Fórmula clássica de Décio Bazin:
+ *   Preço Teto = Média anual de dividendos por ação (5 anos) / DY desejado (6%)
+ *
+ * Implementação:
+ *   - Agrupa cashDividends por ano calendário
+ *   - Usa os últimos 5 anos COMPLETOS (exclui o ano corrente, que é parcial)
+ *   - Média só dos anos com pagamento; retorna null se não há base suficiente
+ */
+function bazinCeiling(divs: BrapiCashDividend[] | null | undefined): BazinResult | null {
+  if (!divs || divs.length === 0) return null;
+  const byYear = new Map<number, number>();
+  for (const d of divs) {
+    const date = d.paymentDate || d.approvedOn;
+    if (!date) continue;
+    const y = new Date(date).getFullYear();
+    if (isNaN(y)) continue;
+    byYear.set(y, (byYear.get(y) ?? 0) + (d.rate ?? 0));
+  }
+  const currentYear = new Date().getFullYear();
+  const values: number[] = [];
+  for (let y = currentYear - 5; y < currentYear; y++) {
+    const v = byYear.get(y);
+    if (v !== undefined && v > 0) values.push(v);
+  }
+  if (values.length === 0) return null;
+  const avg = values.reduce((a, b) => a + b, 0) / values.length;
+  const yieldRate = 0.06;
+  return {
+    ceiling: avg / yieldRate,
+    avgDividends: avg,
+    yearsUsed: values.length,
+    yieldRate,
+  };
 }
 
 // ─── Calculations ─────────────────────────────────────────────────────────────
@@ -1906,11 +1990,122 @@ function MetricChip({
         fontSize: "16px", fontWeight: 700, color: "#e8dcc0",
         fontFamily: "var(--font-display)", lineHeight: 1,
         marginBottom: "4px",
+        fontVariantNumeric: "tabular-nums",
       }}>
         {value}
       </p>
       <p style={{ fontSize: "10px", color: "#9a8a6a", fontFamily: "var(--font-sans)" }}>
         {sub}
+      </p>
+    </div>
+  );
+}
+
+function BazinChip({ bazin, currentPrice }: { bazin: BazinResult | null; currentPrice: number }) {
+  // Sem dados suficientes: mostra estado neutro mas explicativo
+  if (!bazin) {
+    return (
+      <div
+        style={{
+          background: "#0d0b07",
+          border: "1px solid rgba(154,138,106,0.2)",
+          borderRadius: "10px",
+          padding: "12px 14px",
+        }}
+        title="Bazin: requer pelo menos 1 ano completo de dividendos pagos"
+      >
+        <p style={{
+          fontSize: "9px", fontWeight: 700, color: "#9a8a6a",
+          fontFamily: "var(--font-sans)", letterSpacing: "0.06em",
+          marginBottom: "6px", textTransform: "uppercase",
+        }}>
+          Preço Teto
+        </p>
+        <p style={{
+          fontSize: "16px", fontWeight: 700, color: "#9a8a6a",
+          fontFamily: "var(--font-display)", lineHeight: 1,
+          marginBottom: "4px",
+        }}>
+          —
+        </p>
+        <p style={{ fontSize: "10px", color: "#7a6d57", fontFamily: "var(--font-sans)" }}>
+          Sem histórico de dividendos
+        </p>
+      </div>
+    );
+  }
+
+  // Cálculo do deságio/ágio
+  const ratio = currentPrice > 0 ? (currentPrice - bazin.ceiling) / bazin.ceiling : 0;
+  // Tolerância de ±2% considera "preço justo" (cotando perto do teto)
+  const isUndervalued = ratio <= -0.02;
+  const isOvervalued = ratio >= 0.02;
+  const tone = isUndervalued ? "#34d399" : isOvervalued ? "#f87171" : "#C9A84C";
+
+  const subLabel = isUndervalued
+    ? `Deságio de ${Math.abs(ratio * 100).toFixed(1)}%`
+    : isOvervalued
+    ? `Ágio de ${(ratio * 100).toFixed(1)}%`
+    : "Próximo ao teto";
+
+  const tooltipText =
+    `Bazin: média de R$ ${bazin.avgDividends.toFixed(2).replace(".", ",")} ` +
+    `em dividendos por ano (${bazin.yearsUsed}A) ÷ ${(bazin.yieldRate * 100).toFixed(0)}% de DY desejado.`;
+
+  return (
+    <div
+      style={{
+        background: "#0d0b07",
+        border: `1px solid ${tone}33`,
+        borderRadius: "10px",
+        padding: "12px 14px",
+        position: "relative",
+        overflow: "hidden",
+      }}
+      title={tooltipText}
+      aria-label={`Preço Teto Bazin: R$ ${bazin.ceiling.toFixed(2)}. ${subLabel}.`}
+    >
+      {/* Glow lateral sutil indicando o tom */}
+      <span
+        aria-hidden="true"
+        style={{
+          position: "absolute",
+          left: 0, top: 0, bottom: 0,
+          width: "3px",
+          background: tone,
+          opacity: 0.85,
+        }}
+      />
+      <p style={{
+        fontSize: "9px", fontWeight: 700, color: tone,
+        fontFamily: "var(--font-sans)", letterSpacing: "0.06em",
+        marginBottom: "6px", textTransform: "uppercase",
+      }}>
+        Preço Teto
+      </p>
+      <p style={{
+        fontSize: "16px", fontWeight: 700, color: "#e8dcc0",
+        fontFamily: "var(--font-display)", lineHeight: 1,
+        marginBottom: "4px",
+        fontVariantNumeric: "tabular-nums",
+      }}>
+        R$ {bazin.ceiling.toFixed(2).replace(".", ",")}
+      </p>
+      <p
+        style={{
+          fontSize: "10px",
+          color: tone,
+          fontFamily: "var(--font-sans)",
+          fontWeight: 600,
+          display: "flex",
+          alignItems: "center",
+          gap: "4px",
+          fontVariantNumeric: "tabular-nums",
+        }}
+      >
+        {isUndervalued && <TrendingDown size={10} aria-hidden="true" />}
+        {isOvervalued && <TrendingUp size={10} aria-hidden="true" />}
+        {subLabel} <span style={{ color: "#7a6d57", fontWeight: 500 }}>· Bazin</span>
       </p>
     </div>
   );
