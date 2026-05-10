@@ -903,24 +903,52 @@ export default function CarteiraContent({ userEmail }: Props) {
 
   const gainRatio = totalInvested > 0 ? currentValue / totalInvested : 1;
 
+  // Distribuímos o cost basis atual (asset.quantity * asset.purchase_price) ao
+  // longo do tempo proporcionalmente à fração de buys que ocorreram até o
+  // cutoff de cada mês — assim o último ponto do chart bate com o KPI
+  // "Valor Investido" no topo da página, em vez de somar transações brutas
+  // (que inclui buys de tickers já vendidos/ajustados).
   const evolutionData = useMemo(() => {
     const monthsCount = chartFilter === "6m" ? 6 : chartFilter === "12m" ? 12 : 24;
     const months = Array.from({ length: monthsCount }, (_, i) => {
       const d = new Date(now.getFullYear(), now.getMonth() - (monthsCount - 1 - i), 1);
       return d;
     });
+
+    const buysByTicker = new Map<string, { date: string; qty: number }[]>();
+    for (const t of transactions) {
+      if (t.type !== "compra") continue;
+      const arr = buysByTicker.get(t.ticker) ?? [];
+      arr.push({ date: t.transaction_date, qty: Number(t.quantity) });
+      buysByTicker.set(t.ticker, arr);
+    }
+
     return months.map(month => {
       const cutoff = new Date(month.getFullYear(), month.getMonth() + 1, 0).toISOString().split("T")[0];
-      const invested = transactions
-        .filter(t => t.type === "compra" && t.transaction_date <= cutoff)
-        .reduce((s, t) => s + Number(t.total_value ?? t.quantity * t.price), 0);
+      let invested = 0;
+      for (const a of effectiveAssets) {
+        const assetCost = Number(a.quantity) * Number(a.purchase_price);
+        if (assetCost <= 0) continue;
+        const buys = buysByTicker.get(a.name);
+        if (!buys || buys.length === 0) {
+          // Sem histórico de transações: usamos created_at como proxy da aquisição.
+          const acqDate = a.created_at ? a.created_at.split("T")[0] : cutoff;
+          if (acqDate <= cutoff) invested += assetCost;
+          continue;
+        }
+        const totalQty = buys.reduce((s, b) => s + b.qty, 0);
+        if (totalQty <= 0) continue;
+        const qtyByCutoff = buys.reduce((s, b) => s + (b.date <= cutoff ? b.qty : 0), 0);
+        const fraction = Math.min(1, qtyByCutoff / totalQty);
+        invested += assetCost * fraction;
+      }
       return {
         month: MONTHS_PT[month.getMonth()],
         invested,
         value: invested * gainRatio,
       };
     });
-  }, [transactions, gainRatio, chartFilter, now]);
+  }, [transactions, effectiveAssets, gainRatio, chartFilter, now]);
 
   // ── Advanced metrics (use brapi cashDividends history) ────────────────────
   const advancedMetrics = useMemo(() => {
