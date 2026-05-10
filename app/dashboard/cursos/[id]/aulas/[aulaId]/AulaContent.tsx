@@ -291,7 +291,7 @@ export default function AulaContent({
                     }}>
                       <div style={{
                         width: "22px", height: "22px", borderRadius: "50%",
-                        background: prog === 100 ? "#10b981" : "rgba(201,168,76,0.15)",
+                        background: prog === 100 ? "#34d399" : "rgba(201,168,76,0.15)",
                         color: prog === 100 ? "#0a0806" : "#C9A84C",
                         display: "flex", alignItems: "center", justifyContent: "center",
                         fontSize: "10px", fontWeight: 700,
@@ -316,7 +316,7 @@ export default function AulaContent({
                         }}>
                           <div style={{
                             width: `${prog}%`, height: "100%",
-                            background: prog === 100 ? "#10b981" : "#C9A84C",
+                            background: prog === 100 ? "#34d399" : "#C9A84C",
                             borderRadius: "2px",
                           }} />
                         </div>
@@ -423,7 +423,7 @@ export default function AulaContent({
                                 }}
                               >
                                 {concluida ? (
-                                  <CheckCircle2 size={11} style={{ color: "#10b981", flexShrink: 0 }} />
+                                  <CheckCircle2 size={11} style={{ color: "#34d399", flexShrink: 0 }} />
                                 ) : ativa ? (
                                   <PlayCircle size={11} style={{ color: "#C9A84C", flexShrink: 0 }} />
                                 ) : (

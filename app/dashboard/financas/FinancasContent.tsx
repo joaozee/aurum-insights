@@ -185,7 +185,7 @@ function TxRow({ t, onDelete }: { t: FinanceTransaction; onDelete: (id: string) 
           {t.description || "—"} · {new Date(t.transaction_date + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}
         </p>
       </div>
-      <span style={{ fontSize: "13px", fontWeight: 700, fontFamily: "var(--font-sans)", color: t.type === "entrada" ? "#22c55e" : "#f87171", flexShrink: 0 }}>
+      <span style={{ fontSize: "13px", fontWeight: 700, fontFamily: "var(--font-sans)", color: t.type === "entrada" ? "#34d399" : "#f87171", flexShrink: 0 }}>
         {t.type === "entrada" ? "+" : "-"}{fmt(Number(t.amount))}
       </span>
       <button
@@ -354,8 +354,8 @@ function LineChartSVG({ data }: { data: { month: string; income: number; expense
             <stop offset="100%" stopColor="#C9A84C" stopOpacity={0} />
           </linearGradient>
           <linearGradient id="incGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#22c55e" stopOpacity={0.15} />
-            <stop offset="100%" stopColor="#22c55e" stopOpacity={0} />
+            <stop offset="0%" stopColor="#34d399" stopOpacity={0.15} />
+            <stop offset="100%" stopColor="#34d399" stopOpacity={0} />
           </linearGradient>
         </defs>
 
@@ -373,7 +373,7 @@ function LineChartSVG({ data }: { data: { month: string; income: number; expense
         })}
 
         {incArea && <path d={incArea} fill="url(#incGrad)" />}
-        {incPath && <path d={incPath} fill="none" stroke="#22c55e" strokeWidth={1.5} strokeOpacity={0.6} />}
+        {incPath && <path d={incPath} fill="none" stroke="#34d399" strokeWidth={1.5} strokeOpacity={0.6} />}
         {expArea && <path d={expArea} fill="url(#expGrad)" />}
         {expPath && <path d={expPath} fill="none" stroke="#C9A84C" strokeWidth={2} />}
 
@@ -400,7 +400,7 @@ function LineChartSVG({ data }: { data: { month: string; income: number; expense
           );
         })}
         {incPts.map((p, i) => (
-          <circle key={`i${i}`} cx={p.x} cy={p.y} r={hovered?.idx === i ? 4 : 2.5} fill="#22c55e" opacity={0.75} />
+          <circle key={`i${i}`} cx={p.x} cy={p.y} r={hovered?.idx === i ? 4 : 2.5} fill="#34d399" opacity={0.75} />
         ))}
 
         {data.map((d, i) => (
@@ -419,10 +419,10 @@ function LineChartSVG({ data }: { data: { month: string; income: number; expense
           </p>
           <div style={{ display: "flex", justifyContent: "space-between", gap: "20px", marginBottom: "5px" }}>
             <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
-              <div style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#22c55e" }} />
+              <div style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#34d399" }} />
               <span style={{ fontSize: "11px", color: "#a09068", fontFamily: "var(--font-sans)" }}>Entradas</span>
             </div>
-            <span style={{ fontSize: "12px", fontWeight: 700, color: "#22c55e", fontFamily: "var(--font-sans)" }}>
+            <span style={{ fontSize: "12px", fontWeight: 700, color: "#34d399", fontFamily: "var(--font-sans)" }}>
               {fmt(data[hovered.idx].income)}
             </span>
           </div>
@@ -1047,7 +1047,7 @@ export default function FinancasContent({ userEmail }: Props) {
             {tab === "painel" && (
               <>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "12px", marginBottom: "12px" }}>
-                  <SummaryCard icon={TrendingUp}   label="Entradas"   value={fmt(income)}  color="#22c55e" bg="rgba(34,197,94,0.06)"   border="rgba(34,197,94,0.15)"   sub={`${transactions.filter(t => t.type === "entrada").length} transações`} />
+                  <SummaryCard icon={TrendingUp}   label="Entradas"   value={fmt(income)}  color="#34d399" bg="rgba(34,197,94,0.06)"   border="rgba(34,197,94,0.15)"   sub={`${transactions.filter(t => t.type === "entrada").length} transações`} />
                   <SummaryCard icon={TrendingDown}  label="Saídas"     value={fmt(expense)} color="#f87171" bg="rgba(248,113,113,0.06)" border="rgba(248,113,113,0.15)" sub={income > 0 ? `${((expense / income) * 100).toFixed(0)}% das entradas` : `${transactions.filter(t => t.type === "saida").length} transações`} />
                   <SummaryCard
                     icon={Wallet}
@@ -1096,7 +1096,7 @@ export default function FinancasContent({ userEmail }: Props) {
                           </span>
                           <span style={{
                             fontSize: "18px", fontWeight: 700,
-                            color: projection.projectedBalance >= 0 ? "#22c55e" : "#f87171",
+                            color: projection.projectedBalance >= 0 ? "#34d399" : "#f87171",
                             fontFamily: "var(--font-display)",
                           }}>
                             {fmt(Math.abs(projection.projectedBalance))}
@@ -1139,7 +1139,7 @@ export default function FinancasContent({ userEmail }: Props) {
                           width: "38px", height: "38px", borderRadius: "10px",
                           display: "flex", alignItems: "center", justifyContent: "center",
                           background: monthCompare.direction === "down" ? "rgba(34,197,94,0.1)" : "rgba(248,113,113,0.1)",
-                          color: monthCompare.direction === "down" ? "#22c55e" : "#f87171",
+                          color: monthCompare.direction === "down" ? "#34d399" : "#f87171",
                           flexShrink: 0,
                         }}>
                           {monthCompare.direction === "down"
@@ -1148,7 +1148,7 @@ export default function FinancasContent({ userEmail }: Props) {
                         </div>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <p style={{ fontSize: "15px", fontWeight: 700, color: "#e8dcc0", fontFamily: "var(--font-display)", marginBottom: "2px", letterSpacing: "-0.01em" }}>
-                            <span style={{ color: monthCompare.direction === "down" ? "#22c55e" : "#f87171" }}>
+                            <span style={{ color: monthCompare.direction === "down" ? "#34d399" : "#f87171" }}>
                               {Math.abs(monthCompare.pct).toFixed(0)}%
                             </span>{" "}
                             {monthCompare.direction === "down" ? "menores" : "maiores"} que {monthCompare.prevMonthName}
@@ -1215,11 +1215,11 @@ export default function FinancasContent({ userEmail }: Props) {
                             <td style={{ padding: "10px 0", fontSize: "12px", color: "#9a8a6a", fontFamily: "var(--font-sans)" }}>{t.category}</td>
                             <td style={{ padding: "10px 0", fontSize: "12px", color: "#9a8a6a", fontFamily: "var(--font-sans)", maxWidth: "120px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.description || "—"}</td>
                             <td style={{ padding: "10px 0" }}>
-                              <span style={{ fontSize: "10px", fontWeight: 600, padding: "3px 8px", borderRadius: "4px", fontFamily: "var(--font-sans)", background: t.type === "entrada" ? "rgba(34,197,94,0.12)" : "rgba(248,113,113,0.12)", color: t.type === "entrada" ? "#22c55e" : "#f87171" }}>
+                              <span style={{ fontSize: "10px", fontWeight: 600, padding: "3px 8px", borderRadius: "4px", fontFamily: "var(--font-sans)", background: t.type === "entrada" ? "rgba(34,197,94,0.12)" : "rgba(248,113,113,0.12)", color: t.type === "entrada" ? "#34d399" : "#f87171" }}>
                                 {t.type === "entrada" ? "Entrada" : "Saída"}
                               </span>
                             </td>
-                            <td style={{ padding: "10px 0", fontSize: "13px", fontWeight: 700, fontFamily: "var(--font-sans)", color: t.type === "entrada" ? "#22c55e" : "#f87171" }}>
+                            <td style={{ padding: "10px 0", fontSize: "13px", fontWeight: 700, fontFamily: "var(--font-sans)", color: t.type === "entrada" ? "#34d399" : "#f87171" }}>
                               {t.type === "entrada" ? "+" : "-"}{fmt(Number(t.amount))}
                             </td>
                             <td style={{ padding: "10px 0", textAlign: "right" }}>
@@ -1290,7 +1290,7 @@ export default function FinancasContent({ userEmail }: Props) {
                 {/* Top summary cards */}
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "12px", marginBottom: "20px" }}>
                   {[
-                    { label: "Entradas",         value: fmt(reportIncome),  color: "#22c55e", icon: TrendingUp,   sub: `${reportTx.filter(t => t.type === "entrada").length} transações` },
+                    { label: "Entradas",         value: fmt(reportIncome),  color: "#34d399", icon: TrendingUp,   sub: `${reportTx.filter(t => t.type === "entrada").length} transações` },
                     { label: "Gastos",           value: fmt(reportExpense), color: "#f87171", icon: TrendingDown, sub: `Média ${fmt(reportExpense / reportMonthsCount)}/mês` },
                     { label: "Saldo",            value: fmt(reportBalance), color: reportBalance >= 0 ? CHART_PALETTE[5] : "#f87171", icon: Wallet, sub: "Entradas − Gastos" },
                     { label: "Taxa de Poupança", value: reportIncome > 0 ? `${((reportBalance / reportIncome) * 100).toFixed(1)}%` : "—", color: "#C9A84C", icon: Target, sub: "% economizado" },
@@ -1339,7 +1339,7 @@ export default function FinancasContent({ userEmail }: Props) {
                     <p style={{ fontSize: "11px", color: "#a09068", fontFamily: "var(--font-sans)", marginBottom: "16px" }}>{reportPeriodLabel}</p>
                     <LineChartSVG data={reportTrend} />
                     <div style={{ display: "flex", gap: "16px", marginTop: "8px" }}>
-                      {[{ color: "#C9A84C", label: "Saídas" }, { color: "#22c55e", label: "Entradas" }].map(({ color, label }) => (
+                      {[{ color: "#C9A84C", label: "Saídas" }, { color: "#34d399", label: "Entradas" }].map(({ color, label }) => (
                         <div key={label} style={{ display: "flex", alignItems: "center", gap: "5px" }}>
                           <div style={{ width: "20px", height: "2px", background: color, borderRadius: "2px" }} />
                           <span style={{ fontSize: "10px", color: "#a09068", fontFamily: "var(--font-sans)" }}>{label}</span>
@@ -1391,7 +1391,7 @@ export default function FinancasContent({ userEmail }: Props) {
                             <td style={{ padding: "10px 0", fontSize: "12px", color: "#9a8a6a", fontFamily: "var(--font-sans)", maxWidth: "200px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                               {t.description || "—"}
                             </td>
-                            <td style={{ padding: "10px 0", fontSize: "13px", fontWeight: 700, fontFamily: "var(--font-sans)", color: t.type === "entrada" ? "#22c55e" : "#f87171", textAlign: "right", whiteSpace: "nowrap" }}>
+                            <td style={{ padding: "10px 0", fontSize: "13px", fontWeight: 700, fontFamily: "var(--font-sans)", color: t.type === "entrada" ? "#34d399" : "#f87171", textAlign: "right", whiteSpace: "nowrap" }}>
                               {t.type === "entrada" ? "+" : "-"}{fmt(Number(t.amount))}
                             </td>
                           </tr>
@@ -1438,7 +1438,7 @@ export default function FinancasContent({ userEmail }: Props) {
                         const pct = Math.min((spent / b.monthly_limit) * 100, 100);
                         const over  = spent > b.monthly_limit;
                         const alert = pct >= b.alert_threshold && !over;
-                        const barColor = over ? "#f87171" : alert ? "#f59e0b" : "#22c55e";
+                        const barColor = over ? "#f87171" : alert ? "#C58A3D" : "#34d399";
                         return (
                           <div key={b.id} style={{ background: "#130f09", border: `1px solid ${over ? "rgba(248,113,113,0.2)" : "rgba(201,168,76,0.08)"}`, borderRadius: "10px", padding: "18px 20px" }}>
                             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "10px" }}>
@@ -1511,7 +1511,7 @@ export default function FinancasContent({ userEmail }: Props) {
                                 </p>
                               </div>
                               <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                                {pct >= 100 && <Check size={14} style={{ color: "#22c55e" }} />}
+                                {pct >= 100 && <Check size={14} style={{ color: "#34d399" }} />}
                                 <button
                                   onClick={() => setPendingDelete({ kind: "goal", goal: g })}
                                   aria-label="Apagar meta"
@@ -1696,7 +1696,7 @@ export default function FinancasContent({ userEmail }: Props) {
                       flex: 1, padding: "9px", borderRadius: "8px", border: "1px solid", cursor: "pointer",
                       borderColor: modalTxType === type ? (type === "entrada" ? "rgba(34,197,94,0.4)" : "rgba(248,113,113,0.4)") : "#9a8a6a",
                       background: modalTxType === type ? (type === "entrada" ? "rgba(34,197,94,0.1)" : "rgba(248,113,113,0.1)") : "transparent",
-                      color: modalTxType === type ? (type === "entrada" ? "#22c55e" : "#f87171") : "#a09068",
+                      color: modalTxType === type ? (type === "entrada" ? "#34d399" : "#f87171") : "#a09068",
                       fontSize: "13px", fontWeight: 600, fontFamily: "var(--font-sans)",
                     }}>
                       {type === "entrada" ? "Receita" : "Despesa"}

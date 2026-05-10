@@ -175,7 +175,7 @@ export default function FIIContent({ ticker }: { ticker: string }) {
   const ind = data.indicator;
   const lastReport = data.reports[0] ?? null;
   const positive = (quote.regularMarketChangePercent ?? 0) >= 0;
-  const priceColor = positive ? "#10b981" : "#ef4444";
+  const priceColor = positive ? "#34d399" : "#f87171";
 
   // Indicators com fallback do report
   const pvp = ind?.pvp ?? (lastReport && quote.regularMarketPrice && lastReport.navPerShare
@@ -211,9 +211,9 @@ export default function FIIContent({ ticker }: { ticker: string }) {
                   {ind?.name ?? quote.longName ?? quote.shortName ?? ticker}
                 </p>
                 <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
-                  <Badge color="#06b6d4">FII · {ticker}</Badge>
-                  {ind?.segment && <Badge color="#8b5cf6">{labelSegment(ind.segment)}</Badge>}
-                  {ind?.managementType && <Badge color="#f59e0b">Gestão {labelMgmt(ind.managementType)}</Badge>}
+                  <Badge color="#4F8A82">FII · {ticker}</Badge>
+                  {ind?.segment && <Badge color="#5E6B8C">{labelSegment(ind.segment)}</Badge>}
+                  {ind?.managementType && <Badge color="#C58A3D">Gestão {labelMgmt(ind.managementType)}</Badge>}
                 </div>
               </div>
             </div>
@@ -234,10 +234,10 @@ export default function FIIContent({ ticker }: { ticker: string }) {
 
           {/* Chips principais */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "10px" }}>
-            <MetricChip color="#10b981" label="Dividend Yield 12m" value={fmtPct(dy12m)} sub="Renda passiva" />
-            <MetricChip color="#06b6d4" label="P/VP" value={fmtNum(pvp, 2)} sub="Preço / Patrimônio" />
+            <MetricChip color="#34d399" label="Dividend Yield 12m" value={fmtPct(dy12m)} sub="Renda passiva" />
+            <MetricChip color="#4F8A82" label="P/VP" value={fmtNum(pvp, 2)} sub="Preço / Patrimônio" />
             <MetricChip color="#C9A84C" label="VP/cota" value={navPerShare !== null ? `R$ ${navPerShare.toFixed(2).replace(".", ",")}` : "—"} sub="Valor patrimonial" />
-            <MetricChip color="#8b5cf6" label="DY 1m" value={fmtPct(dy1m)} sub="Último mês" />
+            <MetricChip color="#5E6B8C" label="DY 1m" value={fmtPct(dy1m)} sub="Último mês" />
           </div>
         </Section>
 
@@ -251,8 +251,8 @@ export default function FIIContent({ ticker }: { ticker: string }) {
               marginTop: "16px", paddingTop: "14px",
               borderTop: "1px solid rgba(201,168,76,0.06)",
             }}>
-              <MiniStat label="Mínima 1A" value={quote.fiftyTwoWeekLow ? `R$ ${quote.fiftyTwoWeekLow.toFixed(2).replace(".", ",")}` : "—"} color="#ef4444" />
-              <MiniStat label="Máxima 1A" value={quote.fiftyTwoWeekHigh ? `R$ ${quote.fiftyTwoWeekHigh.toFixed(2).replace(".", ",")}` : "—"} color="#10b981" />
+              <MiniStat label="Mínima 1A" value={quote.fiftyTwoWeekLow ? `R$ ${quote.fiftyTwoWeekLow.toFixed(2).replace(".", ",")}` : "—"} color="#f87171" />
+              <MiniStat label="Máxima 1A" value={quote.fiftyTwoWeekHigh ? `R$ ${quote.fiftyTwoWeekHigh.toFixed(2).replace(".", ",")}` : "—"} color="#34d399" />
               <MiniStat label="Valor de Mercado" value={fmtMoney(quote.marketCap)} color="#9a8a6a" />
             </div>
           </Section>
@@ -302,8 +302,8 @@ export default function FIIContent({ ticker }: { ticker: string }) {
             <SectionHeader title="Rentabilidade Mensal" />
             <MonthlyReturnsChart data={monthlyReturns} />
             <div style={{ display: "flex", gap: "16px", justifyContent: "center", marginTop: "12px" }}>
-              <LegendItem color="#10b981" label="Rentabilidade da cota" />
-              <LegendItem color="#06b6d4" label="Rentabilidade patrimonial" />
+              <LegendItem color="#34d399" label="Rentabilidade da cota" />
+              <LegendItem color="#4F8A82" label="Rentabilidade patrimonial" />
             </div>
           </Section>
         )}
@@ -402,7 +402,7 @@ export default function FIIContent({ ticker }: { ticker: string }) {
             borderRadius: "10px", padding: "12px 16px",
             display: "flex", gap: "10px", alignItems: "flex-start",
           }}>
-            <Info size={14} style={{ color: "#f59e0b", marginTop: "2px", flexShrink: 0 }} />
+            <Info size={14} style={{ color: "#C58A3D", marginTop: "2px", flexShrink: 0 }} />
             <p style={{ fontSize: "11px", color: "#bca08a", fontFamily: "var(--font-sans)", lineHeight: 1.5 }}>
               Algumas seções podem estar incompletas — endpoints exigem plano Pro do brapi para tickers fora de <code>MXRF11</code> e <code>HGLG11</code>.
               Fontes não disponíveis: <strong>{data.errors.map((e) => e.source).join(", ")}</strong>.
@@ -422,13 +422,13 @@ interface CompoData { total: number; slices: CompoSlice[] }
 function buildComposition(r: FIIReport | null): CompoData {
   if (!r) return { total: 0, slices: [] };
   const raw: { label: string; value: number; color: string }[] = [
-    { label: "CRI",                    value: r.cri ?? 0,             color: "#10b981" },
-    { label: "LCI",                    value: r.lci ?? 0,             color: "#06b6d4" },
-    { label: "Cotas de FIIs",          value: r.fiiHoldings ?? 0,     color: "#8b5cf6" },
+    { label: "CRI",                    value: r.cri ?? 0,             color: "#34d399" },
+    { label: "LCI",                    value: r.lci ?? 0,             color: "#4F8A82" },
+    { label: "Cotas de FIIs",          value: r.fiiHoldings ?? 0,     color: "#5E6B8C" },
     { label: "Imóveis",                value: r.realEstateAssets ?? 0, color: "#C9A84C" },
-    { label: "Tít. Públicos",          value: r.governmentBonds ?? 0, color: "#f59e0b" },
-    { label: "Tít. Privados",          value: r.privateBonds ?? 0,    color: "#ef4444" },
-    { label: "Renda Fixa",             value: r.fixedIncomeFunds ?? 0, color: "#ec4899" },
+    { label: "Tít. Públicos",          value: r.governmentBonds ?? 0, color: "#C58A3D" },
+    { label: "Tít. Privados",          value: r.privateBonds ?? 0,    color: "#f87171" },
+    { label: "Renda Fixa",             value: r.fixedIncomeFunds ?? 0, color: "#A4485E" },
     { label: "Caixa",                  value: r.cash ?? 0,            color: "#6b7280" },
   ];
   const slices = raw.filter((s) => s.value > 0).sort((a, b) => b.value - a.value);
@@ -641,7 +641,7 @@ function PriceChart({ history, positive }: { history: { date: number; close: num
     const y = pad + (1 - (p.close - min) / range) * (h - pad * 2);
     return [x, y] as const;
   });
-  const lineColor = positive ? "#10b981" : "#ef4444";
+  const lineColor = positive ? "#34d399" : "#f87171";
   const path = points.map((p, i) => `${i === 0 ? "M" : "L"}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(" ");
   const area = `${path} L${points[points.length - 1][0].toFixed(1)},${h - pad} L${points[0][0].toFixed(1)},${h - pad} Z`;
   return (
@@ -694,10 +694,10 @@ function MonthlyReturnsChart({ data }: { data: MonthlyReturn[] }) {
             <g key={d.date}>
               <rect x={cx - barW - 1} y={d.cota >= 0 ? yCota : zeroY}
                 width={barW} height={Math.abs((d.cota >= 0 ? yCota : yCotaNeg) - zeroY)}
-                fill="#10b981" rx={2} opacity={d.cota >= 0 ? 1 : 0.7} />
+                fill="#34d399" rx={2} opacity={d.cota >= 0 ? 1 : 0.7} />
               <rect x={cx + 1} y={d.patrim >= 0 ? yPatr : zeroY}
                 width={barW} height={Math.abs((d.patrim >= 0 ? yPatr : yPatrNeg) - zeroY)}
-                fill="#06b6d4" rx={2} opacity={d.patrim >= 0 ? 1 : 0.7} />
+                fill="#4F8A82" rx={2} opacity={d.patrim >= 0 ? 1 : 0.7} />
               {showLabel && (
                 <text x={cx} y={h - 8} textAnchor="middle" fontSize={9} fill="#a09068" fontFamily="var(--font-sans)">
                   {formatShortDate(d.date)}
@@ -750,7 +750,7 @@ function YieldChart({ data }: { data: MonthlyYield[] }) {
 function DivRow({ dividend }: { dividend: FIIDividend }) {
   const isAmort = dividend.type?.toLowerCase().includes("amort");
   const tipo = isAmort ? "Amortização" : "Rendimento";
-  const color = isAmort ? "#f59e0b" : "#10b981";
+  const color = isAmort ? "#C58A3D" : "#34d399";
   return (
     <div style={{
       display: "flex", justifyContent: "space-between", alignItems: "center",

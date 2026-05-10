@@ -452,7 +452,7 @@ function CursoCard({
             {CATEGORIA_LABEL[curso.categoria]}
           </span>
           <span style={{
-            fontSize: "10px", fontWeight: 600, color: "#10b981",
+            fontSize: "10px", fontWeight: 600, color: "#34d399",
             background: "rgba(16,185,129,0.1)",
             padding: "3px 8px", borderRadius: "4px",
             fontFamily: "var(--font-sans)", letterSpacing: "0.04em",

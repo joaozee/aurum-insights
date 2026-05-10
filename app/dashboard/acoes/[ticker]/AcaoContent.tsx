@@ -192,7 +192,7 @@ export default function AcaoContent({ ticker }: { ticker: string }) {
   }
 
   const positive = (quote.regularMarketChangePercent ?? 0) >= 0;
-  const priceColor = positive ? "#10b981" : "#ef4444";
+  const priceColor = positive ? "#34d399" : "#f87171";
 
   return (
     <div style={{ minHeight: "calc(100vh - 58px)", background: "#0a0806" }}>
@@ -252,9 +252,9 @@ export default function AcaoContent({ ticker }: { ticker: string }) {
 
           {/* 4 chips */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "10px" }}>
-            <MetricChip color="#10b981" label="Preço Atual" value={`R$ ${quote.regularMarketPrice?.toFixed(2).replace(".", ",")}`} sub="Cotação atual" />
-            <MetricChip color="#06b6d4" label="Dividend Yield" value={metrics.dy !== null ? `${metrics.dy.toFixed(2)}%` : "—"} sub="Renda passiva anual" />
-            <MetricChip color="#8b5cf6" label="P/L" value={metrics.pl !== null ? metrics.pl.toFixed(2) : "—"} sub="Múltiplo" />
+            <MetricChip color="#34d399" label="Preço Atual" value={`R$ ${quote.regularMarketPrice?.toFixed(2).replace(".", ",")}`} sub="Cotação atual" />
+            <MetricChip color="#4F8A82" label="Dividend Yield" value={metrics.dy !== null ? `${metrics.dy.toFixed(2)}%` : "—"} sub="Renda passiva anual" />
+            <MetricChip color="#5E6B8C" label="P/L" value={metrics.pl !== null ? metrics.pl.toFixed(2) : "—"} sub="Múltiplo" />
             <MetricChip color="#C9A84C" label="P/VP" value={metrics.pvp !== null ? metrics.pvp.toFixed(2) : "—"} sub="Preço/Patrimônio" />
           </div>
         </div>
@@ -276,8 +276,8 @@ export default function AcaoContent({ ticker }: { ticker: string }) {
             marginTop: "16px", paddingTop: "14px",
             borderTop: "1px solid rgba(201,168,76,0.06)",
           }}>
-            <MiniStat label="Mínima 1A" value={quote.fiftyTwoWeekLow !== undefined ? `R$ ${quote.fiftyTwoWeekLow.toFixed(2).replace(".", ",")}` : "—"} color="#ef4444" />
-            <MiniStat label="Máxima 1A" value={quote.fiftyTwoWeekHigh !== undefined ? `R$ ${quote.fiftyTwoWeekHigh.toFixed(2).replace(".", ",")}` : "—"} color="#10b981" />
+            <MiniStat label="Mínima 1A" value={quote.fiftyTwoWeekLow !== undefined ? `R$ ${quote.fiftyTwoWeekLow.toFixed(2).replace(".", ",")}` : "—"} color="#f87171" />
+            <MiniStat label="Máxima 1A" value={quote.fiftyTwoWeekHigh !== undefined ? `R$ ${quote.fiftyTwoWeekHigh.toFixed(2).replace(".", ",")}` : "—"} color="#34d399" />
             <MiniStat label="RSI 14 dias" value="N/A" color="#9a8a6a" />
             <MiniStat label="RSI 200 dias" value="N/A" color="#9a8a6a" />
           </div>
@@ -387,13 +387,13 @@ export default function AcaoContent({ ticker }: { ticker: string }) {
           </div>
 
           <div style={{
-            background: "rgba(59,130,246,0.05)",
-            border: "1px solid rgba(59,130,246,0.15)",
+            background: "rgba(201,168,76,0.05)",
+            border: "1px solid var(--border-soft)",
             borderRadius: "10px", padding: "12px 16px",
             marginTop: "12px",
             display: "flex", gap: "10px", alignItems: "flex-start",
           }}>
-            <Info size={14} style={{ color: "#3b82f6", marginTop: "2px", flexShrink: 0 }} />
+            <Info size={14} style={{ color: "var(--gold)", marginTop: "2px", flexShrink: 0 }} />
             <div>
               <p style={{ fontSize: "12px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-sans)", marginBottom: "2px" }}>
                 Dica do Investidor
@@ -531,8 +531,8 @@ export default function AcaoContent({ ticker }: { ticker: string }) {
             <SectionHeader title="Receitas e Lucros" />
             <RevenueChart data={incomeData} />
             <div style={{ display: "flex", gap: "16px", justifyContent: "center", marginTop: "12px" }}>
-              <LegendItem color="#10b981" label="Receita Líquida" />
-              <LegendItem color="#f59e0b" label="Lucro Líquido" />
+              <LegendItem color="#34d399" label="Receita Líquida" />
+              <LegendItem color="#C58A3D" label="Lucro Líquido" />
             </div>
           </Section>
         )}
@@ -763,9 +763,9 @@ function buildChecklist(m: Metrics): {
 }
 
 function scoreColor(pct: number): string {
-  if (pct >= 70) return "#10b981";
-  if (pct >= 40) return "#f59e0b";
-  return "#ef4444";
+  if (pct >= 70) return "#34d399";
+  if (pct >= 40) return "#C58A3D";
+  return "#f87171";
 }
 
 function scoreLabel(pct: number): string {
@@ -1008,9 +1008,9 @@ function ChecklistGroup({ group }: { group: ChecklistGroupT }) {
           {group.items.map((item, i) => (
             <div key={i} style={{ display: "flex", gap: "10px", alignItems: "flex-start" }}>
               {item.passed ? (
-                <CheckCircle2 size={13} style={{ color: "#10b981", flexShrink: 0, marginTop: "2px" }} />
+                <CheckCircle2 size={13} style={{ color: "#34d399", flexShrink: 0, marginTop: "2px" }} />
               ) : (
-                <XCircle size={13} style={{ color: "#ef4444", flexShrink: 0, marginTop: "2px" }} />
+                <XCircle size={13} style={{ color: "#f87171", flexShrink: 0, marginTop: "2px" }} />
               )}
               <div>
                 <p style={{ fontSize: "12px", fontWeight: 500, color: "#e8dcc0", fontFamily: "var(--font-sans)", marginBottom: "2px" }}>
@@ -1046,7 +1046,7 @@ function PriceChart({ history, positive }: { history: BrapiHistoricalPrice[]; po
     const y = pad + (1 - (p.close - min) / range) * (h - pad * 2);
     return [x, y] as const;
   });
-  const lineColor = positive ? "#10b981" : "#ef4444";
+  const lineColor = positive ? "#34d399" : "#f87171";
   const path = points.map((p, i) => `${i === 0 ? "M" : "L"}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(" ");
   const area = `${path} L${points[points.length - 1][0].toFixed(1)},${h - pad} L${points[0][0].toFixed(1)},${h - pad} Z`;
   return (
@@ -1141,8 +1141,8 @@ function RevenueChart({ data }: { data: IncomeYear[] }) {
           const profH = d.profit < 0 ? Math.abs(yFor(d.profit) - zeroY) : hProf;
           return (
             <g key={d.year}>
-              <rect x={cx - barW - 1} y={d.revenue >= 0 ? yRev : zeroY} width={barW} height={hRev} fill="#10b981" rx={2} />
-              <rect x={cx + 1} y={profY} width={barW} height={profH} fill="#f59e0b" rx={2} />
+              <rect x={cx - barW - 1} y={d.revenue >= 0 ? yRev : zeroY} width={barW} height={hRev} fill="#34d399" rx={2} />
+              <rect x={cx + 1} y={profY} width={barW} height={profH} fill="#C58A3D" rx={2} />
               <text x={cx} y={h - 8} textAnchor="middle" fontSize={10} fill="#a09068" fontFamily="var(--font-sans)">
                 {d.year}
               </text>
@@ -1174,7 +1174,7 @@ function DivRow({ dividend }: { dividend: BrapiCashDividend }) {
           {dividend.paymentDate && `pgto: ${formatDate(dividend.paymentDate)}`}
         </p>
       </div>
-      <p style={{ fontSize: "14px", fontWeight: 700, color: "#10b981", fontFamily: "var(--font-display)" }}>
+      <p style={{ fontSize: "14px", fontWeight: 700, color: "#34d399", fontFamily: "var(--font-display)" }}>
         R$ {dividend.rate?.toFixed(2).replace(".", ",")}
       </p>
     </div>

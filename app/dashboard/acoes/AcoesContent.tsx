@@ -251,7 +251,7 @@ export default function AcoesContent() {
                             {r.change !== null && (
                               <p style={{
                                 fontSize: "10px",
-                                color: r.change >= 0 ? "#10b981" : "#ef4444",
+                                color: r.change >= 0 ? "#34d399" : "#f87171",
                                 fontFamily: "var(--font-sans)",
                               }}>
                                 {r.change >= 0 ? "+" : ""}{r.change.toFixed(2)}%
@@ -304,14 +304,14 @@ export default function AcoesContent() {
             <MoversCard
               title="Maiores Altas"
               icon={<TrendingUp size={14} />}
-              color="#10b981"
+              color="#34d399"
               movers={overview?.topGainers ?? []}
               onClick={(s) => router.push(`/dashboard/acoes/${s}`)}
             />
             <MoversCard
               title="Maiores Baixas"
               icon={<TrendingDown size={14} />}
-              color="#ef4444"
+              color="#f87171"
               movers={overview?.topLosers ?? []}
               onClick={(s) => router.push(`/dashboard/acoes/${s}`)}
             />
@@ -537,7 +537,7 @@ function NewsCardSkeleton() {
 
 function IbovCard({ ibov }: { ibov: OverviewIbov | null }) {
   const positive = ibov?.changePct !== null && (ibov?.changePct ?? 0) >= 0;
-  const color = positive ? "#10b981" : "#ef4444";
+  const color = positive ? "#34d399" : "#f87171";
   return (
     <div style={{
       background: "#130f09",
@@ -685,7 +685,7 @@ function Row({
   muted?: boolean;
 }) {
   const changeColor = change !== null && change !== undefined
-    ? (change >= 0 ? "#10b981" : "#ef4444")
+    ? (change >= 0 ? "#34d399" : "#f87171")
     : undefined;
   return (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>

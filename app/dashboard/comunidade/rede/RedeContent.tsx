@@ -110,8 +110,8 @@ export default function RedeContent({ userEmail }: { userEmail: string }) {
 
         {/* Stats */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "20px" }}>
-          <StatCard label="Seguindo" value={following.length} accent="#8b5cf6" />
-          <StatCard label="Seguidores" value={followers.length} accent="#10b981" />
+          <StatCard label="Seguindo" value={following.length} accent="#5E6B8C" />
+          <StatCard label="Seguidores" value={followers.length} accent="#34d399" />
         </div>
 
         {/* Search */}

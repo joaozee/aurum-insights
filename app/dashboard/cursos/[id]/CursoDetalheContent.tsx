@@ -110,7 +110,7 @@ export default function CursoDetalheContent({
             <div style={{ background: "#130f09", border: "1px solid rgba(201,168,76,0.1)", borderRadius: "14px", padding: "28px 32px", marginBottom: "20px" }}>
               <div style={{ display: "flex", gap: "8px", marginBottom: "16px" }}>
                 <Badge color="#C9A84C">{CATEGORIA_LABEL[curso.categoria]}</Badge>
-                <Badge color="#10b981">{NIVEL_LABEL[curso.nivel]}</Badge>
+                <Badge color="#34d399">{NIVEL_LABEL[curso.nivel]}</Badge>
               </div>
               <h1 style={{
                 fontSize: "28px", fontWeight: 700, color: "#e8dcc0",
@@ -155,7 +155,7 @@ export default function CursoDetalheContent({
               }}>
                 {curso.aprendizado.map((item, i) => (
                   <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: "10px" }}>
-                    <CheckCircle2 size={15} style={{ color: "#10b981", flexShrink: 0, marginTop: "1px" }} />
+                    <CheckCircle2 size={15} style={{ color: "#34d399", flexShrink: 0, marginTop: "1px" }} />
                     <span style={{ fontSize: "13px", color: "#9a8a6a", fontFamily: "var(--font-sans)", lineHeight: 1.5 }}>
                       {item}
                     </span>
@@ -267,7 +267,7 @@ export default function CursoDetalheContent({
                 <>
                   <div style={{
                     display: "flex", alignItems: "center", gap: "8px",
-                    color: "#10b981", marginBottom: "6px",
+                    color: "#34d399", marginBottom: "6px",
                   }}>
                     <CheckCircle2 size={16} />
                     <span style={{ fontSize: "14px", fontWeight: 600, fontFamily: "var(--font-sans)" }}>

@@ -275,10 +275,10 @@ function EvolutionChart({ data }: { data: { month: string; invested: number; val
           return (
             <g key={i} onMouseEnter={() => setHov(i)} onMouseLeave={() => setHov(null)} style={{ cursor: "pointer" }}>
               <rect x={x} y={PT + cH - invH} width={bW} height={invH}
-                fill="#22c55e" opacity={isHov ? 1 : 0.7} rx={3} />
+                fill="#34d399" opacity={isHov ? 1 : 0.7} rx={3} />
               {gainH > 0 && (
                 <rect x={x} y={PT + cH - valH} width={bW} height={gainH}
-                  fill="#4ade80" opacity={isHov ? 1 : 0.5} rx={3} />
+                  fill="#6EE7B7" opacity={isHov ? 1 : 0.5} rx={3} />
               )}
               <text x={x + bW / 2} y={H - 4} textAnchor="middle" fontSize={8}
                 fill={isHov ? "#C9A84C" : "#857560"} fontFamily="var(--font-sans)">
@@ -291,12 +291,12 @@ function EvolutionChart({ data }: { data: { month: string; invested: number; val
       {hov !== null && (
         <Tooltip x={pos.x} y={Math.max(pos.y, 4)}>
           <div style={{ display: "flex", alignItems: "center", gap: "7px", marginBottom: "8px" }}>
-            <div style={{ width: "10px", height: "10px", borderRadius: "3px", background: "#22c55e" }} />
+            <div style={{ width: "10px", height: "10px", borderRadius: "3px", background: "#34d399" }} />
             <span style={{ fontSize: "13px", fontWeight: 700, color: "#e8dcc0", fontFamily: "var(--font-sans)" }}>{data[hov].month}</span>
           </div>
           <div style={{ display: "flex", justifyContent: "space-between", gap: "16px", marginBottom: "4px" }}>
             <span style={{ fontSize: "11px", color: "#a09068", fontFamily: "var(--font-sans)" }}>Investido</span>
-            <span style={{ fontSize: "13px", fontWeight: 700, color: "#22c55e", fontFamily: "var(--font-sans)" }}>{fmt(data[hov].invested)}</span>
+            <span style={{ fontSize: "13px", fontWeight: 700, color: "#34d399", fontFamily: "var(--font-sans)" }}>{fmt(data[hov].invested)}</span>
           </div>
           <div style={{ display: "flex", justifyContent: "space-between", gap: "16px", marginBottom: "4px" }}>
             <span style={{ fontSize: "11px", color: "#a09068", fontFamily: "var(--font-sans)" }}>Valor Est.</span>
@@ -306,7 +306,7 @@ function EvolutionChart({ data }: { data: { month: string; invested: number; val
             <span style={{ fontSize: "11px", color: "#a09068", fontFamily: "var(--font-sans)" }}>Variação</span>
             <span style={{
               fontSize: "13px", fontWeight: 700,
-              color: data[hov].value - data[hov].invested >= 0 ? "#22c55e" : "#f87171",
+              color: data[hov].value - data[hov].invested >= 0 ? "#34d399" : "#f87171",
               fontFamily: "var(--font-sans)",
             }}>
               {data[hov].value - data[hov].invested >= 0 ? "+" : ""}{fmt(data[hov].value - data[hov].invested)}
@@ -421,7 +421,7 @@ function DonutChart({ data, totalCount, unitLabel }: { data: DistRow[]; totalCou
             <text x={CX} y={CY + 6} textAnchor="middle" fontSize={16} fontWeight={700} fill="#e8dcc0" fontFamily="var(--font-sans)">
               {total >= 1000000 ? `R$ ${(total / 1000000).toFixed(1)}M` : total >= 1000 ? `R$ ${(total / 1000).toFixed(1)}k` : fmt(total)}
             </text>
-            <text x={CX} y={CY + 22} textAnchor="middle" fontSize={9} fill={totalGain >= 0 ? "#22c55e" : "#f87171"} fontFamily="var(--font-sans)" fontWeight={600}>
+            <text x={CX} y={CY + 22} textAnchor="middle" fontSize={9} fill={totalGain >= 0 ? "#34d399" : "#f87171"} fontFamily="var(--font-sans)" fontWeight={600}>
               {totalGain >= 0 ? "+" : ""}{totalGainPct.toFixed(2)}% · {totalCount ?? data.length} {unitLabel ?? "ativos"}
             </text>
           </>
@@ -509,7 +509,7 @@ function DonutChart({ data, totalCount, unitLabel }: { data: DistRow[]; totalCou
                 width: "62px", padding: "3px 0", flexShrink: 0,
                 borderRadius: "4px", textAlign: "center",
                 background: gainPos ? "rgba(34,197,94,0.10)" : "rgba(248,113,113,0.10)",
-                color: gainPos ? "#22c55e" : "#f87171",
+                color: gainPos ? "#34d399" : "#f87171",
               }}>
                 {gainPos ? "+" : ""}{gainPct.toFixed(1)}%
               </span>
@@ -536,7 +536,7 @@ function DonutChart({ data, totalCount, unitLabel }: { data: DistRow[]; totalCou
             <span style={{ fontSize: "11px", color: "#a09068", fontFamily: "var(--font-sans)" }}>Ganho</span>
             <span style={{
               fontSize: "13px", fontWeight: 700,
-              color: hovSlice.gain >= 0 ? "#22c55e" : "#f87171",
+              color: hovSlice.gain >= 0 ? "#34d399" : "#f87171",
               fontFamily: "var(--font-sans)",
             }}>
               {hovSlice.gain >= 0 ? "+" : ""}{fmt(hovSlice.gain)} ({hovSlice.gainPct >= 0 ? "+" : ""}{hovSlice.gainPct.toFixed(2)}%)
@@ -700,7 +700,7 @@ function TickerSearch({
                     {hit.price.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
                   </p>
                   {hit.change != null && (
-                    <p style={{ fontSize: "10px", color: hit.change >= 0 ? "#22c55e" : "#f87171", fontFamily: "var(--font-sans)" }}>
+                    <p style={{ fontSize: "10px", color: hit.change >= 0 ? "#34d399" : "#f87171", fontFamily: "var(--font-sans)" }}>
                       {hit.change >= 0 ? "+" : ""}{Number(hit.change).toFixed(2)}%
                     </p>
                   )}
@@ -1396,7 +1396,7 @@ export default function CarteiraContent({ userEmail }: Props) {
                 </div>
               </div>
               <div style={{ display: "flex", gap: "16px", marginBottom: "12px" }}>
-                {[{ color: "#22c55e", label: "Valor aplicado" }, { color: "#4ade80", label: "Ganho capital" }].map(({ color, label }) => (
+                {[{ color: "#34d399", label: "Valor aplicado" }, { color: "#6EE7B7", label: "Ganho capital" }].map(({ color, label }) => (
                   <div key={label} style={{ display: "flex", alignItems: "center", gap: "5px" }}>
                     <div style={{ width: "10px", height: "10px", borderRadius: "2px", background: color }} />
                     <span style={{ fontSize: "10px", color: "#857560", fontFamily: "var(--font-sans)" }}>{label}</span>
@@ -1654,7 +1654,7 @@ export default function CarteiraContent({ userEmail }: Props) {
                           ].map(({ label, value, highlight }) => (
                             <div key={label} style={{ background: "#0d0a06", borderRadius: "8px", padding: "10px 12px" }}>
                               <p style={{ fontSize: "10px", color: "#a09068", fontFamily: "var(--font-sans)", marginBottom: "4px" }}>{label}</p>
-                              <p style={{ fontSize: "14px", fontWeight: 700, color: highlight === true ? "#22c55e" : highlight === false ? "#f87171" : "#e8dcc0", fontFamily: "var(--font-sans)" }}>{value}</p>
+                              <p style={{ fontSize: "14px", fontWeight: 700, color: highlight === true ? "#34d399" : highlight === false ? "#f87171" : "#e8dcc0", fontFamily: "var(--font-sans)" }}>{value}</p>
                             </div>
                           ))}
                         </div>
@@ -1667,7 +1667,7 @@ export default function CarteiraContent({ userEmail }: Props) {
                           </div>
                           <div>
                             <p style={{ fontSize: "10px", color: "#a09068", fontFamily: "var(--font-sans)", marginBottom: "3px" }}>Ganho / Perda</p>
-                            <p style={{ fontSize: "13px", fontWeight: 700, color: gain >= 0 ? "#22c55e" : "#f87171", fontFamily: "var(--font-sans)" }}>
+                            <p style={{ fontSize: "13px", fontWeight: 700, color: gain >= 0 ? "#34d399" : "#f87171", fontFamily: "var(--font-sans)" }}>
                               {gain >= 0 ? "+" : ""}{fmt(gain)} ({gainPct >= 0 ? "+" : ""}{gainPct.toFixed(2)}%)
                             </p>
                           </div>
@@ -1676,7 +1676,7 @@ export default function CarteiraContent({ userEmail }: Props) {
                         {/* Bottom metrics bar */}
                         <div style={{ display: "flex", gap: "0", borderTop: "1px solid rgba(255,255,255,0.05)", paddingTop: "12px" }}>
                           {[
-                            { label: "Rentabilidade", value: `${gainPct >= 0 ? "+" : ""}${gainPct.toFixed(2)}%`, color: gain >= 0 ? "#22c55e" : "#f87171" },
+                            { label: "Rentabilidade", value: `${gainPct >= 0 ? "+" : ""}${gainPct.toFixed(2)}%`, color: gain >= 0 ? "#34d399" : "#f87171" },
                             {
                               label: "DY",
                               value: a.live_dy != null
@@ -1799,7 +1799,7 @@ export default function CarteiraContent({ userEmail }: Props) {
                               fontSize: "10px", fontWeight: 600, padding: "2px 7px",
                               borderRadius: "4px", fontFamily: "var(--font-sans)",
                               background: isBuy ? "rgba(34,197,94,0.12)" : "rgba(248,113,113,0.12)",
-                              color: isBuy ? "#22c55e" : "#f87171",
+                              color: isBuy ? "#34d399" : "#f87171",
                             }}>
                               {isBuy ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
                               {isBuy ? "Compra" : "Venda"}
@@ -1830,7 +1830,7 @@ export default function CarteiraContent({ userEmail }: Props) {
                           {gain != null && gainPct != null ? (
                             <p style={{
                               fontSize: "11px", fontWeight: 600,
-                              color: gainPos ? "#22c55e" : "#f87171",
+                              color: gainPos ? "#34d399" : "#f87171",
                               fontFamily: "var(--font-sans)",
                               display: "inline-flex", alignItems: "center", gap: "3px",
                             }}>
@@ -2127,7 +2127,7 @@ export default function CarteiraContent({ userEmail }: Props) {
                     <button key={type} onClick={() => setTxForm(p => ({ ...p, type }))} style={{
                       flex: 1, padding: "10px", borderRadius: "8px", border: `1px solid ${txForm.type === type ? (type === "compra" ? "rgba(34,197,94,0.4)" : "rgba(248,113,113,0.4)") : "#2a2010"}`,
                       background: txForm.type === type ? (type === "compra" ? "rgba(34,197,94,0.1)" : "rgba(248,113,113,0.1)") : "transparent",
-                      color: txForm.type === type ? (type === "compra" ? "#22c55e" : "#f87171") : "#a09068",
+                      color: txForm.type === type ? (type === "compra" ? "#34d399" : "#f87171") : "#a09068",
                       fontSize: "13px", fontWeight: 600, fontFamily: "var(--font-sans)", cursor: "pointer",
                     }}>
                       {type.charAt(0).toUpperCase() + type.slice(1)}
