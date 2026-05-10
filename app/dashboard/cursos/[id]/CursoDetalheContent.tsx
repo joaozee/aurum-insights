@@ -28,7 +28,18 @@ export default function CursoDetalheContent({
   initialEnrollment: InitialEnrollment | null;
 }) {
   const router = useRouter();
-  const [moduloAberto, setModuloAberto] = useState<string | null>(curso.modulos[0]?.id ?? null);
+  // Set permite múltiplos módulos abertos (poder revisar dois ao mesmo tempo).
+  // Inicia com o primeiro aberto pra que o usuário veja conteúdo sem clicar.
+  const [modulosAbertos, setModulosAbertos] = useState<Set<string>>(
+    () => new Set(curso.modulos[0]?.id ? [curso.modulos[0].id] : [])
+  );
+  const toggleModulo = (id: string) =>
+    setModulosAbertos((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   const [enrollment, setEnrollment] = useState<InitialEnrollment | null>(initialEnrollment);
   const [confirming, setConfirming] = useState(false);
   const [enrolling, setEnrolling] = useState(false);
@@ -394,7 +405,7 @@ export default function CursoDetalheContent({
               </h2>
               <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                 {curso.modulos.map((modulo, idx) => {
-                  const aberto = moduloAberto === modulo.id;
+                  const aberto = modulosAbertos.has(modulo.id);
                   return (
                     <div key={modulo.id} style={{
                       background: "#0d0b07",
@@ -402,7 +413,9 @@ export default function CursoDetalheContent({
                       borderRadius: "10px", overflow: "hidden",
                     }}>
                       <button
-                        onClick={() => setModuloAberto(aberto ? null : modulo.id)}
+                        onClick={() => toggleModulo(modulo.id)}
+                        aria-expanded={aberto}
+                        aria-controls={`modulo-${modulo.id}-aulas`}
                         style={{
                           width: "100%", display: "flex", alignItems: "center",
                           gap: "12px", padding: "14px 18px",
@@ -440,10 +453,13 @@ export default function CursoDetalheContent({
                         />
                       </button>
                       {aberto && (
-                        <div style={{
-                          padding: "0 18px 14px 58px",
-                          display: "flex", flexDirection: "column", gap: "4px",
-                        }}>
+                        <div
+                          id={`modulo-${modulo.id}-aulas`}
+                          style={{
+                            padding: "0 18px 14px 58px",
+                            display: "flex", flexDirection: "column", gap: "4px",
+                          }}
+                        >
                           {modulo.aulas.map((aula) => (
                             <button
                               key={aula.id}

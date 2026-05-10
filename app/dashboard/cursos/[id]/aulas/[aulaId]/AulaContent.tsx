@@ -218,28 +218,25 @@ export default function AulaContent({
                   onClick={irParaProxima}
                   disabled={!proxima}
                   style={{
-                    background: proxima
-                      ? "linear-gradient(135deg, #C9A84C 0%, #A07820 100%)"
-                      : "rgba(201,168,76,0.15)",
+                    background: proxima ? "#C9A84C" : "rgba(201,168,76,0.12)",
                     border: "none", borderRadius: "8px",
                     padding: "10px 18px",
                     color: proxima ? "#0d0b07" : "#9a8a6a",
                     fontSize: "13px", fontWeight: 600,
                     fontFamily: "var(--font-sans)",
                     cursor: proxima ? "pointer" : "not-allowed",
-                    letterSpacing: "0.04em",
+                    letterSpacing: "0.02em",
                     display: "flex", alignItems: "center", gap: "6px",
-                    boxShadow: proxima ? "0 2px 12px rgba(201,168,76,0.25)" : "none",
-                    transition: "box-shadow 0.15s",
+                    transition: "background 0.15s",
                   }}
                   onMouseEnter={(e) => {
-                    if (proxima) e.currentTarget.style.boxShadow = "0 4px 18px rgba(201,168,76,0.4)";
+                    if (proxima) e.currentTarget.style.background = "#E8C96A";
                   }}
                   onMouseLeave={(e) => {
-                    if (proxima) e.currentTarget.style.boxShadow = "0 2px 12px rgba(201,168,76,0.25)";
+                    if (proxima) e.currentTarget.style.background = "#C9A84C";
                   }}
                 >
-                  Próxima Aula <ArrowRight size={13} />
+                  Próxima aula <ArrowRight size={13} />
                 </button>
               </div>
             </div>

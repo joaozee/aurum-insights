@@ -184,20 +184,19 @@ export default function CursosContent({ userEmail }: CursosContentProps) {
                 <button
                   key={f.id}
                   onClick={() => setFiltro(f.id)}
+                  aria-pressed={ativo}
                   style={{
                     padding: "8px 16px",
                     borderRadius: "8px",
                     border: "1px solid",
-                    borderColor: ativo ? "transparent" : "rgba(201,168,76,0.15)",
-                    background: ativo
-                      ? "linear-gradient(135deg, #C9A84C 0%, #A07820 100%)"
-                      : "#130f09",
-                    color: ativo ? "#0d0b07" : "#9a8a6a",
+                    borderColor: ativo ? "rgba(201,168,76,0.35)" : "rgba(201,168,76,0.15)",
+                    background: ativo ? "rgba(201,168,76,0.10)" : "#130f09",
+                    color: ativo ? "#C9A84C" : "#9a8a6a",
                     fontSize: "13px",
                     fontWeight: ativo ? 600 : 500,
                     fontFamily: "var(--font-sans)",
                     cursor: "pointer",
-                    transition: "all 0.15s",
+                    transition: "border-color 0.15s, background 0.15s, color 0.15s",
                   }}
                 >
                   {f.label}
@@ -517,19 +516,26 @@ function CursoCard({
           <button
             onClick={(e) => { e.stopPropagation(); onClick(); }}
             style={{
-              background: "linear-gradient(135deg, #C9A84C 0%, #A07820 100%)",
-              border: "none", borderRadius: "8px",
-              padding: "9px 18px", color: "#0d0b07",
+              background: "transparent",
+              border: "1px solid rgba(201,168,76,0.30)",
+              borderRadius: "8px",
+              padding: "8px 16px",
+              color: "#C9A84C",
               fontSize: "12px", fontWeight: 600,
               fontFamily: "var(--font-sans)", cursor: "pointer",
-              letterSpacing: "0.04em",
-              boxShadow: "0 2px 12px rgba(201,168,76,0.25)",
-              transition: "box-shadow 0.15s",
+              letterSpacing: "0.02em",
+              transition: "border-color 0.15s, background 0.15s",
             }}
-            onMouseEnter={(e) => { e.currentTarget.style.boxShadow = "0 4px 18px rgba(201,168,76,0.4)"; }}
-            onMouseLeave={(e) => { e.currentTarget.style.boxShadow = "0 2px 12px rgba(201,168,76,0.25)"; }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = "rgba(201,168,76,0.55)";
+              e.currentTarget.style.background = "rgba(201,168,76,0.06)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = "rgba(201,168,76,0.30)";
+              e.currentTarget.style.background = "transparent";
+            }}
           >
-            Ver →
+            Ver curso
           </button>
         </div>
       </div>
