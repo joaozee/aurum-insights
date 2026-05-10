@@ -38,7 +38,10 @@ function extractFirstImg(html: string | null): string | null {
   return m ? m[1] : null;
 }
 
-export async function GET() {
+export async function GET(req: Request) {
+  const { searchParams } = new URL(req.url);
+  const ticker = (searchParams.get("ticker") ?? "").trim().toUpperCase();
+
   try {
     const res = await fetch(RSS_URL, {
       next: { revalidate: 600 },
@@ -46,10 +49,10 @@ export async function GET() {
     });
     if (!res.ok) return NextResponse.json({ items: [] }, { status: 200 });
     const xml = await res.text();
-    const items: MarketNewsItem[] = [];
+    const allItems: MarketNewsItem[] = [];
     const itemRe = /<item>([\s\S]*?)<\/item>/g;
     let match: RegExpExecArray | null;
-    while ((match = itemRe.exec(xml)) !== null && items.length < 8) {
+    while ((match = itemRe.exec(xml)) !== null && allItems.length < 60) {
       const block = match[1];
       const title = extractTag(block, "title");
       const link = extractTag(block, "link");
@@ -58,18 +61,28 @@ export async function GET() {
       const description = extractTag(block, "description");
       const thumb = extractFirstImg(description);
       if (title && link) {
-        items.push({
-          id: link,
-          title,
-          link,
-          pubDate,
-          category,
-          thumb,
-        });
+        allItems.push({ id: link, title, link, pubDate, category, thumb });
       }
     }
+
+    let items = allItems;
+    if (ticker) {
+      // Casa o ticker exato (BBAS3) ou o radical (BBAS) em title/category
+      const radical = ticker.replace(/\d+$/, "");
+      const re = new RegExp(`\\b(${escapeRegex(ticker)}|${escapeRegex(radical)})\\b`, "i");
+      const matched = allItems.filter((n) => re.test(n.title) || (n.category && re.test(n.category)));
+      // Se não houver matches, devolve as gerais (melhor que vazio)
+      items = matched.length > 0 ? matched.slice(0, 8) : allItems.slice(0, 8);
+    } else {
+      items = allItems.slice(0, 8);
+    }
+
     return NextResponse.json({ items }, { status: 200 });
   } catch {
     return NextResponse.json({ items: [] }, { status: 200 });
   }
+}
+
+function escapeRegex(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

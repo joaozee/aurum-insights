@@ -23,6 +23,7 @@ interface BrapiHistoricalPrice {
   close: number;
   high?: number;
   low?: number;
+  volume?: number;
 }
 
 interface BrapiBalanceSheet {
@@ -54,6 +55,7 @@ interface BrapiQuoteFull {
   sharesOutstanding?: number;
   priceEarnings?: number | null;
   earningsPerShare?: number | null;
+  regularMarketVolume?: number;
   logourl?: string;
   historicalDataPrice?: BrapiHistoricalPrice[];
   dividendsData?: { cashDividends?: BrapiCashDividend[] };
@@ -106,6 +108,12 @@ const PERIOD_LABELS: Record<Period, string> = {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
+interface Technicals {
+  rsi14: number | null;
+  rsi200: number | null;
+  avgVolume90d: number | null;
+}
+
 export default function AcaoContent({ ticker }: { ticker: string }) {
   const router = useRouter();
   const [period, setPeriod] = useState<Period>("1y");
@@ -117,6 +125,7 @@ export default function AcaoContent({ ticker }: { ticker: string }) {
   const [comparePeriod, setComparePeriod] = useState<"1y" | "5y" | "10y">("1y");
   const [divChartType, setDivChartType] = useState<"yield" | "value">("yield");
   const [calendarPage, setCalendarPage] = useState(0);
+  const [technicals, setTechnicals] = useState<Technicals>({ rsi14: null, rsi200: null, avgVolume90d: null });
 
   const loadQuote = useCallback(async (p: Period) => {
     setLoading(true);
@@ -153,6 +162,35 @@ export default function AcaoContent({ ticker }: { ticker: string }) {
   }, [ticker]);
 
   useEffect(() => { loadQuote(period); }, [loadQuote, period]);
+
+  // Technicals: fetch dedicado de 1 ano em base diária para RSI 14/200 e Vol. Médio 90d
+  useEffect(() => {
+    const ctrl = new AbortController();
+    (async () => {
+      try {
+        const res = await fetch(
+          `/api/brapi-quote?tickers=${encodeURIComponent(ticker)}&range=1y&interval=1d`,
+          { signal: ctrl.signal }
+        );
+        if (!res.ok) return;
+        const data = await res.json();
+        const result = data?.results?.[0] as BrapiQuoteFull | undefined;
+        const history = result?.historicalDataPrice ?? [];
+        const closes = history.map((h) => h.close).filter((v): v is number => typeof v === "number");
+        const volumes = history
+          .map((h) => h.volume)
+          .filter((v): v is number => typeof v === "number" && v > 0);
+        setTechnicals({
+          rsi14: computeRSI(closes, 14),
+          rsi200: computeRSI(closes, 200),
+          avgVolume90d: avgLastN(volumes, 90),
+        });
+      } catch {
+        // Silent — technicals são opcionais
+      }
+    })();
+    return () => ctrl.abort();
+  }, [ticker]);
 
   // Métricas calculadas
   const metrics = useMemo(() => calculateMetrics(quote), [quote]);
@@ -278,8 +316,16 @@ export default function AcaoContent({ ticker }: { ticker: string }) {
           }}>
             <MiniStat label="Mínima 1A" value={quote.fiftyTwoWeekLow !== undefined ? `R$ ${quote.fiftyTwoWeekLow.toFixed(2).replace(".", ",")}` : "—"} color="#f87171" />
             <MiniStat label="Máxima 1A" value={quote.fiftyTwoWeekHigh !== undefined ? `R$ ${quote.fiftyTwoWeekHigh.toFixed(2).replace(".", ",")}` : "—"} color="#34d399" />
-            <MiniStat label="RSI 14 dias" value="N/A" color="#9a8a6a" />
-            <MiniStat label="RSI 200 dias" value="N/A" color="#9a8a6a" />
+            <MiniStat
+              label="RSI 14 dias"
+              value={technicals.rsi14 !== null ? technicals.rsi14.toFixed(1) : "—"}
+              color={rsiColor(technicals.rsi14)}
+            />
+            <MiniStat
+              label="RSI 200 dias"
+              value={technicals.rsi200 !== null ? technicals.rsi200.toFixed(1) : "—"}
+              color={rsiColor(technicals.rsi200)}
+            />
           </div>
         </Section>
 
@@ -332,9 +378,9 @@ export default function AcaoContent({ ticker }: { ticker: string }) {
             borderTop: "1px solid rgba(201,168,76,0.06)",
           }}>
             <MiniStat label="Market Cap" value={fmtMoney(quote.marketCap)} color="#9a8a6a" />
-            <MiniStat label="Qtd. de Ações" value={quote.sharesOutstanding ? fmtBig(quote.sharesOutstanding) : "—"} color="#9a8a6a" />
+            <MiniStat label="Qtd. de Ações" value={metrics.sharesOutstanding ? fmtBig(metrics.sharesOutstanding) : "—"} color="#9a8a6a" />
             <MiniStat label="Beta" value={fmtNum(quote.defaultKeyStatistics?.beta, 2)} color="#9a8a6a" />
-            <MiniStat label="Vol. Médio (90d)" value="—" color="#9a8a6a" />
+            <MiniStat label="Vol. Médio (90d)" value={technicals.avgVolume90d !== null ? fmtBig(technicals.avgVolume90d) : "—"} color="#9a8a6a" />
           </div>
         </Section>
 
@@ -609,7 +655,7 @@ export default function AcaoContent({ ticker }: { ticker: string }) {
             </h4>
             <DataRow label="Valor de Mercado" value={fmtMoney(quote.marketCap)} />
             <DataRow label="Patrimônio Líquido" value={fmtMoney(metrics.equity)} />
-            <DataRow label="Nº Total de Papéis" value={quote.sharesOutstanding ? fmtBig(quote.sharesOutstanding) : "—"} />
+            <DataRow label="Nº Total de Papéis" value={metrics.sharesOutstanding ? fmtBig(metrics.sharesOutstanding) : "—"} />
             <DataRow label="Dívida Bruta" value={fmtMoney(quote.financialData?.totalDebt)} />
             <DataRow label="Dívida Líquida" value={fmtMoney(metrics.netDebt)} />
             <DataRow label="Disponibilidade" value={fmtMoney(quote.financialData?.totalCash)} />
@@ -645,6 +691,7 @@ interface Metrics {
   liabilitiesToAssets: number | null;
   netIncome: number | null;
   equity: number | null;
+  sharesOutstanding: number | null;
 }
 
 function calculateMetrics(q: BrapiQuoteFull | null): Metrics {
@@ -652,6 +699,7 @@ function calculateMetrics(q: BrapiQuoteFull | null): Metrics {
     pl: null, pvp: null, dy: null, payout: null, evEbit: null,
     netDebt: null, netDebtToEquity: null, netDebtToEbitda: null,
     liabilitiesToAssets: null, netIncome: null, equity: null,
+    sharesOutstanding: null,
   };
 
   const price = q.regularMarketPrice ?? 0;
@@ -696,11 +744,56 @@ function calculateMetrics(q: BrapiQuoteFull | null): Metrics {
 
   const netIncome = (q.incomeStatementHistory?.incomeStatementHistory ?? [])[0]?.netIncome ?? null;
 
+  // Qtd. de ações: usa sharesOutstanding direto da brapi; fallback = marketCap / preço
+  const sharesOutstanding = q.sharesOutstanding ??
+    (q.marketCap && price > 0 ? q.marketCap / price : null);
+
   return {
     pl, pvp, dy, payout, evEbit,
     netDebt, netDebtToEquity, netDebtToEbitda,
     liabilitiesToAssets, netIncome, equity,
+    sharesOutstanding,
   };
+}
+
+// ─── Indicadores técnicos ─────────────────────────────────────────────────────
+
+/**
+ * RSI (Wilder): usa SMA simples nos primeiros `period` candles e depois
+ * smoothing exponencial de Wilder. Retorna null se o histórico é insuficiente.
+ */
+function computeRSI(closes: number[], period: number): number | null {
+  if (closes.length < period + 1) return null;
+  let gainSum = 0;
+  let lossSum = 0;
+  for (let i = 1; i <= period; i++) {
+    const diff = closes[i] - closes[i - 1];
+    if (diff > 0) gainSum += diff;
+    else lossSum += -diff;
+  }
+  let avgGain = gainSum / period;
+  let avgLoss = lossSum / period;
+  for (let i = period + 1; i < closes.length; i++) {
+    const diff = closes[i] - closes[i - 1];
+    avgGain = (avgGain * (period - 1) + Math.max(diff, 0)) / period;
+    avgLoss = (avgLoss * (period - 1) + Math.max(-diff, 0)) / period;
+  }
+  if (avgLoss === 0) return avgGain === 0 ? 50 : 100;
+  const rs = avgGain / avgLoss;
+  return 100 - 100 / (1 + rs);
+}
+
+function avgLastN(arr: number[], n: number): number | null {
+  if (arr.length === 0) return null;
+  const slice = arr.slice(-n);
+  return slice.reduce((a, b) => a + b, 0) / slice.length;
+}
+
+function rsiColor(rsi: number | null): string {
+  if (rsi === null) return "#9a8a6a";
+  if (rsi >= 70) return "#f87171"; // sobrecomprado
+  if (rsi <= 30) return "#34d399"; // sobrevendido
+  return "#C9A84C";                // neutro
 }
 
 // ─── Checklist ────────────────────────────────────────────────────────────────
@@ -1259,40 +1352,86 @@ function Empty({ text }: { text: string }) {
   );
 }
 
+interface NewsItem {
+  id: string;
+  title: string;
+  link: string;
+  pubDate: string | null;
+  category: string | null;
+}
+
 function NewsList({ ticker }: { ticker: string }) {
-  // brapi não retorna notícias por ticker no plano free; mostramos mock.
-  const news = [
-    { titulo: `Ações de ${ticker} ganham com fim das "saídas vencerosas"; volta o pregão`, data: "14:21", fonte: "Suno Notícias" },
-    { titulo: `Vale a compra? Duas visões do mercado sobre o que fazer com as ações da mineradora`, data: "12:30", fonte: "InfoMoney" },
-    { titulo: `${ticker}: BB recua preço-alvo e estimativas para ${ticker} (3T25)`, data: "08:43", fonte: "Bloomberg" },
-    { titulo: `${ticker} ainda está barato? Banco fica aposta "seguro" e vê yield de até 16%`, data: "Ontem", fonte: "Suno" },
-    { titulo: `Os dividendos de ${ticker} estão ainda mais perto do esticável? O que levou a Itaú a recomendar compra`, data: "Ontem", fonte: "Seu Dinheiro" },
-    { titulo: `${ticker} atinge recorde histórico. Ainda vale a pena entrar?`, data: "10/11", fonte: "Money Times" },
-    { titulo: `Ações de ${ticker} podem destravar mais valor graças a uma 'joia da casa' pouco conhecida`, data: "10/11", fonte: "InfoMoney" },
-    { titulo: `${ticker} perde força após topo. O que esperar do papel agora?`, data: "09/11", fonte: "Bloomberg" },
-  ];
+  const [items, setItems] = useState<NewsItem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const ctrl = new AbortController();
+    (async () => {
+      try {
+        const res = await fetch(`/api/market-news?ticker=${encodeURIComponent(ticker)}`, { signal: ctrl.signal });
+        if (!res.ok) { setLoading(false); return; }
+        const data = await res.json();
+        setItems((data?.items ?? []) as NewsItem[]);
+      } catch {
+        // ignore
+      }
+      setLoading(false);
+    })();
+    return () => ctrl.abort();
+  }, [ticker]);
+
+  if (loading) {
+    return <Empty text="Carregando notícias..." />;
+  }
+  if (items.length === 0) {
+    return <Empty text="Nenhuma notícia recente disponível." />;
+  }
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-      {news.map((n, i) => (
-        <div key={i} style={{
-          background: "#0d0b07",
-          border: "1px solid rgba(201,168,76,0.06)",
-          borderRadius: "8px", padding: "10px 14px",
-          display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px",
-        }}>
+      {items.map((n) => (
+        <a
+          key={n.id}
+          href={n.link}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            background: "#0d0b07",
+            border: "1px solid rgba(201,168,76,0.06)",
+            borderRadius: "8px",
+            padding: "10px 14px",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            gap: "12px",
+            textDecoration: "none",
+          }}
+        >
           <div style={{ flex: 1, minWidth: 0 }}>
             <p style={{ fontSize: "12px", color: "#c8b89a", fontFamily: "var(--font-sans)", lineHeight: 1.45, marginBottom: "3px" }}>
-              {n.titulo}
+              {n.title}
             </p>
             <p style={{ fontSize: "10px", color: "#9a8a6a", fontFamily: "var(--font-sans)" }}>
-              {n.fonte} · {n.data}
+              {n.category ?? "InfoMoney"}{n.pubDate ? ` · ${formatRelativeDate(n.pubDate)}` : ""}
             </p>
           </div>
           <ExternalLink size={11} style={{ color: "#a09068", flexShrink: 0 }} />
-        </div>
+        </a>
       ))}
     </div>
   );
+}
+
+function formatRelativeDate(iso: string): string {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return iso;
+  const diffMs = Date.now() - d.getTime();
+  const diffH = diffMs / 3.6e6;
+  if (diffH < 1) return `${Math.max(1, Math.round(diffMs / 60000))} min`;
+  if (diffH < 24) return `${Math.round(diffH)}h`;
+  const diffD = diffH / 24;
+  if (diffD < 7) return `${Math.round(diffD)}d`;
+  return d.toLocaleDateString("pt-BR");
 }
 
 // ─── Format helpers ───────────────────────────────────────────────────────────
