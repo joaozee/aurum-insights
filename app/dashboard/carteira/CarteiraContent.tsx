@@ -25,6 +25,17 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { toast } from "sonner";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -727,6 +738,9 @@ export default function CarteiraContent({ userEmail }: Props) {
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
 
+  // Delete confirmation — single state holds the asset pending removal
+  const [pendingDelete, setPendingDelete] = useState<Asset | null>(null);
+
   const [assetForm, setAssetForm] = useState({
     name: "", type: "acoes" as AssetType, quantity: "", purchase_price: "", current_price: "",
     // Renda Fixa specific
@@ -1159,9 +1173,16 @@ export default function CarteiraContent({ userEmail }: Props) {
     setModal(null); setSaving(false); fetchData();
   }
 
-  async function deleteAsset(id: string) {
+  async function confirmDelete() {
+    if (!pendingDelete) return;
     const supabase = createClient();
-    await supabase.from("asset").delete().eq("id", id);
+    const { error } = await supabase.from("asset").delete().eq("id", pendingDelete.id);
+    if (error) {
+      toast.error("Não consegui remover o ativo.", { description: "Tenta de novo em um instante." });
+    } else {
+      toast.success("Ativo removido.");
+    }
+    setPendingDelete(null);
     setActiveMenu(null);
     fetchData();
   }
@@ -1617,7 +1638,7 @@ export default function CarteiraContent({ userEmail }: Props) {
                             </button>
                             {isMenu && (
                               <div style={{ position: "absolute", top: "28px", right: 0, background: "#1a1508", border: "1px solid #2a2010", borderRadius: "8px", padding: "6px", zIndex: 30, minWidth: "120px", boxShadow: "0 8px 24px rgba(0,0,0,0.7)" }}>
-                                <button onClick={() => deleteAsset(a.id)} style={{ width: "100%", background: "none", border: "none", cursor: "pointer", color: "#f87171", fontSize: "12px", fontFamily: "var(--font-sans)", padding: "7px 10px", textAlign: "left", borderRadius: "4px" }}>
+                                <button onClick={() => { setActiveMenu(null); setPendingDelete(a); }} style={{ width: "100%", background: "none", border: "none", cursor: "pointer", color: "var(--negative)", fontSize: "12px", fontFamily: "var(--font-sans)", padding: "7px 10px", textAlign: "left", borderRadius: "4px" }}>
                                   Remover ativo
                                 </button>
                               </div>
@@ -2134,6 +2155,34 @@ export default function CarteiraContent({ userEmail }: Props) {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* ── Delete confirmation ── */}
+      <AlertDialog open={!!pendingDelete} onOpenChange={(o) => !o && setPendingDelete(null)}>
+        <AlertDialogContent className="sm:max-w-[440px] bg-card border-[rgba(201,168,76,0.15)]">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-display text-[17px] text-[var(--text-strong)]">
+              Remover este ativo?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-[13px] leading-relaxed text-[var(--text-body)]">
+              {pendingDelete && (
+                <>
+                  A posição em <span className="font-semibold text-[var(--text-default)]">{pendingDelete.name}</span> sai
+                  da carteira. Os dividendos já recebidos continuam no histórico de transações.
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="text-[13px]">Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              className="text-[13px] bg-[var(--negative)] text-[var(--text-strong)] hover:bg-[var(--negative)]/90"
+            >
+              Remover ativo
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
