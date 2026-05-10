@@ -121,6 +121,10 @@ interface BrapiQuoteFull {
     revenuePerShare?: number;
     earningsPerShare?: number;
     trailingEps?: number;
+    floatShares?: number;          // Ações em circulação livre (free float)
+    "52WeekChange"?: number;       // Variação % nas últimas 52 semanas (decimal)
+    pegRatio?: number;
+    mostRecentQuarter?: string;
   };
   financialData?: {
     currentRatio?: number;
@@ -141,6 +145,7 @@ interface BrapiQuoteFull {
     revenueGrowth?: number;
     earningsGrowth?: number;
     totalCash?: number;
+    totalCashPerShare?: number;    // Caixa por ação
     totalDebt?: number;
   };
   balanceSheetHistory?: { balanceSheetStatements?: BrapiBalanceSheet[] };
@@ -1072,36 +1077,148 @@ export default function AcaoContent({ ticker, userEmail, userName, userAvatar }:
           </Section>
         )}
 
-        {/* DADOS / INFORMAÇÕES */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "16px" }}>
-          <Section noMargin>
-            <h4 style={{ fontSize: "12px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-sans)", marginBottom: "12px" }}>
-              Dados sobre a Empresa
-            </h4>
-            <DataRow label="Nome" value={quote.longName ?? quote.shortName ?? "—"} />
-            <DataRow label="Setor" value={quote.summaryProfile?.sector ?? "—"} />
-            <DataRow label="Segmento" value={quote.summaryProfile?.industry ?? "—"} />
-            <DataRow label="Funcionários" value={quote.summaryProfile?.fullTimeEmployees?.toLocaleString("pt-BR") ?? "—"} />
-            {quote.summaryProfile?.website && (
-              <DataRow label="Website" value={
-                <a href={quote.summaryProfile.website} target="_blank" rel="noopener noreferrer" style={{ color: "#C9A84C", textDecoration: "none" }}>
-                  {quote.summaryProfile.website.replace(/^https?:\/\//, "")}
-                </a>
-              } />
+        {/* COMPOSIÇÃO ACIONÁRIA */}
+        <Section>
+          <SectionHeader title="Composição Acionária">
+            <Building2 size={14} style={{ color: "#C9A84C" }} aria-hidden="true" />
+          </SectionHeader>
+          <div style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+            gap: "10px",
+          }}>
+            <InfoTile
+              icon={<Hash size={13} aria-hidden="true" />}
+              label="Total de papéis"
+              value={metrics.sharesOutstanding ? fmtBig(metrics.sharesOutstanding) : "—"}
+              sub="ações em circulação"
+            />
+            {(() => {
+              const float = quote.defaultKeyStatistics?.floatShares;
+              if (!float || !metrics.sharesOutstanding) return (
+                <InfoTile
+                  icon={<Users size={13} aria-hidden="true" />}
+                  label="Free Float"
+                  value="—"
+                  sub="sem dados"
+                />
+              );
+              const pct = (float / metrics.sharesOutstanding) * 100;
+              return (
+                <InfoTile
+                  icon={<Users size={13} aria-hidden="true" />}
+                  label="Free Float"
+                  value={fmtBig(float)}
+                  sub={`${pct.toFixed(1).replace(".", ",")}% do total`}
+                  accent="#C9A84C"
+                />
+              );
+            })()}
+            <InfoTile
+              icon={<TrendingUp size={13} aria-hidden="true" />}
+              label="Vol. Médio (90d)"
+              value={technicals.avgVolume90d !== null ? fmtBig(technicals.avgVolume90d) : "—"}
+              sub="ações/dia"
+            />
+            {(() => {
+              const change = quote.defaultKeyStatistics?.["52WeekChange"];
+              if (change === undefined || change === null) return (
+                <InfoTile
+                  icon={<CalendarIcon size={13} aria-hidden="true" />}
+                  label="Variação 52sem"
+                  value="—"
+                />
+              );
+              const pct = change * 100;
+              const positive = pct >= 0;
+              return (
+                <InfoTile
+                  icon={positive ? <TrendingUp size={13} aria-hidden="true" /> : <TrendingDown size={13} aria-hidden="true" />}
+                  label="Variação 52sem"
+                  value={`${positive ? "+" : ""}${pct.toFixed(2).replace(".", ",")}%`}
+                  sub="performance no período"
+                  accent={positive ? "#34d399" : "#c46a6a"}
+                />
+              );
+            })()}
+          </div>
+        </Section>
+
+        {/* INDICADORES FINANCEIROS */}
+        <Section>
+          <SectionHeader title="Indicadores Financeiros">
+            <Coins size={14} style={{ color: "#C9A84C" }} aria-hidden="true" />
+          </SectionHeader>
+          <div style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+            gap: "10px",
+          }}>
+            <InfoTile
+              icon={<Landmark size={13} aria-hidden="true" />}
+              label="Valor de Mercado"
+              value={fmtMoney(quote.marketCap)}
+              sub="market cap"
+              accent="#C9A84C"
+            />
+            <InfoTile
+              icon={<Building2 size={13} aria-hidden="true" />}
+              label="Enterprise Value"
+              value={fmtMoney(quote.defaultKeyStatistics?.enterpriseValue)}
+              sub="valor da firma (mcap + dívida − caixa)"
+            />
+            <InfoTile
+              icon={<ShieldCheck size={13} aria-hidden="true" />}
+              label="Patrimônio Líquido"
+              value={fmtMoney(metrics.equity)}
+              sub="capital dos acionistas"
+            />
+            {!isFinance && (
+              <InfoTile
+                icon={<Calculator size={13} aria-hidden="true" />}
+                label="Ativos Totais"
+                value={fmtMoney(metrics.totalAssets)}
+                sub="bens + direitos"
+              />
             )}
-          </Section>
-          <Section noMargin>
-            <h4 style={{ fontSize: "12px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-sans)", marginBottom: "12px" }}>
-              Informações da Empresa
-            </h4>
-            <DataRow label="Valor de Mercado" value={fmtMoney(quote.marketCap)} />
-            <DataRow label="Patrimônio Líquido" value={fmtMoney(metrics.equity)} />
-            <DataRow label="Nº Total de Papéis" value={metrics.sharesOutstanding ? fmtBig(metrics.sharesOutstanding) : "—"} />
-            <DataRow label="Dívida Bruta" value={fmtMoney(quote.financialData?.totalDebt)} />
-            <DataRow label="Dívida Líquida" value={fmtMoney(metrics.netDebt)} />
-            <DataRow label="Disponibilidade" value={fmtMoney(quote.financialData?.totalCash)} />
-          </Section>
-        </div>
+            {!isFinance && (
+              <>
+                <InfoTile
+                  icon={<TrendingDown size={13} aria-hidden="true" />}
+                  label="Dívida Bruta"
+                  value={fmtMoney(quote.financialData?.totalDebt)}
+                  sub="dívida total"
+                />
+                <InfoTile
+                  icon={<TrendingDown size={13} aria-hidden="true" />}
+                  label="Dívida Líquida"
+                  value={fmtMoney(metrics.netDebt)}
+                  sub="bruta − caixa"
+                  accent={(metrics.netDebt ?? 0) < 0 ? "#34d399" : undefined}
+                />
+              </>
+            )}
+            <InfoTile
+              icon={<Coins size={13} aria-hidden="true" />}
+              label="Caixa"
+              value={fmtMoney(quote.financialData?.totalCash)}
+              sub={
+                quote.financialData?.totalCashPerShare
+                  ? `R$ ${quote.financialData.totalCashPerShare.toFixed(2).replace(".", ",")}/ação`
+                  : "disponível"
+              }
+              accent="#34d399"
+            />
+            {isFinance && (
+              <InfoTile
+                icon={<Calculator size={13} aria-hidden="true" />}
+                label="Ativos Totais"
+                value={fmtMoney(metrics.totalAssets)}
+                sub="depósitos + crédito + caixa"
+              />
+            )}
+          </div>
+        </Section>
 
         {/* NOTÍCIAS */}
         <Section>
@@ -2742,6 +2859,83 @@ function FinanceIndicators({ metrics, quote }: { metrics: Metrics; quote: BrapiQ
       <Indicator helpKey="equity" label="Patrimônio Líquido" value={fmtMoney(metrics.equity)} />
       <Indicator helpKey="totalAssets" label="Ativos Totais" value={fmtMoney(metrics.totalAssets)} />
       <Indicator helpKey="cash" label="Caixa" value={fmtMoney(quote.financialData?.totalCash)} />
+    </div>
+  );
+}
+
+function InfoTile({
+  icon, label, value, sub, accent,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  sub?: string;
+  /** Cor opcional pro valor (ex: verde se variação positiva). Default = bege. */
+  accent?: string;
+}) {
+  return (
+    <div style={{
+      background: "#0d0b07",
+      border: `1px solid ${accent ? accent + "22" : "rgba(201,168,76,0.08)"}`,
+      borderRadius: "10px",
+      padding: "12px 14px",
+      transition: "background 0.15s, border-color 0.15s",
+      position: "relative",
+      overflow: "hidden",
+    }}>
+      {accent && (
+        <span
+          aria-hidden="true"
+          style={{
+            position: "absolute",
+            left: 0, top: 0, bottom: 0,
+            width: "3px",
+            background: accent,
+            opacity: 0.7,
+          }}
+        />
+      )}
+      <div style={{
+        display: "flex",
+        alignItems: "center",
+        gap: "6px",
+        marginBottom: "6px",
+        color: accent ?? "#7a6d57",
+      }}>
+        {icon}
+        <span style={{
+          fontSize: "9px",
+          fontWeight: 700,
+          letterSpacing: "0.06em",
+          textTransform: "uppercase",
+          fontFamily: "var(--font-sans)",
+        }}>
+          {label}
+        </span>
+      </div>
+      <p style={{
+        fontSize: "15px",
+        fontWeight: 700,
+        color: accent ?? "#e8dcc0",
+        fontFamily: "var(--font-display)",
+        margin: 0,
+        lineHeight: 1.1,
+        fontVariantNumeric: "tabular-nums",
+        wordBreak: "break-word",
+      }}>
+        {value}
+      </p>
+      {sub && (
+        <p style={{
+          fontSize: "10px",
+          color: "#9a8a6a",
+          fontFamily: "var(--font-sans)",
+          margin: "5px 0 0",
+          lineHeight: 1.35,
+        }}>
+          {sub}
+        </p>
+      )}
     </div>
   );
 }
