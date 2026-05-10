@@ -586,7 +586,7 @@ export default function ProfileContent({ mode, currentUserEmail, currentUserName
               <Card>
                 <CardHeader title="Portfólio & Conquistas" icon={<Briefcase size={14} style={{ color: "#C9A84C" }} />} />
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "8px", marginTop: "10px" }}>
-                  <StatCell icon={<Star size={12} />} label="Pontos" value={bundle.points.total_points} />
+                  <StatCell icon={<Users size={12} />} label="Seguidores" value={profile.followers_count ?? 0} />
                   <StatCell icon={<Trophy size={12} />} label="Badges" value={bundle.achievements.length} />
                   <StatCell icon={<GraduationCap size={12} />} label="Cursos" value={bundle.points.courses_completed} />
                   <StatCell icon={<MessageCircle size={12} />} label="Posts" value={bundle.engagement.posts} />
