@@ -14,6 +14,11 @@ interface BrapiQuoteResult {
   regularMarketPrice?: number;
   regularMarketChangePercent?: number;
   regularMarketChange?: number;
+  regularMarketDayHigh?: number;
+  regularMarketDayLow?: number;
+  regularMarketOpen?: number;
+  regularMarketVolume?: number;
+  regularMarketPreviousClose?: number;
   logourl?: string;
 }
 
@@ -64,6 +69,11 @@ export interface OverviewIbov {
   price: number | null;
   changePct: number | null;
   spark: number[];
+  open: number | null;
+  dayHigh: number | null;
+  dayLow: number | null;
+  volume: number | null;
+  prevClose: number | null;
 }
 
 export interface OverviewCurrency {
@@ -139,6 +149,11 @@ export async function GET() {
       price: result?.regularMarketPrice ?? null,
       changePct: result?.regularMarketChangePercent ?? null,
       spark: hist.map((h) => h.close).filter((v): v is number => typeof v === "number"),
+      open: result?.regularMarketOpen ?? null,
+      dayHigh: result?.regularMarketDayHigh ?? null,
+      dayLow: result?.regularMarketDayLow ?? null,
+      volume: result?.regularMarketVolume ?? null,
+      prevClose: result?.regularMarketPreviousClose ?? null,
     };
   })();
 
