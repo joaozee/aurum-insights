@@ -115,6 +115,16 @@
   .aurum-spin { animation: none; }
 }
 
+@keyframes shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  /* Skeletons param de animar quando o usuário pediu — apenas mantêm o
+     placeholder estático, evitando movimento desnecessário. */
+  *[style*="animation: shimmer"] { animation: none !important; }
+}
+
 /* Zebra striping for transaction tables (Finanças) */
 .aurum-zebra-row:nth-child(even) {
   background: rgba(255, 255, 255, 0.012);

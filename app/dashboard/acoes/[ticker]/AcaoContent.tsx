@@ -4632,6 +4632,7 @@ interface NewsItem {
   link: string;
   pubDate: string | null;
   category: string | null;
+  source?: string | null;
 }
 
 function NewsList({ ticker }: { ticker: string }) {
@@ -4640,6 +4641,8 @@ function NewsList({ ticker }: { ticker: string }) {
 
   useEffect(() => {
     const ctrl = new AbortController();
+    setLoading(true);
+    setItems([]);
     (async () => {
       try {
         const res = await fetch(`/api/market-news?ticker=${encodeURIComponent(ticker)}`, { signal: ctrl.signal });
@@ -4655,14 +4658,85 @@ function NewsList({ ticker }: { ticker: string }) {
   }, [ticker]);
 
   if (loading) {
-    return <Empty text="Carregando notícias..." />;
+    // Skeleton placeholders pra evitar layout shift (Core Web Vitals: CLS)
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div
+            key={i}
+            aria-hidden="true"
+            style={{
+              background: "#0d0b07",
+              border: "1px solid rgba(201,168,76,0.06)",
+              borderRadius: "10px",
+              padding: "14px 16px",
+              display: "flex",
+              flexDirection: "column",
+              gap: "8px",
+              opacity: 0.6,
+            }}
+          >
+            <span style={{
+              width: "60%",
+              height: "12px",
+              borderRadius: "4px",
+              background: "linear-gradient(90deg, #1a1410, #2a1f15, #1a1410)",
+              backgroundSize: "200% 100%",
+              animation: "shimmer 1.4s infinite linear",
+            }} />
+            <span style={{
+              width: "30%",
+              height: "9px",
+              borderRadius: "3px",
+              background: "linear-gradient(90deg, #1a1410, #221a12, #1a1410)",
+              backgroundSize: "200% 100%",
+              animation: "shimmer 1.4s infinite linear",
+            }} />
+          </div>
+        ))}
+      </div>
+    );
   }
+
   if (items.length === 0) {
-    return <Empty text="Nenhuma notícia recente disponível." />;
+    return (
+      <div style={{
+        textAlign: "center",
+        padding: "32px 16px",
+        background: "#0d0b07",
+        border: "1px solid rgba(201,168,76,0.06)",
+        borderRadius: "10px",
+      }}>
+        <Newspaper size={28} aria-hidden="true" style={{ color: "rgba(201,168,76,0.25)", marginBottom: "10px" }} />
+        <p style={{
+          fontSize: "13px",
+          fontWeight: 600,
+          color: "#a09068",
+          fontFamily: "var(--font-sans)",
+          margin: 0,
+          marginBottom: "4px",
+        }}>
+          Sem notícias recentes sobre {ticker}
+        </p>
+        <p style={{
+          fontSize: "11px",
+          color: "#7a6d57",
+          fontFamily: "var(--font-sans)",
+          margin: 0,
+          maxWidth: "48ch",
+          marginLeft: "auto",
+          marginRight: "auto",
+          lineHeight: 1.55,
+        }}>
+          Buscamos cobertura no Google News pelo ticker, radical e nome da
+          empresa. Volte mais tarde — atualizamos a cada 10 minutos.
+        </p>
+      </div>
+    );
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
       {items.map((n) => (
         <a
           key={n.id}
@@ -4671,25 +4745,82 @@ function NewsList({ ticker }: { ticker: string }) {
           rel="noopener noreferrer"
           style={{
             background: "#0d0b07",
-            border: "1px solid rgba(201,168,76,0.06)",
-            borderRadius: "8px",
-            padding: "10px 14px",
+            border: "1px solid rgba(201,168,76,0.08)",
+            borderRadius: "10px",
+            padding: "14px 16px",
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
-            gap: "12px",
+            gap: "14px",
             textDecoration: "none",
+            transition: "background 0.15s, border-color 0.15s, transform 0.15s",
+            minHeight: "62px",
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = "#110c07";
+            e.currentTarget.style.borderColor = "rgba(201,168,76,0.18)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = "#0d0b07";
+            e.currentTarget.style.borderColor = "rgba(201,168,76,0.08)";
           }}
         >
           <div style={{ flex: 1, minWidth: 0 }}>
-            <p style={{ fontSize: "12px", color: "#c8b89a", fontFamily: "var(--font-sans)", lineHeight: 1.45, marginBottom: "3px" }}>
+            {/* Source pill + tempo relativo */}
+            <div style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              marginBottom: "6px",
+              flexWrap: "wrap",
+            }}>
+              {(n.source || n.category) && (
+                <span style={{
+                  fontSize: "9px",
+                  fontWeight: 700,
+                  color: "#C9A84C",
+                  background: "rgba(201,168,76,0.08)",
+                  border: "1px solid rgba(201,168,76,0.18)",
+                  padding: "2px 7px",
+                  borderRadius: "10px",
+                  fontFamily: "var(--font-sans)",
+                  letterSpacing: "0.04em",
+                  textTransform: "uppercase",
+                  whiteSpace: "nowrap",
+                  maxWidth: "180px",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }}>
+                  {n.source ?? n.category}
+                </span>
+              )}
+              {n.pubDate && (
+                <span style={{
+                  fontSize: "10px",
+                  color: "#7a6d57",
+                  fontFamily: "var(--font-sans)",
+                  fontVariantNumeric: "tabular-nums",
+                }}>
+                  há {formatRelativeDate(n.pubDate)}
+                </span>
+              )}
+            </div>
+            <p style={{
+              fontSize: "13px",
+              color: "#e8dcc0",
+              fontFamily: "var(--font-sans)",
+              lineHeight: 1.45,
+              fontWeight: 500,
+              margin: 0,
+              display: "-webkit-box",
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: "vertical",
+              overflow: "hidden",
+            }}>
               {n.title}
             </p>
-            <p style={{ fontSize: "10px", color: "#9a8a6a", fontFamily: "var(--font-sans)" }}>
-              {n.category ?? "InfoMoney"}{n.pubDate ? ` · ${formatRelativeDate(n.pubDate)}` : ""}
-            </p>
           </div>
-          <ExternalLink size={11} style={{ color: "#a09068", flexShrink: 0 }} />
+          <ExternalLink size={13} aria-hidden="true" style={{ color: "#a09068", flexShrink: 0 }} />
         </a>
       ))}
     </div>
