@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect, useCallback, useRef } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
   GraduationCap, Search, ChevronDown, Star, BookOpen,
@@ -12,6 +12,7 @@ import {
 } from "@/lib/cursos-data";
 import { fetchEnrollments, progressFromLessons, type EnrollmentRow } from "@/lib/enrollment";
 import { EmptyState } from "@/components/ui/empty-state";
+import { CourseCover } from "@/components/ui/course-cover";
 
 type Filtro = "todos" | CursoCategoria;
 type Ordenacao = "recentes" | "populares" | "preco";
@@ -251,10 +252,11 @@ export default function CursosContent({ userEmail }: CursosContentProps) {
             gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))",
             gap: "20px", marginBottom: "48px",
           }}>
-            {cursosFiltrados.map((c) => (
+            {cursosFiltrados.map((c, i) => (
               <CursoCard
                 key={c.id}
                 curso={c}
+                index={i + 1}
                 onClick={() => router.push(`/dashboard/cursos/${c.id}`)}
               />
             ))}
@@ -378,17 +380,12 @@ function ToggleBtn({
 }
 
 function CursoCard({
-  curso, onClick,
+  curso, index, onClick,
 }: {
   curso: typeof CURSOS[number];
+  index: number;
   onClick: () => void;
 }) {
-  const [imgFailed, setImgFailed] = useState(false);
-  const imgRef = useRef<HTMLImageElement>(null);
-  useEffect(() => {
-    const img = imgRef.current;
-    if (img && img.complete && img.naturalWidth === 0) setImgFailed(true);
-  }, []);
   return (
     <div
       onClick={onClick}
@@ -410,34 +407,17 @@ function CursoCard({
         e.currentTarget.style.transform = "translateY(0)";
       }}
     >
-      {/* Imagem (overlay leve, fallback tonal pra foto editorial brasileira em /public/cursos/) */}
-      <div style={{
-        position: "relative", height: "150px", overflow: "hidden",
-        background: "linear-gradient(135deg, #1a1410 0%, #130f09 60%, #0d0b07 100%)",
-      }}>
-        {!imgFailed && (
-          <img
-            ref={imgRef}
-            src={curso.imagem}
-            alt={curso.titulo}
-            onError={() => setImgFailed(true)}
-            style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
-          />
-        )}
-        {imgFailed && (
-          <div style={{
-            position: "absolute", inset: 0,
-            display: "flex", alignItems: "center", justifyContent: "center",
-            color: "rgba(201,168,76,0.32)",
-          }}>
-            <BookOpen size={36} strokeWidth={1.2} />
-          </div>
-        )}
-        <div style={{
-          position: "absolute", inset: 0,
-          background: "linear-gradient(180deg, transparent 55%, rgba(13,11,7,0.45) 100%)",
-          pointerEvents: "none",
-        }} />
+      {/* Capa: tenta a foto em /public/cursos/. Se falhar, vira placeholder
+          editorial tematizado por categoria (gradient + número Playfair + ícone). */}
+      <div style={{ position: "relative" }}>
+        <CourseCover
+          src={curso.imagem}
+          title={curso.titulo}
+          categoria={curso.categoria}
+          index={index}
+          height={150}
+          numberSize={64}
+        />
         {curso.desconto && (
           <span style={{
             position: "absolute", top: "10px", left: "10px",

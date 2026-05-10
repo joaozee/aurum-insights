@@ -44,10 +44,13 @@ export async function fetchEnrollments(userEmail: string): Promise<Map<string, E
   return result;
 }
 
-export async function enrollInCourse(userEmail: string, courseSlug: string): Promise<boolean> {
+// Lança erro em vez de retornar boolean, pra que o caller possa fazer
+// try/catch com mensagens específicas. O upsert é idempotente (onConflict),
+// então re-matricular é silencioso.
+export async function enrollInCourse(userEmail: string, courseSlug: string): Promise<void> {
   const supabase = createClient();
   const curso = CURSOS.find((c) => c.id === courseSlug);
-  if (!curso) return false;
+  if (!curso) throw new Error("Curso não encontrado.");
   const { error } = await supabase.from("user_enrollment").upsert(
     {
       user_email: userEmail,
@@ -59,7 +62,10 @@ export async function enrollInCourse(userEmail: string, courseSlug: string): Pro
     },
     { onConflict: "user_email,course_id" }
   );
-  return !error;
+  if (error) {
+    console.error("[enrollInCourse] upsert error:", error);
+    throw new Error(error.message || "Não foi possível confirmar a matrícula.");
+  }
 }
 
 export async function setLessonComplete(

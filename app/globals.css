@@ -108,6 +108,13 @@
   to   { transform: rotate(360deg); }
 }
 
+.aurum-spin {
+  animation: spin 0.85s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .aurum-spin { animation: none; }
+}
+
 /* Zebra striping for transaction tables (Finanças) */
 .aurum-zebra-row:nth-child(even) {
   background: rgba(255, 255, 255, 0.012);

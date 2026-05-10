@@ -1,15 +1,17 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   ChevronLeft, Clock, BookOpen, Users, CheckCircle2, ChevronDown,
-  Play, Award, Sparkles, PlayCircle,
+  Play, Award, Sparkles, PlayCircle, Loader2, X,
 } from "lucide-react";
+import { toast } from "sonner";
 import {
   type Curso, CATEGORIA_LABEL, NIVEL_LABEL,
 } from "@/lib/cursos-data";
 import { enrollInCourse, progressFromLessons } from "@/lib/enrollment";
+import { CourseCover } from "@/components/ui/course-cover";
 
 interface InitialEnrollment {
   progress: number;
@@ -28,33 +30,52 @@ export default function CursoDetalheContent({
   const router = useRouter();
   const [moduloAberto, setModuloAberto] = useState<string | null>(curso.modulos[0]?.id ?? null);
   const [enrollment, setEnrollment] = useState<InitialEnrollment | null>(initialEnrollment);
+  const [confirming, setConfirming] = useState(false);
   const [enrolling, setEnrolling] = useState(false);
-  const [heroFailed, setHeroFailed] = useState(false);
-  const heroImgRef = useRef<HTMLImageElement>(null);
-  useEffect(() => {
-    const img = heroImgRef.current;
-    if (img && img.complete && img.naturalWidth === 0) setHeroFailed(true);
-  }, []);
 
   const matriculado = enrollment !== null;
   const progresso = enrollment ? progressFromLessons(curso, enrollment.completed_lessons) : 0;
 
   const primeiraAula = curso.modulos[0]?.aulas[0];
 
-  async function handleCta() {
-    if (matriculado) {
-      const completed = new Set(enrollment?.completed_lessons ?? []);
-      const next = curso.modulos.flatMap((m) => m.aulas).find((a) => !completed.has(a.id))
-        ?? primeiraAula;
-      if (next) router.push(`/dashboard/cursos/${curso.id}/aulas/${next.id}`);
-      return;
-    }
+  function handleContinuar() {
+    const completed = new Set(enrollment?.completed_lessons ?? []);
+    const next = curso.modulos.flatMap((m) => m.aulas).find((a) => !completed.has(a.id))
+      ?? primeiraAula;
+    if (next) router.push(`/dashboard/cursos/${curso.id}/aulas/${next.id}`);
+  }
+
+  async function handleConfirmarMatricula() {
+    if (enrolling) return;
     setEnrolling(true);
-    const ok = await enrollInCourse(userEmail, curso.id);
-    setEnrolling(false);
-    if (ok) {
-      setEnrollment({ progress: 0, completed_lessons: [], started_at: new Date().toISOString().slice(0, 10), completed_at: null });
-      if (primeiraAula) router.push(`/dashboard/cursos/${curso.id}/aulas/${primeiraAula.id}`);
+    try {
+      await enrollInCourse(userEmail, curso.id);
+      setEnrollment({
+        progress: 0,
+        completed_lessons: [],
+        started_at: new Date().toISOString().slice(0, 10),
+        completed_at: null,
+      });
+      toast.success("Matrícula confirmada.", {
+        description: "Bons estudos.",
+      });
+      if (primeiraAula) {
+        router.push(`/dashboard/cursos/${curso.id}/aulas/${primeiraAula.id}`);
+      } else {
+        setConfirming(false);
+        setEnrolling(false);
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Erro inesperado.";
+      console.error("[CursoDetalheContent] enroll failed:", err);
+      toast.error("Não consegui matricular agora.", {
+        description: msg,
+        action: {
+          label: "Tentar de novo",
+          onClick: () => handleConfirmarMatricula(),
+        },
+      });
+      setEnrolling(false);
     }
   }
 
@@ -79,40 +100,22 @@ export default function CursoDetalheContent({
         <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: "32px" }}>
           {/* Coluna principal */}
           <div>
-            {/* Hero image (sem badge sobreposto, overlay leve, fallback tonal) */}
+            {/* Hero — CourseCover trata fallback editorial automático */}
             <div style={{
-              position: "relative",
               borderRadius: "14px",
               overflow: "hidden",
               marginBottom: "28px",
-              height: "260px",
               border: "1px solid rgba(201,168,76,0.12)",
-              background: "linear-gradient(135deg, #1a1410 0%, #130f09 60%, #0d0b07 100%)",
             }}>
-              {!heroFailed && (
-                <img
-                  ref={heroImgRef}
-                  src={curso.imagem}
-                  alt={curso.titulo}
-                  onError={() => setHeroFailed(true)}
-                  style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
-                />
-              )}
-              {heroFailed && (
-                <div style={{
-                  position: "absolute", inset: 0,
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  color: "rgba(201,168,76,0.35)",
-                }}>
-                  <BookOpen size={56} strokeWidth={1.2} />
-                </div>
-              )}
-              {/* Overlay sutil só pra ancorar na borda inferior */}
-              <div style={{
-                position: "absolute", inset: 0,
-                background: "linear-gradient(180deg, transparent 60%, rgba(13,11,7,0.35) 100%)",
-                pointerEvents: "none",
-              }} />
+              <CourseCover
+                src={curso.imagem}
+                title={curso.titulo}
+                categoria={curso.categoria}
+                index={1}
+                height={260}
+                numberSize={104}
+                eager
+              />
             </div>
 
             {/* Bestseller eyebrow tipográfico */}
@@ -176,7 +179,7 @@ export default function CursoDetalheContent({
                 <>
                   <div style={{ display: "flex", alignItems: "center", gap: "16px", flexWrap: "wrap" }}>
                     <button
-                      onClick={handleCta}
+                      onClick={handleContinuar}
                       style={{
                         background: "#C9A84C",
                         border: "none", borderRadius: "8px",
@@ -226,28 +229,26 @@ export default function CursoDetalheContent({
                     </div>
                   </div>
                 </>
-              ) : (
+              ) : !confirming ? (
+                /* Estado inicial: preço + botão "Matricular" */
                 <div style={{ display: "flex", alignItems: "center", gap: "16px", flexWrap: "wrap" }}>
                   <button
-                    onClick={handleCta}
-                    disabled={enrolling}
+                    onClick={() => setConfirming(true)}
                     style={{
                       background: "#C9A84C",
                       border: "none", borderRadius: "8px",
                       padding: "10px 20px", color: "#0d0b07",
                       fontSize: "13px", fontWeight: 600,
-                      fontFamily: "var(--font-sans)",
-                      cursor: enrolling ? "wait" : "pointer",
+                      fontFamily: "var(--font-sans)", cursor: "pointer",
                       letterSpacing: "0.02em",
                       display: "flex", alignItems: "center", gap: "8px",
                       transition: "background 0.15s",
-                      opacity: enrolling ? 0.7 : 1,
                     }}
-                    onMouseEnter={(e) => { if (!enrolling) e.currentTarget.style.background = "#E8C96A"; }}
-                    onMouseLeave={(e) => { if (!enrolling) e.currentTarget.style.background = "#C9A84C"; }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = "#E8C96A"; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = "#C9A84C"; }}
                   >
                     <Play size={12} fill="#0d0b07" />
-                    {enrolling ? "Matriculando..." : "Matricular"}
+                    Matricular
                   </button>
                   <div style={{ display: "flex", alignItems: "baseline", gap: "10px" }}>
                     <span style={{
@@ -265,6 +266,91 @@ export default function CursoDetalheContent({
                         De R$ {curso.precoOriginal.toFixed(2).replace(".", ",")}
                       </span>
                     )}
+                  </div>
+                </div>
+              ) : (
+                /* Estado de confirmação: review + Confirmar/Cancelar */
+                <div
+                  role="dialog"
+                  aria-label="Confirmar matrícula"
+                  aria-busy={enrolling}
+                  style={{
+                    background: "rgba(201,168,76,0.05)",
+                    border: "1px solid rgba(201,168,76,0.25)",
+                    borderRadius: "10px",
+                    padding: "18px 20px",
+                    maxWidth: "560px",
+                    display: "flex", flexDirection: "column", gap: "14px",
+                  }}
+                >
+                  <p style={{
+                    fontSize: "13px", color: "#c8b89a",
+                    fontFamily: "var(--font-sans)", lineHeight: 1.55,
+                  }}>
+                    Confirmar matrícula em <strong style={{ color: "#e8dcc0", fontWeight: 600 }}>{curso.titulo}</strong>{" "}
+                    por <strong style={{ color: "#C9A84C", fontWeight: 600 }}>R$ {curso.preco.toFixed(2).replace(".", ",")}</strong>?
+                  </p>
+                  <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
+                    <button
+                      onClick={handleConfirmarMatricula}
+                      disabled={enrolling}
+                      style={{
+                        background: "#C9A84C",
+                        border: "none", borderRadius: "8px",
+                        padding: "10px 20px", color: "#0d0b07",
+                        fontSize: "13px", fontWeight: 600,
+                        fontFamily: "var(--font-sans)",
+                        cursor: enrolling ? "wait" : "pointer",
+                        letterSpacing: "0.02em",
+                        display: "flex", alignItems: "center", gap: "8px",
+                        transition: "background 0.15s",
+                        opacity: enrolling ? 0.7 : 1,
+                      }}
+                      onMouseEnter={(e) => { if (!enrolling) e.currentTarget.style.background = "#E8C96A"; }}
+                      onMouseLeave={(e) => { if (!enrolling) e.currentTarget.style.background = "#C9A84C"; }}
+                    >
+                      {enrolling ? (
+                        <>
+                          <Loader2 size={13} className="aurum-spin" />
+                          Confirmando...
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle2 size={13} />
+                          Confirmar matrícula
+                        </>
+                      )}
+                    </button>
+                    <button
+                      onClick={() => setConfirming(false)}
+                      disabled={enrolling}
+                      style={{
+                        background: "transparent",
+                        border: "1px solid rgba(201,168,76,0.2)",
+                        borderRadius: "8px",
+                        padding: "10px 16px", color: "#a09068",
+                        fontSize: "13px", fontWeight: 500,
+                        fontFamily: "var(--font-sans)",
+                        cursor: enrolling ? "not-allowed" : "pointer",
+                        letterSpacing: "0.02em",
+                        display: "flex", alignItems: "center", gap: "6px",
+                        transition: "color 0.15s, border-color 0.15s",
+                        opacity: enrolling ? 0.5 : 1,
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!enrolling) {
+                          e.currentTarget.style.color = "#e8dcc0";
+                          e.currentTarget.style.borderColor = "rgba(201,168,76,0.4)";
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.color = "#a09068";
+                        e.currentTarget.style.borderColor = "rgba(201,168,76,0.2)";
+                      }}
+                    >
+                      <X size={13} />
+                      Cancelar
+                    </button>
                   </div>
                 </div>
               )}
