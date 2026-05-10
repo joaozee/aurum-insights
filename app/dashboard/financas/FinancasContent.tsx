@@ -5,7 +5,7 @@ import {
   Plus, FileText, TrendingUp, TrendingDown, Wallet,
   Trash2, Target, Calendar, BarChart2, LayoutDashboard,
   ChevronLeft, ChevronRight, AlertCircle, Check,
-  Building2, User,
+  Building2, User, ArrowDownLeft, ArrowUpRight,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -166,31 +166,39 @@ function SummaryCard({ icon: Icon, label, value, color, bg, border, sub }: {
 
 function TxRow({ t, onDelete }: { t: FinanceTransaction; onDelete: (id: string) => void }) {
   const [hovered, setHovered] = useState(false);
+  const isIncome = t.type === "entrada";
+  const accentColor = isIncome ? "#34d399" : "#f87171";
+  const accentBg = isIncome ? "rgba(52,211,153,0.12)" : "rgba(248,113,113,0.12)";
   return (
     <div
       style={{ display: "flex", alignItems: "center", gap: "12px", padding: "10px 0", borderBottom: "1px solid rgba(255,255,255,0.03)" }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      <div style={{ width: "32px", height: "32px", borderRadius: "8px", background: `${CATEGORY_COLORS[t.category] ?? "#C9A84C"}20`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-        <span style={{ fontSize: "11px", fontWeight: 700, color: CATEGORY_COLORS[t.category] ?? "#C9A84C" }}>
-          {t.category.charAt(0)}
-        </span>
+      <div style={{
+        width: "32px", height: "32px", borderRadius: "8px",
+        background: accentBg,
+        display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+      }}>
+        {isIncome
+          ? <ArrowDownLeft size={14} style={{ color: accentColor }} />
+          : <ArrowUpRight size={14} style={{ color: accentColor }} />}
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <p style={{ fontSize: "13px", fontWeight: 500, color: "#e8dcc0", fontFamily: "var(--font-sans)", marginBottom: "2px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+        <p style={{ fontSize: "13px", fontWeight: 500, color: "var(--text-default)", fontFamily: "var(--font-sans)", marginBottom: "2px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           {t.category}
         </p>
-        <p style={{ fontSize: "11px", color: "#857560", fontFamily: "var(--font-sans)" }}>
+        <p style={{ fontSize: "11px", color: "var(--text-faint)", fontFamily: "var(--font-sans)" }}>
           {t.description || "—"} · {new Date(t.transaction_date + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}
         </p>
       </div>
-      <span style={{ fontSize: "13px", fontWeight: 700, fontFamily: "var(--font-sans)", color: t.type === "entrada" ? "#34d399" : "#f87171", flexShrink: 0 }}>
-        {t.type === "entrada" ? "+" : "-"}{fmt(Number(t.amount))}
+      <span style={{ fontSize: "13px", fontWeight: 700, fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", color: accentColor, flexShrink: 0 }}>
+        {isIncome ? "+" : "-"}{fmt(Number(t.amount))}
       </span>
       <button
         onClick={() => onDelete(t.id)}
-        style={{ opacity: hovered ? 1 : 0, background: "none", border: "none", cursor: "pointer", color: "#f87171", padding: "2px", transition: "opacity 0.15s", flexShrink: 0 }}
+        aria-label="Apagar transação"
+        style={{ opacity: hovered ? 1 : 0, background: "none", border: "none", cursor: "pointer", color: "var(--negative)", padding: "2px", transition: "opacity 0.15s", flexShrink: 0 }}
       >
         <Trash2 size={13} />
       </button>
@@ -958,11 +966,17 @@ export default function FinancasContent({ userEmail }: Props) {
         {/* Header */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "24px" }}>
           <div>
-            <h1 style={{ fontSize: "24px", fontWeight: 700, color: "#f0e8d0", fontFamily: "var(--font-display)", marginBottom: "4px" }}>
+            <p style={{ fontSize: "10px", fontWeight: 600, color: "var(--gold)", fontFamily: "var(--font-sans)", letterSpacing: "0.18em", textTransform: "uppercase", marginBottom: "8px" }}>
+              {accountType === "pessoal" ? "Pessoal" : "Empresa"}
+            </p>
+            <h1 style={{ fontSize: "26px", fontWeight: 700, color: "var(--text-strong)", fontFamily: "var(--font-display)", letterSpacing: "-0.01em", marginBottom: "6px", lineHeight: 1.15 }}>
               Finanças
             </h1>
-            <p style={{ fontSize: "13px", color: "#a09068", fontFamily: "var(--font-sans)" }}>
-              Gerencie suas receitas e despesas
+            <p style={{ fontSize: "13px", color: "var(--text-muted)", fontFamily: "var(--font-sans)" }}>
+              {MONTHS_PT[now.getMonth()]} de {now.getFullYear()}
+              {!loading && transactions.length > 0 && (
+                <> · <span style={{ fontVariantNumeric: "tabular-nums" }}>{transactions.length}</span> {transactions.length === 1 ? "transação" : "transações"}</>
+              )}
             </p>
           </div>
 
@@ -1005,7 +1019,7 @@ export default function FinancasContent({ userEmail }: Props) {
             className="gap-1.5 px-4 text-[13px] cursor-not-allowed opacity-60"
           >
             <FileText size={14} /> Importar PDF
-            <span className="ml-0.5 text-[9px] py-0.5 px-1.5 rounded bg-[rgba(201,168,76,0.1)] text-[var(--gold)] font-semibold">EM BREVE</span>
+            <span className="ml-1 text-[9px] uppercase tracking-[0.12em] text-[var(--text-faint)] font-medium">em breve</span>
           </Button>
         </div>
 
@@ -1053,9 +1067,9 @@ export default function FinancasContent({ userEmail }: Props) {
                     icon={Wallet}
                     label="Saldo Livre"
                     value={fmt(balance)}
-                    color={balance >= 0 ? CHART_PALETTE[5] : "#f87171"}
-                    bg={balance >= 0 ? "rgba(94,107,140,0.08)" : "rgba(248,113,113,0.06)"}
-                    border={balance >= 0 ? "rgba(94,107,140,0.18)" : "rgba(248,113,113,0.15)"}
+                    color={balance >= 0 ? "#C9A84C" : "#f87171"}
+                    bg={balance >= 0 ? "rgba(201,168,76,0.08)" : "rgba(248,113,113,0.06)"}
+                    border={balance >= 0 ? "rgba(201,168,76,0.22)" : "rgba(248,113,113,0.15)"}
                     sub={balance > 0 ? "disponível para investir" : balance < 0 ? "déficit no mês" : "no equilíbrio"}
                   />
                 </div>
@@ -1087,17 +1101,18 @@ export default function FinancasContent({ userEmail }: Props) {
                     ) : (
                       <>
                         <div style={{ display: "flex", alignItems: "baseline", gap: "6px", marginBottom: "8px" }}>
-                          <span style={{ fontSize: "10px", color: "#a09068", fontFamily: "var(--font-sans)", letterSpacing: "0.04em" }}>Gastos projetados:</span>
-                          <span style={{ fontSize: "18px", fontWeight: 700, color: "#f87171", fontFamily: "var(--font-display)" }}>{fmt(projection.projectedExpense)}</span>
+                          <span style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-sans)", letterSpacing: "0.04em" }}>Gastos projetados:</span>
+                          <span style={{ fontSize: "18px", fontWeight: 700, color: "#f87171", fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums" }}>{fmt(projection.projectedExpense)}</span>
                         </div>
                         <div style={{ display: "flex", alignItems: "baseline", gap: "6px" }}>
-                          <span style={{ fontSize: "10px", color: "#a09068", fontFamily: "var(--font-sans)", letterSpacing: "0.04em" }}>
+                          <span style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-sans)", letterSpacing: "0.04em" }}>
                             {projection.projectedBalance >= 0 ? "Vai sobrar:" : "Vai faltar:"}
                           </span>
                           <span style={{
                             fontSize: "18px", fontWeight: 700,
                             color: projection.projectedBalance >= 0 ? "#34d399" : "#f87171",
-                            fontFamily: "var(--font-display)",
+                            fontFamily: "var(--font-sans)",
+                            fontVariantNumeric: "tabular-nums",
                           }}>
                             {fmt(Math.abs(projection.projectedBalance))}
                           </span>
@@ -1147,8 +1162,8 @@ export default function FinancasContent({ userEmail }: Props) {
                             : <TrendingUp size={18} />}
                         </div>
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <p style={{ fontSize: "15px", fontWeight: 700, color: "#e8dcc0", fontFamily: "var(--font-display)", marginBottom: "2px", letterSpacing: "-0.01em" }}>
-                            <span style={{ color: monthCompare.direction === "down" ? "#34d399" : "#f87171" }}>
+                          <p style={{ fontSize: "15px", fontWeight: 700, color: "var(--text-default)", fontFamily: "var(--font-sans)", marginBottom: "2px", letterSpacing: "-0.005em" }}>
+                            <span style={{ color: monthCompare.direction === "down" ? "#34d399" : "#f87171", fontVariantNumeric: "tabular-nums" }}>
                               {Math.abs(monthCompare.pct).toFixed(0)}%
                             </span>{" "}
                             {monthCompare.direction === "down" ? "menores" : "maiores"} que {monthCompare.prevMonthName}
@@ -1168,7 +1183,29 @@ export default function FinancasContent({ userEmail }: Props) {
                     <p style={{ fontSize: "14px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-display)", marginBottom: "4px" }}>Gastos por Categoria</p>
                     <p style={{ fontSize: "11px", color: "#a09068", fontFamily: "var(--font-sans)", marginBottom: "18px" }}>Distribuição mensal</p>
                     {byCategory.length === 0 ? (
-                      <p style={{ fontSize: "13px", color: "#a09068", fontFamily: "var(--font-sans)", textAlign: "center", padding: "24px 0" }}>Sem despesas este mês</p>
+                      <p style={{ fontSize: "13px", color: "var(--text-muted)", fontFamily: "var(--font-sans)", textAlign: "center", padding: "24px 0" }}>Sem despesas este mês</p>
+                    ) : byCategory.length === 1 ? (
+                      // Donut com 1 fatia = 100% comunica nada. Mostra a categoria
+                      // como linha simples + hint pra adicionar mais.
+                      <div style={{ display: "flex", flexDirection: "column", gap: "14px", paddingTop: "4px" }}>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                            <span style={{ width: "10px", height: "10px", borderRadius: "50%", background: CATEGORY_COLORS[byCategory[0][0]] ?? "#C9A84C" }} />
+                            <span style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-default)", fontFamily: "var(--font-sans)" }}>
+                              {byCategory[0][0]}
+                            </span>
+                          </div>
+                          <span style={{ fontSize: "14px", fontWeight: 700, color: "var(--text-strong)", fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums" }}>
+                            {fmt(byCategory[0][1])}
+                          </span>
+                        </div>
+                        <div style={{ height: "6px", background: "rgba(255,255,255,0.05)", borderRadius: "3px", overflow: "hidden" }}>
+                          <div style={{ height: "100%", width: "100%", background: CATEGORY_COLORS[byCategory[0][0]] ?? "#C9A84C", borderRadius: "3px" }} />
+                        </div>
+                        <p style={{ fontSize: "11px", color: "var(--text-faint)", fontFamily: "var(--font-sans)", lineHeight: 1.5, marginTop: "2px" }}>
+                          Adicione transações de outras categorias para ver a distribuição em donut.
+                        </p>
+                      </div>
                     ) : (
                       <DonutChartSVG data={byCategory} total={expense} />
                     )}
