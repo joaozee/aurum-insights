@@ -5,7 +5,7 @@ import {
   Plus, FileText, TrendingUp, TrendingDown, Wallet,
   Trash2, Target, Calendar, BarChart2, LayoutDashboard,
   ChevronLeft, ChevronRight, AlertCircle, Check,
-  Building2, User, ArrowDownLeft, ArrowUpRight,
+  Building2, User, ArrowDownLeft, ArrowUpRight, PieChart,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -545,6 +545,184 @@ function DonutChartSVG({ data, total }: { data: [string, number][]; total: numbe
   );
 }
 
+// ─── Mini Sparkline (entrada/saída cards) ───────────────────────────────────
+
+function Sparkline({
+  data, color, height = 28, width = 88,
+}: { data: number[]; color: string; height?: number; width?: number }) {
+  if (data.length < 2) return null;
+  const max = Math.max(...data, 1);
+  const min = Math.min(...data, 0);
+  const range = Math.max(max - min, 1);
+  const stepX = width / (data.length - 1);
+  const points = data.map((v, i) => {
+    const x = i * stepX;
+    const y = height - ((v - min) / range) * height;
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(" ");
+  return (
+    <svg
+      viewBox={`0 0 ${width} ${height}`}
+      width={width}
+      height={height}
+      style={{ overflow: "visible" }}
+      aria-hidden
+    >
+      <polyline
+        points={points}
+        fill="none"
+        stroke={color}
+        strokeWidth={1.5}
+        strokeLinejoin="round"
+        strokeLinecap="round"
+        opacity={0.85}
+      />
+      <circle
+        cx={(data.length - 1) * stepX}
+        cy={height - ((data[data.length - 1] - min) / range) * height}
+        r={2.5}
+        fill={color}
+      />
+    </svg>
+  );
+}
+
+// ─── Cash Flow Timeline (saldo cumulativo dia-a-dia do mês) ─────────────────
+
+function CashFlowChart({
+  points, daysInMonth, dayOfMonth,
+}: {
+  points: { day: number; balance: number | null }[];
+  daysInMonth: number;
+  dayOfMonth: number;
+}) {
+  const [hov, setHov] = useState<number | null>(null);
+  const [pos, setPos] = useState({ x: 0, y: 0 });
+  const wrapRef = useRef<HTMLDivElement>(null);
+
+  const W = 720, H = 180, PT = 16, PB = 28, PL = 48, PR = 12;
+  const cW = W - PL - PR;
+  const cH = H - PT - PB;
+
+  const filled = points.filter(p => p.balance !== null) as { day: number; balance: number }[];
+
+  if (filled.length === 0) {
+    return (
+      <div style={{ height: "180px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <span style={{ fontSize: "13px", color: "var(--text-muted)", fontFamily: "var(--font-sans)" }}>
+          Sem movimentações no mês ainda
+        </span>
+      </div>
+    );
+  }
+
+  const maxBal = Math.max(...filled.map(p => p.balance), 1);
+  const minBal = Math.min(...filled.map(p => p.balance), 0);
+  const range = Math.max(maxBal - minBal, 1);
+
+  const xFor = (day: number) => PL + ((day - 1) / (daysInMonth - 1)) * cW;
+  const yFor = (bal: number) => PT + cH - ((bal - minBal) / range) * cH;
+  const yZero = yFor(0);
+
+  // Linha principal (cumulativo até hoje)
+  const path = filled.map((p, i) => `${i === 0 ? "M" : "L"} ${xFor(p.day).toFixed(1)} ${yFor(p.balance).toFixed(1)}`).join(" ");
+  const lastX = xFor(filled[filled.length - 1].day);
+  const lastY = yFor(filled[filled.length - 1].balance);
+  // Área abaixo da linha
+  const area = `${path} L ${lastX.toFixed(1)} ${yZero.toFixed(1)} L ${xFor(filled[0].day).toFixed(1)} ${yZero.toFixed(1)} Z`;
+
+  // Linha vertical "hoje"
+  const todayX = xFor(dayOfMonth);
+
+  const onMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!wrapRef.current) return;
+    const r = wrapRef.current.getBoundingClientRect();
+    const relX = e.clientX - r.left;
+    // Encontra o ponto preenchido mais próximo do cursor
+    let bestIdx = -1;
+    let bestDist = Infinity;
+    filled.forEach((p, i) => {
+      const px = (xFor(p.day) / W) * r.width;
+      const d = Math.abs(px - relX);
+      if (d < bestDist) { bestDist = d; bestIdx = i; }
+    });
+    if (bestIdx >= 0) {
+      setHov(bestIdx);
+      setPos({ x: Math.min(relX + 12, r.width - 180), y: e.clientY - r.top - 70 });
+    }
+  };
+
+  const lineColor = filled[filled.length - 1].balance >= 0 ? "#34d399" : "#f87171";
+  const areaColor = filled[filled.length - 1].balance >= 0 ? "rgba(52,211,153,0.12)" : "rgba(248,113,113,0.12)";
+
+  return (
+    <div ref={wrapRef} style={{ position: "relative" }} onMouseMove={onMove} onMouseLeave={() => setHov(null)}>
+      <svg viewBox={`0 0 ${W} ${H}`} width="100%">
+        {/* Gridlines + labels Y (3 níveis: max, 0, min se negativo) */}
+        {[maxBal, 0, minBal].filter((v, i, arr) => arr.indexOf(v) === i).map((v) => {
+          const y = yFor(v);
+          return (
+            <g key={v}>
+              <line x1={PL} y1={y} x2={W - PR} y2={y} stroke="rgba(255,255,255,0.04)" strokeWidth={1} strokeDasharray={v === 0 ? "0" : "2,3"} />
+              <text x={PL - 6} y={y + 3} textAnchor="end" fontSize={9} fill="var(--text-faint)" fontFamily="var(--font-sans)">
+                {v >= 1000 ? `${(v / 1000).toFixed(1)}k` : Math.round(v).toString()}
+              </text>
+            </g>
+          );
+        })}
+
+        {/* Área abaixo da linha + linha */}
+        <path d={area} fill={areaColor} />
+        <path d={path} fill="none" stroke={lineColor} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
+
+        {/* Linha "hoje" pontilhada */}
+        {dayOfMonth < daysInMonth && (
+          <line x1={todayX} y1={PT} x2={todayX} y2={PT + cH} stroke="var(--gold)" strokeWidth={1} strokeDasharray="3,3" opacity={0.5} />
+        )}
+
+        {/* Ponto do hover */}
+        {hov !== null && (
+          <circle cx={xFor(filled[hov].day)} cy={yFor(filled[hov].balance)} r={4} fill={lineColor} stroke="var(--bg-card)" strokeWidth={2} />
+        )}
+
+        {/* Eixo X: ticks a cada 5 dias */}
+        {Array.from({ length: Math.floor(daysInMonth / 5) + 1 }).map((_, i) => {
+          const day = Math.min(i * 5 + 1, daysInMonth);
+          return (
+            <text key={day} x={xFor(day)} y={H - 8} textAnchor="middle" fontSize={9} fill="var(--text-faint)" fontFamily="var(--font-sans)">
+              {String(day).padStart(2, "0")}
+            </text>
+          );
+        })}
+      </svg>
+
+      {hov !== null && (
+        <div style={{
+          position: "absolute", left: pos.x, top: Math.max(pos.y, 4),
+          pointerEvents: "none", zIndex: 60,
+          background: "#16120a", border: "1px solid rgba(201,168,76,0.35)",
+          borderRadius: "8px", padding: "8px 12px",
+          boxShadow: "0 8px 28px rgba(0,0,0,0.7)", minWidth: "150px",
+        }}>
+          <p style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-sans)", letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: "4px" }}>
+            Dia {String(filled[hov].day).padStart(2, "0")}
+          </p>
+          <p style={{
+            fontSize: "14px", fontWeight: 700,
+            color: filled[hov].balance >= 0 ? "#34d399" : "#f87171",
+            fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums",
+          }}>
+            {filled[hov].balance >= 0 ? "+" : ""}{filled[hov].balance.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+          </p>
+          <p style={{ fontSize: "10px", color: "var(--text-faint)", fontFamily: "var(--font-sans)", marginTop: "2px" }}>
+            saldo acumulado
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 type AccountType = "pessoal" | "empresa";
@@ -797,6 +975,75 @@ export default function FinancasContent({ userEmail }: Props) {
     });
     return Object.entries(map).sort((a, b) => b[1] - a[1]);
   }, [transactions]);
+
+  // ── Insights novos ────────────────────────────────────────────────────────
+
+  // Top 3 categorias do mês com share %.
+  const topCategories = useMemo(() => {
+    if (expense === 0) return [];
+    return byCategory.slice(0, 3).map(([cat, val]) => ({
+      cat,
+      val,
+      pct: (val / expense) * 100,
+    }));
+  }, [byCategory, expense]);
+
+  // Runway: quantos dias o saldo livre cobre se o ritmo atual de gastos
+  // se mantiver. Cap em 999 pra UI legível, null se sem gasto ainda.
+  // Tom Princípio 3: descritivo, não alarmista.
+  const runway = useMemo(() => {
+    const dayOfMonth = now.getDate();
+    if (expense === 0 || balance <= 0 || dayOfMonth === 0) return null;
+    const dailyAvg = expense / dayOfMonth;
+    if (dailyAvg <= 0) return null;
+    const days = balance / dailyAvg;
+    return {
+      days: Math.min(days, 999),
+      dailyAvg,
+    };
+  }, [balance, expense, now]);
+
+  // Cash flow do mês corrente: saldo cumulativo dia-a-dia.
+  // Adiciona linha do mesmo período do mês anterior pra comparação.
+  const cashFlowDaily = useMemo(() => {
+    const year = now.getFullYear();
+    const month = now.getMonth();
+    const dayOfMonth = now.getDate();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+    // Mapa dia → delta (entrada - saida) do mês corrente
+    const curDelta: Record<number, number> = {};
+    for (const t of transactions) {
+      const d = new Date(t.transaction_date + "T12:00:00");
+      if (d.getFullYear() !== year || d.getMonth() !== month) continue;
+      const day = d.getDate();
+      const sign = t.type === "entrada" ? 1 : -1;
+      curDelta[day] = (curDelta[day] ?? 0) + sign * Number(t.amount);
+    }
+
+    // Saldo cumulativo dia-a-dia até o dia atual (futuro fica em null)
+    const points: { day: number; balance: number | null }[] = [];
+    let running = 0;
+    for (let day = 1; day <= daysInMonth; day++) {
+      if (day <= dayOfMonth) {
+        running += curDelta[day] ?? 0;
+        points.push({ day, balance: running });
+      } else {
+        points.push({ day, balance: null });
+      }
+    }
+    return { points, daysInMonth, dayOfMonth };
+  }, [transactions, now]);
+
+  // Sparkline de 6 meses pra mini cards Entradas/Saidas
+  const incomeSpark = useMemo(
+    () => monthlyTrend.map(m => m.income),
+    [monthlyTrend]
+  );
+  const expenseSpark = useMemo(
+    () => monthlyTrend.map(m => m.expense),
+    [monthlyTrend]
+  );
 
   const calEvents = useMemo(() => {
     const map: Record<string, FinancialEvent[]> = {};
@@ -1073,122 +1320,314 @@ export default function FinancasContent({ userEmail }: Props) {
             {/* ══════════════════ PAINEL ══════════════════ */}
             {tab === "painel" && (
               <>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "12px", marginBottom: "12px" }}>
-                  <SummaryCard icon={TrendingUp}   label="Entradas"   value={fmt(income)}  color="#34d399" bg="rgba(34,197,94,0.06)"   border="rgba(34,197,94,0.15)"   sub={`${transactions.filter(t => t.type === "entrada").length} transações`} />
-                  <SummaryCard icon={TrendingDown}  label="Saídas"     value={fmt(expense)} color="#f87171" bg="rgba(248,113,113,0.06)" border="rgba(248,113,113,0.15)" sub={income > 0 ? `${((expense / income) * 100).toFixed(0)}% das entradas` : `${transactions.filter(t => t.type === "saida").length} transações`} />
-                  <SummaryCard
-                    icon={Wallet}
-                    label="Saldo Livre"
-                    value={fmt(balance)}
-                    color={balance >= 0 ? "#C9A84C" : "#f87171"}
-                    bg={balance >= 0 ? "rgba(201,168,76,0.08)" : "rgba(248,113,113,0.06)"}
-                    border={balance >= 0 ? "rgba(201,168,76,0.22)" : "rgba(248,113,113,0.15)"}
-                    sub={balance > 0 ? "disponível para investir" : balance < 0 ? "déficit no mês" : "no equilíbrio"}
+                {/* ── ROW 1 — Hero KPIs assimétricos ─────────────────────
+                    Saldo Livre é o número-âncora (2fr, gold). Entradas/Saídas
+                    flanqueiam (1fr cada) com sparkline 6m embedded. */}
+                <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr", gap: "12px", marginBottom: "16px" }}>
+                  {/* Saldo Livre — anchor */}
+                  <div style={{
+                    background: balance >= 0 ? "rgba(201,168,76,0.06)" : "rgba(248,113,113,0.06)",
+                    border: `1px solid ${balance >= 0 ? "rgba(201,168,76,0.22)" : "rgba(248,113,113,0.18)"}`,
+                    borderRadius: "12px", padding: "22px 26px",
+                    display: "flex", flexDirection: "column", justifyContent: "space-between",
+                    minHeight: "144px",
+                  }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                      <p style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-muted)", fontFamily: "var(--font-sans)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+                        Saldo Livre
+                      </p>
+                      <div style={{ width: "32px", height: "32px", borderRadius: "50%", background: balance >= 0 ? "rgba(201,168,76,0.15)" : "rgba(248,113,113,0.15)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        <Wallet size={15} style={{ color: balance >= 0 ? "#C9A84C" : "#f87171" }} />
+                      </div>
+                    </div>
+                    <div>
+                      <p style={{
+                        fontSize: "32px", fontWeight: 700,
+                        color: balance >= 0 ? "#C9A84C" : "#f87171",
+                        fontFamily: "var(--font-sans)",
+                        fontVariantNumeric: "tabular-nums",
+                        lineHeight: 1, marginBottom: "8px",
+                      }}>
+                        {fmt(balance)}
+                      </p>
+                      <p style={{ fontSize: "12px", color: "var(--text-muted)", fontFamily: "var(--font-sans)" }}>
+                        {balance > 0
+                          ? `disponível para investir · ${income > 0 ? `${((balance / income) * 100).toFixed(0)}% das entradas guardadas` : "este mês"}`
+                          : balance < 0 ? "déficit no mês"
+                          : "no equilíbrio"}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Entradas com sparkline */}
+                  <div style={{
+                    background: "rgba(52,211,153,0.06)",
+                    border: "1px solid rgba(52,211,153,0.15)",
+                    borderRadius: "12px", padding: "18px 20px",
+                    display: "flex", flexDirection: "column", justifyContent: "space-between",
+                    minHeight: "144px",
+                  }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                      <p style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-muted)", fontFamily: "var(--font-sans)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+                        Entradas
+                      </p>
+                      <ArrowDownLeft size={14} style={{ color: "#34d399" }} />
+                    </div>
+                    <div>
+                      <p style={{ fontSize: "20px", fontWeight: 700, color: "#34d399", fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", lineHeight: 1, marginBottom: "8px" }}>
+                        {fmt(income)}
+                      </p>
+                      {incomeSpark.length >= 2 && (
+                        <div style={{ marginBottom: "4px" }}>
+                          <Sparkline data={incomeSpark} color="#34d399" />
+                        </div>
+                      )}
+                      <p style={{ fontSize: "10px", color: "var(--text-faint)", fontFamily: "var(--font-sans)" }}>
+                        últimos {incomeSpark.length} meses
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Saídas com sparkline */}
+                  <div style={{
+                    background: "rgba(248,113,113,0.06)",
+                    border: "1px solid rgba(248,113,113,0.15)",
+                    borderRadius: "12px", padding: "18px 20px",
+                    display: "flex", flexDirection: "column", justifyContent: "space-between",
+                    minHeight: "144px",
+                  }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                      <p style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-muted)", fontFamily: "var(--font-sans)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+                        Saídas
+                      </p>
+                      <ArrowUpRight size={14} style={{ color: "#f87171" }} />
+                    </div>
+                    <div>
+                      <p style={{ fontSize: "20px", fontWeight: 700, color: "#f87171", fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", lineHeight: 1, marginBottom: "8px" }}>
+                        {fmt(expense)}
+                      </p>
+                      {expenseSpark.length >= 2 && (
+                        <div style={{ marginBottom: "4px" }}>
+                          <Sparkline data={expenseSpark} color="#f87171" />
+                        </div>
+                      )}
+                      <p style={{ fontSize: "10px", color: "var(--text-faint)", fontFamily: "var(--font-sans)" }}>
+                        últimos {expenseSpark.length} meses
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* ── ROW 2 — Cash Flow Timeline (full width) ─────────────
+                    Linha do saldo correndo dia-a-dia. Visualiza o pulso
+                    do mês e quando entradas/saídas batem. */}
+                <div style={{
+                  background: "#130f09",
+                  border: "1px solid rgba(201,168,76,0.1)",
+                  borderRadius: "12px", padding: "20px 24px",
+                  marginBottom: "16px",
+                }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px" }}>
+                    <div>
+                      <p style={{ fontSize: "14px", fontWeight: 600, color: "var(--text-default)", fontFamily: "var(--font-display)", marginBottom: "2px" }}>
+                        Fluxo de Caixa
+                      </p>
+                      <p style={{ fontSize: "11px", color: "var(--text-muted)", fontFamily: "var(--font-sans)" }}>
+                        Saldo acumulado dia-a-dia · {MONTHS_PT[now.getMonth()]} de {now.getFullYear()}
+                      </p>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: "12px", fontSize: "10px", color: "var(--text-faint)", fontFamily: "var(--font-sans)" }}>
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                        <span style={{ width: "10px", height: "2px", background: balance >= 0 ? "#34d399" : "#f87171" }} /> saldo
+                      </span>
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                        <span style={{ width: "10px", height: "2px", background: "var(--gold)", opacity: 0.5, borderTop: "1px dashed currentColor" }} /> hoje
+                      </span>
+                    </div>
+                  </div>
+                  <CashFlowChart
+                    points={cashFlowDaily.points}
+                    daysInMonth={cashFlowDaily.daysInMonth}
+                    dayOfMonth={cashFlowDaily.dayOfMonth}
                   />
                 </div>
 
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "24px" }}>
-                  {/* Projeção do mês */}
+                {/* ── ROW 3 — Insights compactos ─────────────────────────
+                    3 cards: Top Categorias / Runway / Comparativo Mensal.
+                    Cada um responde a uma pergunta concreta do usuário. */}
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "12px", marginBottom: "20px" }}>
+                  {/* Top 3 Categorias */}
                   <div style={{
                     background: "#130f09",
                     border: "1px solid rgba(201,168,76,0.1)",
                     borderRadius: "12px", padding: "18px 22px",
                   }}>
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "10px" }}>
-                      <div>
-                        <p style={{ fontSize: "11px", color: "#a09068", fontFamily: "var(--font-sans)", letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: "2px" }}>
-                          Projeção do mês
-                        </p>
-                        <p style={{ fontSize: "12px", color: "#9a8a6a", fontFamily: "var(--font-sans)" }}>
-                          Faltam {projection.daysLeft} {projection.daysLeft === 1 ? "dia" : "dias"} até dia {projection.daysInMonth}
-                        </p>
-                      </div>
-                      <div style={{ width: "32px", height: "32px", borderRadius: "8px", background: "rgba(201,168,76,0.08)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                        <Calendar size={14} style={{ color: "#C9A84C" }} />
-                      </div>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "14px" }}>
+                      <p style={{ fontSize: "10px", fontWeight: 600, color: "var(--text-muted)", fontFamily: "var(--font-sans)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+                        Onde foi o dinheiro
+                      </p>
+                      <PieChart size={13} style={{ color: "var(--gold)" }} />
                     </div>
-                    {expense === 0 ? (
-                      <p style={{ fontSize: "13px", color: "#a09068", fontFamily: "var(--font-sans)" }}>
-                        Sem despesas este mês — projeção indisponível.
+                    {topCategories.length === 0 ? (
+                      <p style={{ fontSize: "12px", color: "var(--text-faint)", fontFamily: "var(--font-sans)" }}>
+                        Sem despesas este mês.
                       </p>
                     ) : (
-                      <>
-                        <div style={{ display: "flex", alignItems: "baseline", gap: "6px", marginBottom: "8px" }}>
-                          <span style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-sans)", letterSpacing: "0.04em" }}>Gastos projetados:</span>
-                          <span style={{ fontSize: "18px", fontWeight: 700, color: "#f87171", fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums" }}>{fmt(projection.projectedExpense)}</span>
-                        </div>
-                        <div style={{ display: "flex", alignItems: "baseline", gap: "6px" }}>
-                          <span style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-sans)", letterSpacing: "0.04em" }}>
-                            {projection.projectedBalance >= 0 ? "Vai sobrar:" : "Vai faltar:"}
-                          </span>
-                          <span style={{
-                            fontSize: "18px", fontWeight: 700,
-                            color: projection.projectedBalance >= 0 ? "#34d399" : "#f87171",
-                            fontFamily: "var(--font-sans)",
-                            fontVariantNumeric: "tabular-nums",
-                          }}>
-                            {fmt(Math.abs(projection.projectedBalance))}
-                          </span>
-                        </div>
-                      </>
+                      <ul style={{ display: "flex", flexDirection: "column", gap: "10px", padding: 0, margin: 0, listStyle: "none" }}>
+                        {topCategories.map(({ cat, val, pct }) => (
+                          <li key={cat}>
+                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "4px" }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: "8px", minWidth: 0 }}>
+                                <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: CATEGORY_COLORS[cat] ?? "#C9A84C", flexShrink: 0 }} />
+                                <span style={{ fontSize: "12px", fontWeight: 500, color: "var(--text-default)", fontFamily: "var(--font-sans)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                  {cat}
+                                </span>
+                              </div>
+                              <span style={{ fontSize: "12px", fontWeight: 700, color: "var(--text-default)", fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", flexShrink: 0 }}>
+                                {fmt(val)}
+                              </span>
+                            </div>
+                            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                              <div style={{ flex: 1, height: "4px", background: "rgba(255,255,255,0.04)", borderRadius: "2px", overflow: "hidden" }}>
+                                <div style={{ height: "100%", width: `${Math.min(pct, 100)}%`, background: CATEGORY_COLORS[cat] ?? "#C9A84C", borderRadius: "2px" }} />
+                              </div>
+                              <span style={{ fontSize: "10px", color: "var(--text-faint)", fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", minWidth: "32px", textAlign: "right" }}>
+                                {pct.toFixed(0)}%
+                              </span>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
                     )}
                   </div>
 
-                  {/* Comparativo mês anterior */}
+                  {/* Runway de Patrimônio */}
                   <div style={{
                     background: "#130f09",
                     border: "1px solid rgba(201,168,76,0.1)",
                     borderRadius: "12px", padding: "18px 22px",
+                    display: "flex", flexDirection: "column", justifyContent: "space-between",
                   }}>
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "10px" }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "14px" }}>
+                      <p style={{ fontSize: "10px", fontWeight: 600, color: "var(--text-muted)", fontFamily: "var(--font-sans)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+                        Runway do saldo
+                      </p>
+                      <Calendar size={13} style={{ color: "var(--gold)" }} />
+                    </div>
+                    {runway === null ? (
                       <div>
-                        <p style={{ fontSize: "11px", color: "#a09068", fontFamily: "var(--font-sans)", letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: "2px" }}>
-                          Comparativo mensal
+                        <p style={{ fontSize: "13px", color: "var(--text-muted)", fontFamily: "var(--font-sans)", lineHeight: 1.5, marginBottom: "4px" }}>
+                          {balance <= 0 ? "Sem saldo livre pra projetar." : "Sem despesas registradas ainda."}
                         </p>
-                        <p style={{ fontSize: "12px", color: "#9a8a6a", fontFamily: "var(--font-sans)" }}>
-                          {monthCompare ? `vs. ${monthCompare.prevMonthName}` : "Aguardando histórico"}
+                        <p style={{ fontSize: "11px", color: "var(--text-faint)", fontFamily: "var(--font-sans)" }}>
+                          {balance <= 0 ? "Reduza saídas ou registre entradas." : "Lance ao menos 1 saída pra calcular."}
                         </p>
                       </div>
-                      <div style={{ width: "32px", height: "32px", borderRadius: "8px", background: "rgba(201,168,76,0.08)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                        <BarChart2 size={14} style={{ color: "#C9A84C" }} />
+                    ) : (
+                      <div>
+                        <div style={{ display: "flex", alignItems: "baseline", gap: "6px", marginBottom: "8px" }}>
+                          <span style={{ fontSize: "28px", fontWeight: 700, color: "var(--gold)", fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", lineHeight: 1 }}>
+                            {runway.days >= 999 ? "999+" : Math.round(runway.days)}
+                          </span>
+                          <span style={{ fontSize: "13px", color: "var(--text-muted)", fontFamily: "var(--font-sans)" }}>
+                            {runway.days >= 999 || Math.round(runway.days) === 1 ? "dia" : "dias"}
+                          </span>
+                        </div>
+                        <p style={{ fontSize: "11px", color: "var(--text-muted)", fontFamily: "var(--font-sans)", lineHeight: 1.5 }}>
+                          Seu saldo cobre esse período no ritmo atual de{" "}
+                          <span style={{ color: "var(--text-default)", fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>
+                            {fmt(runway.dailyAvg)}
+                          </span>
+                          /dia.
+                        </p>
                       </div>
+                    )}
+                  </div>
+
+                  {/* Comparativo mensal (consolidado, mais compacto) */}
+                  <div style={{
+                    background: "#130f09",
+                    border: "1px solid rgba(201,168,76,0.1)",
+                    borderRadius: "12px", padding: "18px 22px",
+                    display: "flex", flexDirection: "column", justifyContent: "space-between",
+                  }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "14px" }}>
+                      <p style={{ fontSize: "10px", fontWeight: 600, color: "var(--text-muted)", fontFamily: "var(--font-sans)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+                        Vs. mês anterior
+                      </p>
+                      <BarChart2 size={13} style={{ color: "var(--gold)" }} />
                     </div>
                     {!monthCompare ? (
-                      <p style={{ fontSize: "13px", color: "#a09068", fontFamily: "var(--font-sans)" }}>
-                        Sem dados do mês anterior para comparar.
-                      </p>
+                      <div>
+                        <p style={{ fontSize: "13px", color: "var(--text-muted)", fontFamily: "var(--font-sans)", lineHeight: 1.5, marginBottom: "4px" }}>
+                          Aguardando histórico.
+                        </p>
+                        <p style={{ fontSize: "11px", color: "var(--text-faint)", fontFamily: "var(--font-sans)" }}>
+                          Disponível a partir do 2º mês de uso.
+                        </p>
+                      </div>
                     ) : monthCompare.direction === "flat" ? (
-                      <p style={{ fontSize: "13px", color: "#9a8a6a", fontFamily: "var(--font-sans)" }}>
+                      <p style={{ fontSize: "13px", color: "var(--text-muted)", fontFamily: "var(--font-sans)" }}>
                         Gastos iguais a {monthCompare.prevMonthName}.
                       </p>
                     ) : (
-                      <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                        <div style={{
-                          width: "38px", height: "38px", borderRadius: "10px",
-                          display: "flex", alignItems: "center", justifyContent: "center",
-                          background: monthCompare.direction === "down" ? "rgba(34,197,94,0.1)" : "rgba(248,113,113,0.1)",
-                          color: monthCompare.direction === "down" ? "#34d399" : "#f87171",
-                          flexShrink: 0,
-                        }}>
-                          {monthCompare.direction === "down"
-                            ? <TrendingDown size={18} />
-                            : <TrendingUp size={18} />}
+                      <div>
+                        <div style={{ display: "flex", alignItems: "baseline", gap: "6px", marginBottom: "8px" }}>
+                          <span style={{
+                            fontSize: "28px", fontWeight: 700,
+                            color: monthCompare.direction === "down" ? "#34d399" : "#f87171",
+                            fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", lineHeight: 1,
+                          }}>
+                            {monthCompare.direction === "down" ? "−" : "+"}{Math.abs(monthCompare.pct).toFixed(0)}%
+                          </span>
                         </div>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <p style={{ fontSize: "15px", fontWeight: 700, color: "var(--text-default)", fontFamily: "var(--font-sans)", marginBottom: "2px", letterSpacing: "-0.005em" }}>
-                            <span style={{ color: monthCompare.direction === "down" ? "#34d399" : "#f87171", fontVariantNumeric: "tabular-nums" }}>
-                              {Math.abs(monthCompare.pct).toFixed(0)}%
-                            </span>{" "}
-                            {monthCompare.direction === "down" ? "menores" : "maiores"} que {monthCompare.prevMonthName}
-                          </p>
-                          <p style={{ fontSize: "11px", color: "#a09068", fontFamily: "var(--font-sans)" }}>
-                            {monthCompare.direction === "down" ? "−" : "+"}{fmt(monthCompare.diffAbs)} no total
-                          </p>
-                        </div>
+                        <p style={{ fontSize: "11px", color: "var(--text-muted)", fontFamily: "var(--font-sans)", lineHeight: 1.5 }}>
+                          {monthCompare.direction === "down" ? "Menos" : "Mais"} que {monthCompare.prevMonthName} ·{" "}
+                          <span style={{ color: "var(--text-default)", fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>
+                            {monthCompare.direction === "down" ? "−" : "+"}{fmt(monthCompare.diffAbs)}
+                          </span>
+                        </p>
                       </div>
                     )}
                   </div>
                 </div>
+
+                {/* ── ROW 3.5 — Projeção compacta (full width banner) ────
+                    Strip horizontal com a projeção. Antes era card próprio.
+                    Agora vira insight inline no fluxo. */}
+                {expense > 0 && (
+                  <div style={{
+                    background: "rgba(201,168,76,0.04)",
+                    border: "1px solid var(--border-soft)",
+                    borderRadius: "10px",
+                    padding: "12px 18px",
+                    marginBottom: "20px",
+                    display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "12px",
+                  }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                      <Calendar size={14} style={{ color: "var(--gold)" }} />
+                      <span style={{ fontSize: "12px", color: "var(--text-muted)", fontFamily: "var(--font-sans)" }}>
+                        No ritmo atual, vai gastar{" "}
+                        <span style={{ color: "#f87171", fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>
+                          {fmt(projection.projectedExpense)}
+                        </span>
+                        {" "}até dia {projection.daysInMonth}.
+                      </span>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                      <span style={{ fontSize: "11px", color: "var(--text-faint)", fontFamily: "var(--font-sans)" }}>
+                        {projection.projectedBalance >= 0 ? "Vai sobrar" : "Vai faltar"}
+                      </span>
+                      <span style={{
+                        fontSize: "13px", fontWeight: 700,
+                        color: projection.projectedBalance >= 0 ? "#34d399" : "#f87171",
+                        fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums",
+                      }}>
+                        {fmt(Math.abs(projection.projectedBalance))}
+                      </span>
+                    </div>
+                  </div>
+                )}
 
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px", marginBottom: "20px" }}>
                   {/* Category chart */}
