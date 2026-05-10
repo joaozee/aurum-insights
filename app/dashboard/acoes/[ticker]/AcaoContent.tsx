@@ -44,6 +44,32 @@ interface BrapiIncomeStatement {
   ebit?: number;
 }
 
+/**
+ * `financialDataHistory` é o módulo brapi (Pro) com snapshot anual dos
+ * indicadores. Diferente do `incomeStatementHistory`, vem populado pra
+ * basicamente todos os tickers da B3, incluindo PETR4. Não traz netIncome
+ * direto, mas dá pra calcular: netIncome ≈ totalRevenue × profitMargins.
+ */
+interface BrapiFinancialDataYear {
+  type?: string;            // "yearly"
+  endDate: string;          // "2025-12-31"
+  totalRevenue?: number | null;
+  profitMargins?: number | null;
+  ebitda?: number | null;
+  freeCashflow?: number | null;
+  operatingCashflow?: number | null;
+  returnOnEquity?: number | null;
+  returnOnAssets?: number | null;
+  grossMargins?: number | null;
+  ebitdaMargins?: number | null;
+  operatingMargins?: number | null;
+  totalDebt?: number | null;
+  totalCash?: number | null;
+  currentRatio?: number | null;
+  revenueGrowth?: number | null;
+  earningsGrowth?: number | null;
+}
+
 interface BrapiQuoteFull {
   symbol: string;
   shortName?: string;
@@ -110,6 +136,7 @@ interface BrapiQuoteFull {
   };
   balanceSheetHistory?: { balanceSheetStatements?: BrapiBalanceSheet[] };
   incomeStatementHistory?: { incomeStatementHistory?: BrapiIncomeStatement[] };
+  financialDataHistory?: BrapiFinancialDataYear[];
 }
 
 type Period = "1m" | "3m" | "6m" | "1y" | "5y" | "10y" | "max";
@@ -154,7 +181,7 @@ export default function AcaoContent({ ticker, userEmail, userName, userAvatar }:
       const params = new URLSearchParams({
         tickers: ticker,
         dividends: "true",
-        modules: "summaryProfile,defaultKeyStatistics,financialData,balanceSheetHistory,incomeStatementHistory",
+        modules: "summaryProfile,defaultKeyStatistics,financialData,financialDataHistory,balanceSheetHistory,incomeStatementHistory",
       });
       const rangeMap: Record<Period, string> = {
         "1m": "1mo", "3m": "3mo", "6m": "6mo",
@@ -1489,8 +1516,28 @@ function buildDividends(q: BrapiQuoteFull | null): DivList {
 interface IncomeYear { year: number; revenue: number; profit: number }
 
 function buildIncomeData(q: BrapiQuoteFull | null): IncomeYear[] {
-  if (!q?.incomeStatementHistory?.incomeStatementHistory) return [];
-  return q.incomeStatementHistory.incomeStatementHistory
+  if (!q) return [];
+
+  // 1) financialDataHistory (preferido) — populado pra basicamente todos os
+  //    tickers da B3. Calcula lucro como receita × margem líquida.
+  const fdh = (q.financialDataHistory ?? []).filter((s) => !s.type || s.type === "yearly");
+  if (fdh.length > 0) {
+    return fdh
+      .map((s) => {
+        const rev = s.totalRevenue ?? 0;
+        const margin = s.profitMargins ?? 0;
+        return {
+          year: new Date(s.endDate).getFullYear(),
+          revenue: rev / 1e9,
+          profit: (rev * margin) / 1e9,
+        };
+      })
+      .filter((s) => s.year && !isNaN(s.year))
+      .sort((a, b) => a.year - b.year);
+  }
+
+  // 2) Fallback: incomeStatementHistory (legado, vazio na maioria dos casos)
+  return (q.incomeStatementHistory?.incomeStatementHistory ?? [])
     .map((s) => ({
       year: new Date(s.endDate).getFullYear(),
       revenue: (s.totalRevenue ?? 0) / 1e9,
@@ -1640,22 +1687,36 @@ function RadarDividendos({ cashDividends }: { cashDividends: BrapiCashDividend[]
 
 interface PayoutYear {
   year: number;
-  netIncome: number;        // em bilhões
-  divPerShare: number;
-  totalDividends: number;   // em bilhões
+  netIncome: number;        // em bilhões (R$)
+  netIncomeRaw: number;     // em R$ (pra cálculo de payout)
+  divPerShare: number;      // em R$/ação
+  totalDividends: number;   // em bilhões (R$)
   payout: number | null;    // %
   dy: number | null;        // %
 }
 
+/**
+ * Constrói série anual de Lucro / Dividendos / Payout / DY.
+ *
+ * Estratégia:
+ *   1. Tenta `financialDataHistory` (módulo brapi Pro mais completo) —
+ *      vem populado pra basicamente todos os tickers da B3, incluindo PETR4.
+ *      Não traz netIncome direto, mas dá pra calcular:
+ *        netIncome ≈ totalRevenue × profitMargins
+ *   2. Fallback: `incomeStatementHistory.incomeStatementHistory` (legado,
+ *      pode estar vazio).
+ *   3. Dividendos por ano: soma dos `cashDividends.rate` (R$/ação).
+ *      Total = divPorAção × sharesOutstanding.
+ *   4. Payout = totalDividends / netIncome × 100
+ *   5. DY = divPorAção / preço atual × 100
+ */
 function buildPayoutData(q: BrapiQuoteFull | null): PayoutYear[] {
   if (!q) return [];
-  const ish = q.incomeStatementHistory?.incomeStatementHistory ?? [];
   const cd = q.dividendsData?.cashDividends ?? [];
   const price = q.regularMarketPrice ?? 0;
   const shares = q.sharesOutstanding ?? q.defaultKeyStatistics?.sharesOutstanding ?? null;
 
-  if (ish.length === 0) return [];
-
+  // Dividendos por ano (R$/ação)
   const divByYear = new Map<number, number>();
   for (const d of cd) {
     const raw = d.paymentDate || d.approvedOn;
@@ -1665,18 +1726,49 @@ function buildPayoutData(q: BrapiQuoteFull | null): PayoutYear[] {
     divByYear.set(y, (divByYear.get(y) ?? 0) + (d.rate ?? 0));
   }
 
+  // 1) financialDataHistory (preferido, populado)
+  const fdh = (q.financialDataHistory ?? []).filter((s) => !s.type || s.type === "yearly");
+  if (fdh.length > 0) {
+    const out: PayoutYear[] = [];
+    for (const s of fdh) {
+      const y = new Date(s.endDate).getFullYear();
+      if (isNaN(y)) continue;
+      const rev = s.totalRevenue ?? 0;
+      const margin = s.profitMargins ?? 0;
+      const ni = rev * margin; // netIncome derivado
+      const divPerShare = divByYear.get(y) ?? 0;
+      const totalDivs = shares && divPerShare > 0 ? divPerShare * shares : 0;
+      const payout = ni > 0 && totalDivs > 0 ? (totalDivs / ni) * 100 : null;
+      const dy = price > 0 && divPerShare > 0 ? (divPerShare / price) * 100 : null;
+      out.push({
+        year: y,
+        netIncome: ni / 1e9,
+        netIncomeRaw: ni,
+        divPerShare,
+        totalDividends: totalDivs / 1e9,
+        payout,
+        dy,
+      });
+    }
+    return out.sort((a, b) => a.year - b.year);
+  }
+
+  // 2) Fallback: incomeStatementHistory legado
+  const ish = q.incomeStatementHistory?.incomeStatementHistory ?? [];
+  if (ish.length === 0) return [];
   const out: PayoutYear[] = [];
   for (const s of ish) {
     const y = new Date(s.endDate).getFullYear();
     if (isNaN(y)) continue;
     const ni = s.netIncome ?? 0;
     const divPerShare = divByYear.get(y) ?? 0;
-    const totalDivs = shares ? divPerShare * shares : 0;
+    const totalDivs = shares && divPerShare > 0 ? divPerShare * shares : 0;
     const payout = ni > 0 && totalDivs > 0 ? (totalDivs / ni) * 100 : null;
     const dy = price > 0 && divPerShare > 0 ? (divPerShare / price) * 100 : null;
     out.push({
       year: y,
       netIncome: ni / 1e9,
+      netIncomeRaw: ni,
       divPerShare,
       totalDividends: totalDivs / 1e9,
       payout,
@@ -1735,9 +1827,12 @@ function LegendLine({ color, label }: { color: string; label: string }) {
 }
 
 function PayoutChart({ data }: { data: PayoutYear[] }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [hoverIdx, setHoverIdx] = useState<number | null>(null);
+
   if (data.length === 0) return <Empty text="Sem dados no período." />;
 
-  const w = 1100, h = 280, padX = 40, padTop = 24, padBot = 40;
+  const w = 1100, h = 280, padL = 56, padR = 44, padTop = 24, padBot = 40;
 
   // Eixo esquerdo: lucro (Bi)
   const niMin = Math.min(0, ...data.map((d) => d.netIncome));
@@ -1751,10 +1846,9 @@ function PayoutChart({ data }: { data: PayoutYear[] }) {
   const pctMax = Math.max(...pcts, 10);
   const yRight = (v: number) => padTop + (1 - v / pctMax) * (h - padTop - padBot);
 
-  const groupW = (w - padX * 2) / data.length;
+  const groupW = (w - padL - padR) / data.length;
   const barW = Math.min(48, groupW * 0.55);
-
-  const cx = (i: number) => padX + i * groupW + groupW / 2;
+  const cx = (i: number) => padL + i * groupW + groupW / 2;
 
   const linePath = (key: "payout" | "dy") =>
     data
@@ -1767,21 +1861,58 @@ function PayoutChart({ data }: { data: PayoutYear[] }) {
       .map((p, i) => (i === 0 ? `M${p}` : `L${p}`))
       .join(" ");
 
-  // Y-axis labels (esquerda — bilhões)
   const yLeftTicks = 4;
   const niStep = niRange / yLeftTicks;
 
+  function updateHover(clientX: number) {
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const xRel = Math.max(0, Math.min(rect.width, clientX - rect.left));
+    const pct = xRel / rect.width;
+    const padLPct = padL / w;
+    const padRPct = padR / w;
+    const dataPct = Math.max(0, Math.min(1, (pct - padLPct) / (1 - padLPct - padRPct)));
+    const idx = Math.round(dataPct * (data.length - 1));
+    setHoverIdx(Math.max(0, Math.min(data.length - 1, idx)));
+  }
+
+  const hovered = hoverIdx !== null ? data[hoverIdx] : null;
+  const tooltipLeftPct = hoverIdx !== null ? (cx(hoverIdx) / w) * 100 : 50;
+
   return (
-    <div style={{ overflow: "hidden", borderRadius: "10px", background: "#0d0b07", padding: "8px" }}>
+    <div
+      ref={containerRef}
+      onPointerMove={(e) => updateHover(e.clientX)}
+      onPointerLeave={() => setHoverIdx(null)}
+      onPointerDown={(e) => {
+        containerRef.current?.setPointerCapture(e.pointerId);
+        updateHover(e.clientX);
+      }}
+      onPointerUp={(e) => {
+        if (e.pointerType === "touch") setHoverIdx(null);
+      }}
+      style={{
+        position: "relative",
+        overflow: "hidden",
+        borderRadius: "10px",
+        background: "#0d0b07",
+        padding: "8px",
+        cursor: "crosshair",
+        touchAction: "pan-y",
+        userSelect: "none",
+      }}
+      role="img"
+      aria-label="Gráfico de payout: lucro líquido em barras, payout e dividend yield em linhas, por ano"
+    >
       <svg viewBox={`0 0 ${w} ${h}`} style={{ width: "100%", height: "auto", display: "block" }}>
-        {/* Grid */}
+        {/* Grid + Y-axis esquerdo (Bi) */}
         {Array.from({ length: yLeftTicks + 1 }).map((_, i) => {
           const v = niMin + niStep * i;
           const y = yLeft(v);
           return (
             <g key={i}>
-              <line x1={padX} x2={w - padX} y1={y} y2={y} stroke="rgba(201,168,76,0.06)" strokeWidth={1} />
-              <text x={padX - 6} y={y + 3} textAnchor="end" fontSize={9}
+              <line x1={padL} x2={w - padR} y1={y} y2={y} stroke="rgba(201,168,76,0.06)" strokeWidth={1} />
+              <text x={padL - 8} y={y + 3} textAnchor="end" fontSize={9}
                 fill="#7a6d57" fontFamily="var(--font-sans)" style={{ fontVariantNumeric: "tabular-nums" }}>
                 R$ {v.toFixed(1)} Bi
               </text>
@@ -1789,15 +1920,16 @@ function PayoutChart({ data }: { data: PayoutYear[] }) {
           );
         })}
 
-        {/* Eixo zero */}
+        {/* Eixo zero (caso haja prejuízo) */}
         {niMin < 0 && (
-          <line x1={padX} x2={w - padX} y1={zeroY} y2={zeroY} stroke="rgba(201,168,76,0.18)" strokeWidth={1} />
+          <line x1={padL} x2={w - padR} y1={zeroY} y2={zeroY} stroke="rgba(201,168,76,0.18)" strokeWidth={1} />
         )}
 
         {/* Bars (lucro) */}
         {data.map((d, i) => {
           const yTop = d.netIncome >= 0 ? yLeft(d.netIncome) : zeroY;
           const barH = Math.abs(yLeft(d.netIncome) - zeroY);
+          const isHover = hoverIdx === i;
           return (
             <g key={d.year}>
               <rect
@@ -1805,11 +1937,13 @@ function PayoutChart({ data }: { data: PayoutYear[] }) {
                 y={yTop}
                 width={barW}
                 height={barH}
-                fill="#5E6B8C"
+                fill={isHover ? "#7e8aab" : "#5E6B8C"}
                 rx={4}
               />
               <text x={cx(i)} y={h - 22} textAnchor="middle" fontSize={10}
-                fill="#a09068" fontFamily="var(--font-sans)"
+                fill={isHover ? "#e8dcc0" : "#a09068"}
+                fontWeight={isHover ? 700 : 400}
+                fontFamily="var(--font-sans)"
                 style={{ fontVariantNumeric: "tabular-nums" }}>
                 {d.year}
               </text>
@@ -1821,14 +1955,24 @@ function PayoutChart({ data }: { data: PayoutYear[] }) {
         <path d={linePath("payout")} fill="none" stroke="#C9A84C" strokeWidth={2}
           strokeLinecap="round" strokeLinejoin="round" />
         {data.map((d, i) => d.payout !== null && (
-          <circle key={`p-${i}`} cx={cx(i)} cy={yRight(d.payout)} r={3.5} fill="#C9A84C" />
+          <circle key={`p-${i}`} cx={cx(i)} cy={yRight(d.payout)}
+            r={hoverIdx === i ? 5 : 3.5}
+            fill="#C9A84C"
+            stroke={hoverIdx === i ? "#0d0b07" : "transparent"}
+            strokeWidth={2}
+          />
         ))}
 
         {/* Linha DY */}
         <path d={linePath("dy")} fill="none" stroke="#34d399" strokeWidth={2}
           strokeLinecap="round" strokeLinejoin="round" />
         {data.map((d, i) => d.dy !== null && (
-          <circle key={`y-${i}`} cx={cx(i)} cy={yRight(d.dy)} r={3.5} fill="#34d399" />
+          <circle key={`y-${i}`} cx={cx(i)} cy={yRight(d.dy)}
+            r={hoverIdx === i ? 5 : 3.5}
+            fill="#34d399"
+            stroke={hoverIdx === i ? "#0d0b07" : "transparent"}
+            strokeWidth={2}
+          />
         ))}
 
         {/* Eixo direito (%) */}
@@ -1836,14 +1980,94 @@ function PayoutChart({ data }: { data: PayoutYear[] }) {
           const v = pctMax * p;
           const y = yRight(v);
           return (
-            <text key={p} x={w - padX + 6} y={y + 3} textAnchor="start" fontSize={9}
+            <text key={p} x={w - padR + 6} y={y + 3} textAnchor="start" fontSize={9}
               fill="#7a6d57" fontFamily="var(--font-sans)"
               style={{ fontVariantNumeric: "tabular-nums" }}>
               {v.toFixed(0)}%
             </text>
           );
         })}
+
+        {/* Hover guide */}
+        {hoverIdx !== null && (
+          <g pointerEvents="none">
+            <line
+              x1={cx(hoverIdx)} x2={cx(hoverIdx)}
+              y1={padTop} y2={h - padBot}
+              stroke="rgba(201,168,76,0.4)"
+              strokeWidth={1}
+              strokeDasharray="4 3"
+            />
+          </g>
+        )}
       </svg>
+
+      {/* Tooltip */}
+      {hovered && (
+        <div
+          aria-hidden="true"
+          style={{
+            position: "absolute",
+            top: "12px",
+            left: `clamp(8px, calc(${tooltipLeftPct}% - 130px), calc(100% - 268px))`,
+            background: "rgba(15, 12, 7, 0.97)",
+            border: "1px solid rgba(201,168,76,0.25)",
+            borderRadius: "10px",
+            padding: "12px 14px",
+            minWidth: "260px",
+            boxShadow: "0 8px 24px rgba(0,0,0,0.55), 0 0 0 1px rgba(0,0,0,0.4)",
+            backdropFilter: "blur(8px)",
+            WebkitBackdropFilter: "blur(8px)",
+            pointerEvents: "none",
+            zIndex: 5,
+          }}
+        >
+          <p style={{
+            fontSize: "10px",
+            fontWeight: 700,
+            color: "#C9A84C",
+            fontFamily: "var(--font-sans)",
+            letterSpacing: "0.08em",
+            textTransform: "uppercase",
+            margin: 0,
+            marginBottom: "10px",
+            paddingBottom: "8px",
+            borderBottom: "1px solid rgba(201,168,76,0.12)",
+            fontVariantNumeric: "tabular-nums",
+          }}>
+            {hovered.year}
+          </p>
+          <TooltipRow
+            label="Lucro Líquido"
+            value={hovered.netIncome !== 0
+              ? `R$ ${(hovered.netIncome).toFixed(2).replace(".", ",")} Bi`
+              : "—"}
+            valueColor="#7e8aab"
+          />
+          <TooltipRow
+            label="Dividendos pagos"
+            value={hovered.totalDividends > 0
+              ? `R$ ${(hovered.totalDividends).toFixed(2).replace(".", ",")} Bi`
+              : "—"}
+          />
+          <TooltipRow
+            label="Payout"
+            value={hovered.payout !== null
+              ? `${hovered.payout.toFixed(1).replace(".", ",")}%`
+              : "—"}
+            valueColor="#C9A84C"
+            highlight
+          />
+          <TooltipRow
+            label="Dividend Yield"
+            value={hovered.dy !== null
+              ? `${hovered.dy.toFixed(2).replace(".", ",")}%`
+              : "—"}
+            valueColor="#34d399"
+            highlight
+          />
+        </div>
+      )}
     </div>
   );
 }
