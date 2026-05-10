@@ -923,7 +923,7 @@ export default function AcaoContent({ ticker, userEmail, userName, userAvatar }:
             <RevenueChart data={incomeData} />
             <div style={{ display: "flex", gap: "16px", justifyContent: "center", marginTop: "12px" }}>
               <LegendItem color="#34d399" label="Receita Líquida" />
-              <LegendItem color="#C58A3D" label="Lucro Líquido" />
+              <LegendItem color="#C9A84C" label="Lucro Líquido" />
             </div>
           </Section>
         )}
@@ -3673,46 +3673,240 @@ function DividendBars({ data, type }: {
 }
 
 function RevenueChart({ data }: { data: IncomeYear[] }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [hoverIdx, setHoverIdx] = useState<number | null>(null);
+
   if (data.length === 0) return <Empty text="Sem dados financeiros." />;
-  const w = 1100, h = 240, pad = 30;
+
+  const w = 1100, h = 280, padL = 56, padR = 16, padTop = 24, padBot = 36;
   const maxRev = Math.max(...data.map((d) => d.revenue), 0.01);
+  const maxProf = Math.max(...data.map((d) => d.profit), 0);
   const minProfit = Math.min(...data.map((d) => d.profit), 0);
-  const top = Math.max(maxRev, Math.max(...data.map((d) => d.profit), 0));
+  const top = Math.max(maxRev, maxProf);
   const bottom = Math.min(0, minProfit);
   const range = top - bottom || 1;
-  const groupW = (w - pad * 2) / data.length;
-  const barW = (groupW * 0.4);
 
-  const yFor = (v: number) => pad + (1 - (v - bottom) / range) * (h - pad * 2);
+  const innerW = w - padL - padR;
+  const groupW = innerW / data.length;
+  const barW = Math.min(28, groupW * 0.4);
+
+  const yFor = (v: number) => padTop + (1 - (v - bottom) / range) * (h - padTop - padBot);
   const zeroY = yFor(0);
 
+  const cx = (i: number) => padL + i * groupW + groupW / 2;
+
+  // Y ticks (4 níveis até max, considerando bottom se for < 0)
+  const yTicks: { v: number; label: string }[] = [];
+  const tickCount = 4;
+  for (let i = 0; i <= tickCount; i++) {
+    const v = bottom + (range * i) / tickCount;
+    yTicks.push({ v, label: v.toFixed(1).replace(".", ",") });
+  }
+
+  function updateHover(clientX: number) {
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const xRel = Math.max(0, Math.min(rect.width, clientX - rect.left));
+    const pct = xRel / rect.width;
+    const padLPct = padL / w;
+    const padRPct = padR / w;
+    const dataPct = Math.max(0, Math.min(1, (pct - padLPct) / (1 - padLPct - padRPct)));
+    const idx = Math.floor(dataPct * data.length);
+    setHoverIdx(Math.max(0, Math.min(data.length - 1, idx)));
+  }
+
+  const hovered = hoverIdx !== null ? data[hoverIdx] : null;
+  const tooltipLeftPct = hoverIdx !== null ? (cx(hoverIdx) / w) * 100 : 50;
+
   return (
-    <div style={{ overflow: "hidden", borderRadius: "10px", background: "#0d0b07", padding: "8px" }}>
+    <div
+      ref={containerRef}
+      onPointerMove={(e) => updateHover(e.clientX)}
+      onPointerLeave={() => setHoverIdx(null)}
+      onPointerDown={(e) => {
+        containerRef.current?.setPointerCapture(e.pointerId);
+        updateHover(e.clientX);
+      }}
+      onPointerUp={(e) => {
+        if (e.pointerType === "touch") setHoverIdx(null);
+      }}
+      style={{
+        position: "relative",
+        overflow: "hidden",
+        borderRadius: "10px",
+        background: "#0d0b07",
+        padding: "8px",
+        cursor: "crosshair",
+        touchAction: "pan-y",
+        userSelect: "none",
+      }}
+      role="img"
+      aria-label="Receitas e lucros líquidos por ano em barras paralelas"
+    >
       <svg viewBox={`0 0 ${w} ${h}`} style={{ width: "100%", height: "auto", display: "block" }}>
-        {[0, 0.25, 0.5, 0.75, 1].map((p) => (
-          <line key={p} x1={pad} x2={w - pad} y1={pad + p * (h - pad * 2)} y2={pad + p * (h - pad * 2)}
-            stroke="rgba(201,168,76,0.06)" strokeWidth={1} />
-        ))}
-        <line x1={pad} x2={w - pad} y1={zeroY} y2={zeroY} stroke="rgba(201,168,76,0.15)" strokeWidth={1} />
+        <defs>
+          <linearGradient id="revBarFill" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#4cc99e" />
+            <stop offset="100%" stopColor="#2da77c" />
+          </linearGradient>
+          <linearGradient id="revBarFillHover" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#5cdaaf" />
+            <stop offset="100%" stopColor="#34d399" />
+          </linearGradient>
+          <linearGradient id="profBarFill" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#D4B86A" />
+            <stop offset="100%" stopColor="#A07820" />
+          </linearGradient>
+          <linearGradient id="profBarFillHover" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#E8CC7E" />
+            <stop offset="100%" stopColor="#C9A84C" />
+          </linearGradient>
+        </defs>
+
+        {/* Y grid + labels */}
+        {yTicks.map((t, i) => {
+          const y = yFor(t.v);
+          return (
+            <g key={i}>
+              <line
+                x1={padL} x2={w - padR}
+                y1={y} y2={y}
+                stroke="rgba(201,168,76,0.06)" strokeWidth={1}
+              />
+              <text
+                x={padL - 8} y={y + 3}
+                textAnchor="end" fontSize={9}
+                fill="#7a6d57" fontFamily="var(--font-sans)"
+                style={{ fontVariantNumeric: "tabular-nums" }}
+              >
+                R$ {t.label} Bi
+              </text>
+            </g>
+          );
+        })}
+
+        {/* Eixo zero (caso haja prejuízo) */}
+        {bottom < 0 && (
+          <line
+            x1={padL} x2={w - padR}
+            y1={zeroY} y2={zeroY}
+            stroke="rgba(201,168,76,0.18)" strokeWidth={1}
+          />
+        )}
+
+        {/* Bars */}
         {data.map((d, i) => {
-          const cx = pad + i * groupW + groupW / 2;
+          const cxPos = cx(i);
           const yRev = yFor(Math.max(d.revenue, 0));
           const yProf = yFor(Math.max(d.profit, 0));
           const hRev = Math.abs(yRev - zeroY);
           const hProf = Math.abs(yProf - zeroY);
           const profY = d.profit >= 0 ? yProf : zeroY;
           const profH = d.profit < 0 ? Math.abs(yFor(d.profit) - zeroY) : hProf;
+          const isHover = hoverIdx === i;
           return (
             <g key={d.year}>
-              <rect x={cx - barW - 1} y={d.revenue >= 0 ? yRev : zeroY} width={barW} height={hRev} fill="#34d399" rx={2} />
-              <rect x={cx + 1} y={profY} width={barW} height={profH} fill="#C58A3D" rx={2} />
-              <text x={cx} y={h - 8} textAnchor="middle" fontSize={10} fill="#a09068" fontFamily="var(--font-sans)">
+              <rect
+                x={cxPos - barW - 1.5}
+                y={d.revenue >= 0 ? yRev : zeroY}
+                width={barW}
+                height={Math.max(2, hRev)}
+                fill={isHover ? "url(#revBarFillHover)" : "url(#revBarFill)"}
+                rx={3}
+              />
+              <rect
+                x={cxPos + 1.5}
+                y={profY}
+                width={barW}
+                height={Math.max(2, profH)}
+                fill={isHover ? "url(#profBarFillHover)" : "url(#profBarFill)"}
+                rx={3}
+              />
+              <text
+                x={cxPos} y={h - 12}
+                textAnchor="middle" fontSize={10}
+                fill={isHover ? "#e8dcc0" : "#a09068"}
+                fontWeight={isHover ? 700 : 400}
+                fontFamily="var(--font-sans)"
+                style={{ fontVariantNumeric: "tabular-nums" }}
+              >
                 {d.year}
               </text>
             </g>
           );
         })}
+
+        {/* Hover guide */}
+        {hoverIdx !== null && (
+          <line
+            x1={cx(hoverIdx)} x2={cx(hoverIdx)}
+            y1={padTop} y2={h - padBot}
+            stroke="rgba(201,168,76,0.4)"
+            strokeWidth={1}
+            strokeDasharray="4 3"
+            pointerEvents="none"
+          />
+        )}
       </svg>
+
+      {/* Tooltip */}
+      {hovered && (
+        <div
+          aria-hidden="true"
+          style={{
+            position: "absolute",
+            top: "12px",
+            left: `clamp(8px, calc(${tooltipLeftPct}% - 130px), calc(100% - 268px))`,
+            background: "rgba(15, 12, 7, 0.97)",
+            border: "1px solid rgba(201,168,76,0.25)",
+            borderRadius: "10px",
+            padding: "12px 14px",
+            minWidth: "260px",
+            boxShadow: "0 8px 24px rgba(0,0,0,0.55), 0 0 0 1px rgba(0,0,0,0.4)",
+            backdropFilter: "blur(8px)",
+            WebkitBackdropFilter: "blur(8px)",
+            pointerEvents: "none",
+            zIndex: 5,
+          }}
+        >
+          <p style={{
+            fontSize: "10px",
+            fontWeight: 700,
+            color: "#C9A84C",
+            fontFamily: "var(--font-sans)",
+            letterSpacing: "0.08em",
+            textTransform: "uppercase",
+            margin: 0,
+            marginBottom: "10px",
+            paddingBottom: "8px",
+            borderBottom: "1px solid rgba(201,168,76,0.12)",
+            fontVariantNumeric: "tabular-nums",
+          }}>
+            {hovered.year}
+          </p>
+          <TooltipRow
+            label="Receita Líquida"
+            value={`R$ ${hovered.revenue.toFixed(2).replace(".", ",")} Bi`}
+            valueColor="#34d399"
+            highlight
+          />
+          <TooltipRow
+            label="Lucro Líquido"
+            value={hovered.profit !== 0
+              ? `R$ ${hovered.profit.toFixed(2).replace(".", ",")} Bi`
+              : "—"}
+            valueColor={hovered.profit < 0 ? "#c46a6a" : "#C9A84C"}
+            highlight
+          />
+          {hovered.revenue > 0 && (
+            <TooltipRow
+              label="Margem Líquida"
+              value={`${(hovered.profit / hovered.revenue * 100).toFixed(2).replace(".", ",")}%`}
+              valueColor={hovered.profit < 0 ? "#c46a6a" : "#a09068"}
+            />
+          )}
+        </div>
+      )}
     </div>
   );
 }
