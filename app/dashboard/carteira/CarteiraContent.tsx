@@ -18,6 +18,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
   Dialog,
   DialogContent,
@@ -1523,13 +1524,16 @@ export default function CarteiraContent({ userEmail }: Props) {
               </div>
 
               {effectiveAssets.length === 0 ? (
-                <div style={{ ...card, textAlign: "center", padding: "48px" }}>
-                  <p style={{ fontSize: "13px", color: "#a09068", fontFamily: "var(--font-sans)", marginBottom: "12px" }}>Nenhum ativo cadastrado</p>
-                  <button onClick={() => { setAssetForm({ name: "", type: "acoes", quantity: "", purchase_price: "", current_price: "", rf_indexer: "CDI", rf_rate: "", rf_amount: "", rf_maturity: "" }); setFormError(""); setModal("asset"); }}
-                    style={{ background: "rgba(201,168,76,0.1)", border: "1px solid rgba(201,168,76,0.2)", borderRadius: "8px", padding: "9px 18px", color: "#C9A84C", fontSize: "13px", fontFamily: "var(--font-sans)", cursor: "pointer" }}>
-                    <Plus size={13} style={{ display: "inline", marginRight: "6px" }} />Adicionar primeiro ativo
-                  </button>
-                </div>
+                <EmptyState
+                  icon={Wallet}
+                  eyebrow="Carteira vazia"
+                  title="Comece registrando seu primeiro ativo"
+                  description="Adicione uma posição em ações, FIIs, renda fixa ou cripto. Os preços são atualizados automaticamente pela B3 e os dividendos calculados a partir do histórico real."
+                  action={{
+                    label: "Adicionar primeiro ativo",
+                    onClick: () => { setAssetForm({ name: "", type: "acoes", quantity: "", purchase_price: "", current_price: "", rf_indexer: "CDI", rf_rate: "", rf_amount: "", rf_maturity: "" }); setFormError(""); setModal("asset"); },
+                  }}
+                />
               ) : (() => {
                 // Group assets by type, keep the curated order, place
                 // any unknown type at the end.
@@ -1704,23 +1708,15 @@ export default function CarteiraContent({ userEmail }: Props) {
               </div>
 
               {transactions.length === 0 ? (
-                <div style={{ textAlign: "center", padding: "32px 0 24px" }}>
-                  <p style={{ fontSize: "13px", color: "#a09068", fontFamily: "var(--font-sans)", marginBottom: "14px" }}>
-                    Nenhuma transação registrada
-                  </p>
-                  <button
-                    onClick={() => { setTxForm({ ticker: "", type: "compra", quantity: "", price: "", transaction_date: now.toISOString().split("T")[0], notes: "" }); setFormError(""); setModal("tx"); }}
-                    style={{
-                      display: "inline-flex", alignItems: "center", gap: "6px",
-                      background: "rgba(201,168,76,0.1)", border: "1px solid rgba(201,168,76,0.2)",
-                      borderRadius: "8px", padding: "8px 16px",
-                      color: "#C9A84C", fontSize: "12px", fontWeight: 600,
-                      fontFamily: "var(--font-sans)", cursor: "pointer",
-                    }}
-                  >
-                    <Plus size={12} /> Registrar primeira transação
-                  </button>
-                </div>
+                <EmptyState
+                  variant="inline"
+                  title="Sem histórico de transações"
+                  description="As compras adicionadas pela tela de ativos aparecem aqui automaticamente. Use Registrar Transação para também lançar vendas."
+                  action={{
+                    label: "Registrar transação",
+                    onClick: () => { setTxForm({ ticker: "", type: "compra", quantity: "", price: "", transaction_date: now.toISOString().split("T")[0], notes: "" }); setFormError(""); setModal("tx"); },
+                  }}
+                />
               ) : (
                 <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
                   {transactions.slice(0, 12).map(t => {

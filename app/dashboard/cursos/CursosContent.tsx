@@ -11,6 +11,7 @@ import {
   type CursoCategoria, type ConteudoTipo, type Curso,
 } from "@/lib/cursos-data";
 import { fetchEnrollments, progressFromLessons, type EnrollmentRow } from "@/lib/enrollment";
+import { EmptyState } from "@/components/ui/empty-state";
 
 type Filtro = "todos" | CursoCategoria;
 type Ordenacao = "recentes" | "populares" | "preco";
@@ -227,13 +228,22 @@ export default function CursosContent({ userEmail }: CursosContentProps) {
           Cursos Pagos
         </h2>
         {cursosFiltrados.length === 0 ? (
-          <div style={{
-            background: "#130f09", border: "1px solid rgba(201,168,76,0.1)",
-            borderRadius: "12px", padding: "48px 24px", textAlign: "center",
-            color: "#a09068", fontSize: "14px", fontFamily: "var(--font-sans)",
-            marginBottom: "48px",
-          }}>
-            Nenhum curso encontrado com os filtros atuais.
+          <div style={{ marginBottom: "48px" }}>
+            <EmptyState
+              icon={Search}
+              title="Nenhum curso bate com esses filtros"
+              description={meusCursos
+                ? "Você ainda não está matriculado em nenhum curso. Limpe o filtro 'Meus cursos' pra ver tudo."
+                : favoritos
+                ? "Você não tem cursos favoritos ainda. Limpe o filtro 'Favoritos' ou marque alguma estrela."
+                : busca.trim()
+                ? `Nenhum resultado pra "${busca.trim()}". Tente buscar por categoria, instrutor ou tópico.`
+                : "Tente trocar de categoria ou ordenação no topo."}
+              action={(busca.trim() || meusCursos || favoritos) ? {
+                label: "Limpar filtros",
+                onClick: () => { setBusca(""); setFiltro("todos"); setMeusCursos(false); setFavoritos(false); },
+              } : undefined}
+            />
           </div>
         ) : (
           <div style={{

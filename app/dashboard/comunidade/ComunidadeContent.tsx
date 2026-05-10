@@ -16,6 +16,7 @@ import {
 } from "@/lib/comunidade";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorState } from "@/components/ui/error-state";
+import { EmptyState } from "@/components/ui/empty-state";
 
 interface Props {
   userEmail: string;
@@ -748,7 +749,27 @@ export default function ComunidadeContent({ userEmail, userName, userAvatar }: P
               <CommunityPostSkeleton />
             </div>
           ) : filteredPosts.length === 0 ? (
-            <FeedEmpty text={busca ? "Nenhum post encontrado." : "Ainda não há posts. Seja o primeiro!"} />
+            busca ? (
+              <EmptyState
+                icon={Search}
+                title="Nenhum post para essa busca"
+                description={`Não achei nada que combine com "${busca}". Tenta outra palavra, um ticker, ou um nome de autor.`}
+              />
+            ) : (
+              <EmptyState
+                icon={MessageCircle}
+                eyebrow="Comunidade"
+                title="Ainda não há posts no feed"
+                description="Compartilhe um pensamento sobre investimentos, uma análise de empresa, ou uma dúvida. A comunidade do Aurum prefere análise calma a hot take — sua perspectiva importa."
+                action={{
+                  label: "Escrever o primeiro post",
+                  onClick: () => {
+                    const composer = document.querySelector<HTMLTextAreaElement>("textarea");
+                    composer?.focus();
+                  },
+                }}
+              />
+            )
           ) : (
             filteredPosts.map((post) => {
               const original = post.repost_of_id ? originalPosts.get(post.repost_of_id) ?? null : null;

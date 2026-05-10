@@ -15,6 +15,7 @@ import {
 } from "@/lib/aurum-colors";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
   Dialog,
   DialogContent,
@@ -1382,10 +1383,15 @@ export default function FinancasContent({ userEmail }: Props) {
                   </div>
 
                   {budgets.length === 0 ? (
-                    <div style={{ background: "#130f09", border: "1px solid rgba(201,168,76,0.08)", borderRadius: "12px", padding: "40px", textAlign: "center" }}>
-                      <p style={{ fontSize: "13px", color: "#a09068", fontFamily: "var(--font-sans)", marginBottom: "12px" }}>Nenhum orçamento configurado</p>
-                      <p style={{ fontSize: "11px", color: "#9a8a6a", fontFamily: "var(--font-sans)" }}>Defina limites por categoria para controlar seus gastos</p>
-                    </div>
+                    <EmptyState
+                      icon={Target}
+                      title="Nenhum orçamento por categoria ainda"
+                      description="Defina um limite mensal por categoria (ex: R$ 800 em Alimentação). Conforme você lança despesas, mostramos o quanto já foi usado e alertamos antes de estourar."
+                      action={{
+                        label: "Criar primeiro orçamento",
+                        onClick: () => { setBudgetForm({ category: "", monthly_limit: "", alert_threshold: "80" }); setFormError(""); setModal("budget"); },
+                      }}
+                    />
                   ) : (
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
                       {budgets.map(b => {
@@ -1437,10 +1443,15 @@ export default function FinancasContent({ userEmail }: Props) {
                   </div>
 
                   {goals.length === 0 ? (
-                    <div style={{ background: "#130f09", border: "1px solid rgba(201,168,76,0.08)", borderRadius: "12px", padding: "40px", textAlign: "center" }}>
-                      <p style={{ fontSize: "13px", color: "#a09068", fontFamily: "var(--font-sans)", marginBottom: "12px" }}>Nenhuma meta criada</p>
-                      <p style={{ fontSize: "11px", color: "#9a8a6a", fontFamily: "var(--font-sans)" }}>Defina objetivos financeiros e acompanhe seu progresso</p>
-                    </div>
+                    <EmptyState
+                      icon={Target}
+                      title="Sem metas ainda"
+                      description="Aposentadoria, fundo de emergência, viagem, imóvel — defina o valor alvo e a data, e contribua mensalmente. Patrimônio se constrói com paciência."
+                      action={{
+                        label: "Criar primeira meta",
+                        onClick: () => { setGoalForm({ title: "", category: "", target_amount: "", current_amount: "0", target_date: "", monthly_contribution: "", description: "" }); setFormError(""); setModal("goal"); },
+                      }}
+                    />
                   ) : (
                     <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
                       {goals.map(g => {
