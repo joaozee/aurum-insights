@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   ChevronLeft, TrendingUp, TrendingDown, Info, X, ChevronDown,
@@ -13,6 +13,7 @@ import {
 interface BrapiCashDividend {
   paymentDate: string;
   approvedOn?: string;
+  lastDatePrior?: string;  // Data com (último dia para ter direito ao provento)
   rate: number;
   label?: string;
   type?: string;
@@ -131,7 +132,6 @@ export default function AcaoContent({ ticker }: { ticker: string }) {
   const [notFound, setNotFound] = useState(false);
   const [comparados, setComparados] = useState<string[]>([ticker]);
   const [novoTicker, setNovoTicker] = useState("");
-  const [comparePeriod, setComparePeriod] = useState<"1y" | "5y" | "10y">("1y");
   const [divChartType, setDivChartType] = useState<"yield" | "value">("yield");
   const [calendarPage, setCalendarPage] = useState(0);
   const [technicals, setTechnicals] = useState<Technicals>({ rsi14: null, rsi200: null, avgVolume90d: null });
@@ -526,15 +526,33 @@ export default function AcaoContent({ ticker }: { ticker: string }) {
               </div>
             ))}
           </div>
-          <div style={{ display: "flex", gap: "6px" }}>
-            <span style={{ fontSize: "11px", color: "#a09068", fontFamily: "var(--font-sans)", padding: "5px 0" }}>Período:</span>
-            {(["1y", "5y", "10y"] as const).map((p) => (
-              <PillBtn key={p} active={p === comparePeriod} onClick={() => setComparePeriod(p)}>
-                {p === "1y" ? "1 Ano" : p === "5y" ? "5 Anos" : "10 Anos"}
-              </PillBtn>
-            ))}
-          </div>
+          <ComparadorTable
+            tickers={comparados}
+            primaryTicker={ticker}
+            primaryQuote={quote}
+          />
         </Section>
+
+        {/* RADAR DE DIVIDENDOS */}
+        <Section>
+          <SectionHeader title={`Radar de Dividendos — ${ticker}`}>
+            <CalendarIcon size={14} style={{ color: "#C9A84C" }} />
+          </SectionHeader>
+          <p style={{
+            fontSize: "12px",
+            color: "#a09068",
+            fontFamily: "var(--font-sans)",
+            lineHeight: 1.55,
+            marginBottom: "14px",
+          }}>
+            Com base no histórico de proventos de <strong style={{ color: "#e8dcc0" }}>{ticker}</strong>,
+            o Radar de Dividendos projeta quais os possíveis meses de pagamento no futuro.
+          </p>
+          <RadarDividendos cashDividends={quote.dividendsData?.cashDividends ?? []} />
+        </Section>
+
+        {/* PAYOUT — bar (lucro) + linhas (payout, DY) */}
+        <PayoutSection quote={quote} ticker={ticker} />
 
         {/* HISTÓRICO DE DIVIDENDOS */}
         <Section>
@@ -1065,6 +1083,552 @@ function BackButton({ onClick }: { onClick: () => void }) {
     >
       <ChevronLeft size={15} /> Voltar para análise
     </button>
+  );
+}
+
+// ─── RADAR DE DIVIDENDOS ──────────────────────────────────────────────────────
+
+const MONTH_LABELS = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+
+function RadarDividendos({ cashDividends }: { cashDividends: BrapiCashDividend[] }) {
+  const [mode, setMode] = useState<"com" | "pgto">("pgto");
+
+  const monthsHit = useMemo(() => {
+    const set = new Set<number>();
+    for (const d of cashDividends) {
+      const raw = mode === "com"
+        ? d.lastDatePrior || d.approvedOn || d.paymentDate
+        : d.paymentDate || d.approvedOn || d.lastDatePrior;
+      if (!raw) continue;
+      const t = new Date(raw).getTime();
+      if (isNaN(t)) continue;
+      const m = new Date(raw).getMonth();
+      set.add(m);
+    }
+    return set;
+  }, [cashDividends, mode]);
+
+  const monthCount = useMemo(() => {
+    const counts = new Array(12).fill(0);
+    for (const d of cashDividends) {
+      const raw = mode === "com"
+        ? d.lastDatePrior || d.approvedOn || d.paymentDate
+        : d.paymentDate || d.approvedOn || d.lastDatePrior;
+      if (!raw) continue;
+      const m = new Date(raw).getMonth();
+      if (!isNaN(m)) counts[m] += 1;
+    }
+    return counts;
+  }, [cashDividends, mode]);
+
+  if (cashDividends.length === 0) {
+    return <Empty text="Sem histórico de proventos para projetar." />;
+  }
+
+  return (
+    <div>
+      <div style={{ display: "flex", gap: "6px", marginBottom: "16px" }}>
+        <PillBtn active={mode === "com"} onClick={() => setMode("com")}>Data Com</PillBtn>
+        <PillBtn active={mode === "pgto"} onClick={() => setMode("pgto")}>Data Pagamento</PillBtn>
+      </div>
+
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(6, 1fr)",
+        gap: "10px",
+      }}>
+        {MONTH_LABELS.map((label, i) => {
+          const has = monthsHit.has(i);
+          const count = monthCount[i];
+          return (
+            <div
+              key={label}
+              style={{
+                position: "relative",
+                padding: "14px 8px 12px",
+                background: has ? "rgba(201,168,76,0.08)" : "#0d0b07",
+                border: `1px solid ${has ? "rgba(201,168,76,0.35)" : "rgba(201,168,76,0.05)"}`,
+                borderRadius: "10px",
+                textAlign: "center",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: "6px",
+                transition: "all 0.18s ease",
+              }}
+            >
+              {has ? (
+                <CheckCircle2 size={14} style={{ color: "#C9A84C" }} aria-hidden="true" />
+              ) : (
+                <span style={{ width: "14px", height: "14px", display: "inline-block" }} aria-hidden="true" />
+              )}
+              <span style={{
+                fontSize: "11px",
+                fontWeight: has ? 700 : 500,
+                color: has ? "#C9A84C" : "#5e503d",
+                fontFamily: "var(--font-sans)",
+                letterSpacing: "0.04em",
+                fontVariantNumeric: "tabular-nums",
+              }}>
+                {label}
+              </span>
+              {has && count > 1 && (
+                <span style={{
+                  fontSize: "9px",
+                  fontWeight: 600,
+                  color: "#a09068",
+                  fontFamily: "var(--font-sans)",
+                  fontVariantNumeric: "tabular-nums",
+                }}>
+                  {count}×
+                </span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      <p style={{
+        fontSize: "10px",
+        color: "#7a6d57",
+        fontFamily: "var(--font-sans)",
+        marginTop: "12px",
+        lineHeight: 1.5,
+      }}>
+        Meses destacados são aqueles com pagamento histórico registrado. O número (ex: <strong style={{ color: "#a09068" }}>3×</strong>)
+        indica quantas vezes a empresa pagou nesse mês ao longo do histórico disponível.
+      </p>
+    </div>
+  );
+}
+
+// ─── PAYOUT (bar lucro + linhas payout/DY) ────────────────────────────────────
+
+interface PayoutYear {
+  year: number;
+  netIncome: number;        // em bilhões
+  divPerShare: number;
+  totalDividends: number;   // em bilhões
+  payout: number | null;    // %
+  dy: number | null;        // %
+}
+
+function buildPayoutData(q: BrapiQuoteFull | null): PayoutYear[] {
+  if (!q) return [];
+  const ish = q.incomeStatementHistory?.incomeStatementHistory ?? [];
+  const cd = q.dividendsData?.cashDividends ?? [];
+  const price = q.regularMarketPrice ?? 0;
+  const shares = q.sharesOutstanding ?? q.defaultKeyStatistics?.sharesOutstanding ?? null;
+
+  if (ish.length === 0) return [];
+
+  const divByYear = new Map<number, number>();
+  for (const d of cd) {
+    const raw = d.paymentDate || d.approvedOn;
+    if (!raw) continue;
+    const y = new Date(raw).getFullYear();
+    if (isNaN(y)) continue;
+    divByYear.set(y, (divByYear.get(y) ?? 0) + (d.rate ?? 0));
+  }
+
+  const out: PayoutYear[] = [];
+  for (const s of ish) {
+    const y = new Date(s.endDate).getFullYear();
+    if (isNaN(y)) continue;
+    const ni = s.netIncome ?? 0;
+    const divPerShare = divByYear.get(y) ?? 0;
+    const totalDivs = shares ? divPerShare * shares : 0;
+    const payout = ni > 0 && totalDivs > 0 ? (totalDivs / ni) * 100 : null;
+    const dy = price > 0 && divPerShare > 0 ? (divPerShare / price) * 100 : null;
+    out.push({
+      year: y,
+      netIncome: ni / 1e9,
+      divPerShare,
+      totalDividends: totalDivs / 1e9,
+      payout,
+      dy,
+    });
+  }
+  return out.sort((a, b) => a.year - b.year);
+}
+
+function PayoutSection({ quote, ticker }: { quote: BrapiQuoteFull; ticker: string }) {
+  const allData = useMemo(() => buildPayoutData(quote), [quote]);
+  const [period, setPeriod] = useState<"5y" | "10y" | "max">("5y");
+
+  const data = useMemo(() => {
+    if (period === "max") return allData;
+    const n = period === "5y" ? 5 : 10;
+    return allData.slice(-n);
+  }, [allData, period]);
+
+  if (allData.length === 0) {
+    return (
+      <Section>
+        <SectionHeader title={`Payout de ${quote.shortName ?? ticker}`} />
+        <Empty text="Brapi não retornou demonstrativos anuais para este ativo. Comum em bancos." />
+      </Section>
+    );
+  }
+
+  return (
+    <Section>
+      <SectionHeader title={`Payout de ${quote.shortName ?? ticker}`}>
+        <div style={{ display: "flex", gap: "4px" }}>
+          <PillBtn active={period === "5y"} onClick={() => setPeriod("5y")}>5 ANOS</PillBtn>
+          <PillBtn active={period === "10y"} onClick={() => setPeriod("10y")}>10 ANOS</PillBtn>
+          <PillBtn active={period === "max"} onClick={() => setPeriod("max")}>MÁX</PillBtn>
+        </div>
+      </SectionHeader>
+      <PayoutChart data={data} />
+      <div style={{ display: "flex", gap: "16px", justifyContent: "center", marginTop: "12px", flexWrap: "wrap" }}>
+        <LegendItem color="#5E6B8C" label="Lucro Líquido (R$ Bi)" />
+        <LegendLine color="#C9A84C" label="Payout %" />
+        <LegendLine color="#34d399" label="Dividend Yield %" />
+      </div>
+    </Section>
+  );
+}
+
+function LegendLine({ color, label }: { color: string; label: string }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+      <span style={{ width: "16px", height: "2px", background: color, borderRadius: "1px", display: "block" }} />
+      <span style={{ width: "6px", height: "6px", background: color, borderRadius: "50%", display: "block", marginLeft: "-11px" }} />
+      <span style={{ fontSize: "11px", color: "#9a8a6a", fontFamily: "var(--font-sans)" }}>{label}</span>
+    </div>
+  );
+}
+
+function PayoutChart({ data }: { data: PayoutYear[] }) {
+  if (data.length === 0) return <Empty text="Sem dados no período." />;
+
+  const w = 1100, h = 280, padX = 40, padTop = 24, padBot = 40;
+
+  // Eixo esquerdo: lucro (Bi)
+  const niMin = Math.min(0, ...data.map((d) => d.netIncome));
+  const niMax = Math.max(0.01, ...data.map((d) => d.netIncome));
+  const niRange = niMax - niMin || 1;
+  const yLeft = (v: number) => padTop + (1 - (v - niMin) / niRange) * (h - padTop - padBot);
+  const zeroY = yLeft(0);
+
+  // Eixo direito: percentual (0–maxPct)
+  const pcts = data.flatMap((d) => [d.payout, d.dy].filter((v): v is number => v !== null));
+  const pctMax = Math.max(...pcts, 10);
+  const yRight = (v: number) => padTop + (1 - v / pctMax) * (h - padTop - padBot);
+
+  const groupW = (w - padX * 2) / data.length;
+  const barW = Math.min(48, groupW * 0.55);
+
+  const cx = (i: number) => padX + i * groupW + groupW / 2;
+
+  const linePath = (key: "payout" | "dy") =>
+    data
+      .map((d, i) => {
+        const v = d[key];
+        if (v === null) return null;
+        return `${cx(i).toFixed(1)},${yRight(v).toFixed(1)}`;
+      })
+      .filter((p): p is string => p !== null)
+      .map((p, i) => (i === 0 ? `M${p}` : `L${p}`))
+      .join(" ");
+
+  // Y-axis labels (esquerda — bilhões)
+  const yLeftTicks = 4;
+  const niStep = niRange / yLeftTicks;
+
+  return (
+    <div style={{ overflow: "hidden", borderRadius: "10px", background: "#0d0b07", padding: "8px" }}>
+      <svg viewBox={`0 0 ${w} ${h}`} style={{ width: "100%", height: "auto", display: "block" }}>
+        {/* Grid */}
+        {Array.from({ length: yLeftTicks + 1 }).map((_, i) => {
+          const v = niMin + niStep * i;
+          const y = yLeft(v);
+          return (
+            <g key={i}>
+              <line x1={padX} x2={w - padX} y1={y} y2={y} stroke="rgba(201,168,76,0.06)" strokeWidth={1} />
+              <text x={padX - 6} y={y + 3} textAnchor="end" fontSize={9}
+                fill="#7a6d57" fontFamily="var(--font-sans)" style={{ fontVariantNumeric: "tabular-nums" }}>
+                R$ {v.toFixed(1)} Bi
+              </text>
+            </g>
+          );
+        })}
+
+        {/* Eixo zero */}
+        {niMin < 0 && (
+          <line x1={padX} x2={w - padX} y1={zeroY} y2={zeroY} stroke="rgba(201,168,76,0.18)" strokeWidth={1} />
+        )}
+
+        {/* Bars (lucro) */}
+        {data.map((d, i) => {
+          const yTop = d.netIncome >= 0 ? yLeft(d.netIncome) : zeroY;
+          const barH = Math.abs(yLeft(d.netIncome) - zeroY);
+          return (
+            <g key={d.year}>
+              <rect
+                x={cx(i) - barW / 2}
+                y={yTop}
+                width={barW}
+                height={barH}
+                fill="#5E6B8C"
+                rx={4}
+              />
+              <text x={cx(i)} y={h - 22} textAnchor="middle" fontSize={10}
+                fill="#a09068" fontFamily="var(--font-sans)"
+                style={{ fontVariantNumeric: "tabular-nums" }}>
+                {d.year}
+              </text>
+            </g>
+          );
+        })}
+
+        {/* Linha Payout */}
+        <path d={linePath("payout")} fill="none" stroke="#C9A84C" strokeWidth={2}
+          strokeLinecap="round" strokeLinejoin="round" />
+        {data.map((d, i) => d.payout !== null && (
+          <circle key={`p-${i}`} cx={cx(i)} cy={yRight(d.payout)} r={3.5} fill="#C9A84C" />
+        ))}
+
+        {/* Linha DY */}
+        <path d={linePath("dy")} fill="none" stroke="#34d399" strokeWidth={2}
+          strokeLinecap="round" strokeLinejoin="round" />
+        {data.map((d, i) => d.dy !== null && (
+          <circle key={`y-${i}`} cx={cx(i)} cy={yRight(d.dy)} r={3.5} fill="#34d399" />
+        ))}
+
+        {/* Eixo direito (%) */}
+        {[0, 0.25, 0.5, 0.75, 1].map((p) => {
+          const v = pctMax * p;
+          const y = yRight(v);
+          return (
+            <text key={p} x={w - padX + 6} y={y + 3} textAnchor="start" fontSize={9}
+              fill="#7a6d57" fontFamily="var(--font-sans)"
+              style={{ fontVariantNumeric: "tabular-nums" }}>
+              {v.toFixed(0)}%
+            </text>
+          );
+        })}
+      </svg>
+    </div>
+  );
+}
+
+// ─── COMPARADOR DE AÇÕES ──────────────────────────────────────────────────────
+
+interface ComparadorRow {
+  symbol: string;
+  logo: string | null;
+  pl: number | null;
+  pvp: number | null;
+  roe: number | null;
+  dy: number | null;
+  marketCap: number | null;
+  profitMargins: number | null;
+}
+
+function rowFromQuote(q: BrapiQuoteFull): ComparadorRow {
+  // DY: prefere defaultKeyStatistics.dividendYield (decimal); fallback = soma 12m / preço
+  const price = q.regularMarketPrice ?? 0;
+  let dy = q.defaultKeyStatistics?.dividendYield ?? null;
+  if (dy !== null && dy <= 1.5) dy = dy * 100;
+  if (dy === null) {
+    const oneYearAgo = Date.now() - 365 * 86400000;
+    const sum = (q.dividendsData?.cashDividends ?? [])
+      .filter((d) => new Date(d.paymentDate || d.approvedOn || 0).getTime() > oneYearAgo)
+      .reduce((a, b) => a + (b.rate ?? 0), 0);
+    dy = price > 0 && sum > 0 ? (sum / price) * 100 : null;
+  }
+
+  return {
+    symbol: q.symbol,
+    logo: q.logourl ?? null,
+    pl: q.priceEarnings ?? q.defaultKeyStatistics?.trailingPE ?? null,
+    pvp: q.defaultKeyStatistics?.priceToBook ?? null,
+    roe: q.financialData?.returnOnEquity ?? null,  // decimal
+    dy,
+    marketCap: q.marketCap ?? null,
+    profitMargins: q.financialData?.profitMargins ?? null,  // decimal
+  };
+}
+
+function ComparadorTable({
+  tickers, primaryTicker, primaryQuote,
+}: { tickers: string[]; primaryTicker: string; primaryQuote: BrapiQuoteFull }) {
+  const [data, setData] = useState<Record<string, BrapiQuoteFull>>({ [primaryTicker]: primaryQuote });
+  const [loading, setLoading] = useState(false);
+  const fetchedRef = useRef<Set<string>>(new Set([primaryTicker]));
+
+  useEffect(() => {
+    setData((prev) => prev[primaryTicker] === primaryQuote ? prev : { ...prev, [primaryTicker]: primaryQuote });
+  }, [primaryQuote, primaryTicker]);
+
+  useEffect(() => {
+    const missing = tickers.filter((t) => !fetchedRef.current.has(t));
+    if (missing.length === 0) return;
+    missing.forEach((t) => fetchedRef.current.add(t));
+
+    const ctrl = new AbortController();
+    setLoading(true);
+    (async () => {
+      try {
+        const params = new URLSearchParams({
+          tickers: missing.join(","),
+          modules: "defaultKeyStatistics,financialData,summaryProfile",
+          dividends: "true",
+        });
+        const res = await fetch(`/api/brapi-quote?${params}`, { signal: ctrl.signal });
+        if (!res.ok) return;
+        const d = await res.json();
+        if (!d?.results) return;
+        setData((prev) => {
+          const next = { ...prev };
+          for (const q of d.results as BrapiQuoteFull[]) {
+            if (q.symbol) next[q.symbol] = q;
+          }
+          return next;
+        });
+      } catch {
+        // ignore
+      } finally {
+        setLoading(false);
+      }
+    })();
+
+    return () => ctrl.abort();
+  }, [tickers]);
+
+  const rows: ComparadorRow[] = useMemo(
+    () => tickers.map((t) => data[t]).filter(Boolean).map(rowFromQuote),
+    [tickers, data],
+  );
+
+  // Extremos por coluna pra destacar com ★
+  const best = useMemo(() => {
+    const positives = (xs: (number | null)[]) => xs.filter((v): v is number => v !== null && v > 0);
+    return {
+      pl: rows.length ? Math.min(...positives(rows.map((r) => r.pl))) : null,           // menor positivo
+      pvp: rows.length ? Math.min(...positives(rows.map((r) => r.pvp))) : null,         // menor positivo
+      roe: rows.length ? Math.max(...rows.map((r) => r.roe ?? -Infinity)) : null,
+      dy: rows.length ? Math.max(...rows.map((r) => r.dy ?? -Infinity)) : null,
+      marketCap: rows.length ? Math.max(...rows.map((r) => r.marketCap ?? -Infinity)) : null,
+      profitMargins: rows.length ? Math.max(...rows.map((r) => r.profitMargins ?? -Infinity)) : null,
+    };
+  }, [rows]);
+
+  if (rows.length === 0) {
+    return <Empty text={loading ? "Carregando comparativos..." : "Adicione tickers para comparar."} />;
+  }
+
+  return (
+    <div style={{
+      background: "#0d0b07",
+      border: "1px solid rgba(201,168,76,0.06)",
+      borderRadius: "10px",
+      overflow: "hidden",
+    }}>
+      <div role="table" aria-label="Comparador de ativos" style={{ width: "100%", display: "block" }}>
+        {/* Header */}
+        <div role="row" style={{
+          display: "grid",
+          gridTemplateColumns: "minmax(140px, 1.6fr) repeat(6, 1fr)",
+          gap: "8px",
+          padding: "12px 16px",
+          borderBottom: "1px solid rgba(201,168,76,0.08)",
+          background: "rgba(201,168,76,0.02)",
+        }}>
+          <div role="columnheader" style={cmpHeadStyle}>Ativo</div>
+          <div role="columnheader" style={cmpHeadStyleR}>P/L</div>
+          <div role="columnheader" style={cmpHeadStyleR}>P/VP</div>
+          <div role="columnheader" style={cmpHeadStyleR}>ROE</div>
+          <div role="columnheader" style={cmpHeadStyleR}>DY</div>
+          <div role="columnheader" style={cmpHeadStyleR}>Mkt Cap</div>
+          <div role="columnheader" style={cmpHeadStyleR}>Margem Líq.</div>
+        </div>
+
+        {/* Rows */}
+        {rows.map((r) => (
+          <div
+            key={r.symbol}
+            role="row"
+            style={{
+              display: "grid",
+              gridTemplateColumns: "minmax(140px, 1.6fr) repeat(6, 1fr)",
+              gap: "8px",
+              padding: "12px 16px",
+              borderBottom: "1px solid rgba(201,168,76,0.04)",
+              alignItems: "center",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0 }}>
+              {r.logo ? (
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img src={r.logo} alt="" style={{
+                  width: "24px", height: "24px",
+                  borderRadius: "6px", background: "#fff",
+                  padding: "2px", objectFit: "contain", flexShrink: 0,
+                }} />
+              ) : (
+                <span style={{ width: "24px", height: "24px", display: "block", flexShrink: 0 }} />
+              )}
+              <span style={{
+                fontSize: "12px",
+                fontWeight: 700,
+                color: r.symbol === primaryTicker ? "#C9A84C" : "#e8dcc0",
+                fontFamily: "var(--font-sans)",
+                letterSpacing: "0.04em",
+              }}>
+                {r.symbol}
+              </span>
+            </div>
+            <CmpCell value={fmtNum(r.pl, 2)} starred={r.pl !== null && r.pl === best.pl} />
+            <CmpCell value={fmtNum(r.pvp, 2)} starred={r.pvp !== null && r.pvp === best.pvp} />
+            <CmpCell value={fmtPctDecimal(r.roe)} starred={r.roe !== null && r.roe === best.roe} good={r.roe !== null && r.roe >= 0.15} />
+            <CmpCell value={r.dy !== null ? `${r.dy.toFixed(2).replace(".", ",")}%` : "—"} starred={r.dy !== null && r.dy === best.dy} good={r.dy !== null && r.dy >= 6} />
+            <CmpCell value={fmtMoney(r.marketCap)} starred={r.marketCap !== null && r.marketCap === best.marketCap} />
+            <CmpCell value={fmtPctDecimal(r.profitMargins)} starred={r.profitMargins !== null && r.profitMargins === best.profitMargins} good={r.profitMargins !== null && r.profitMargins >= 0.15} />
+          </div>
+        ))}
+      </div>
+      {loading && (
+        <p style={{ padding: "10px 16px", fontSize: "10px", color: "#7a6d57", fontFamily: "var(--font-sans)" }}>
+          Carregando dados...
+        </p>
+      )}
+    </div>
+  );
+}
+
+const cmpHeadStyle: React.CSSProperties = {
+  fontSize: "10px",
+  fontWeight: 600,
+  color: "#a09068",
+  fontFamily: "var(--font-sans)",
+  letterSpacing: "0.06em",
+  textTransform: "uppercase",
+};
+
+const cmpHeadStyleR: React.CSSProperties = { ...cmpHeadStyle, textAlign: "right" };
+
+function CmpCell({ value, starred, good }: { value: string; starred?: boolean; good?: boolean }) {
+  return (
+    <div style={{
+      fontSize: "12px",
+      fontWeight: starred ? 700 : 600,
+      color: good ? "#34d399" : starred ? "#C9A84C" : "#e8dcc0",
+      fontFamily: "var(--font-sans)",
+      textAlign: "right",
+      fontVariantNumeric: "tabular-nums",
+      display: "flex",
+      justifyContent: "flex-end",
+      alignItems: "center",
+      gap: "4px",
+    }}>
+      <span>{value}</span>
+      {starred && (
+        <span aria-label="Melhor da categoria" style={{ color: "#C9A84C", fontSize: "10px" }}>★</span>
+      )}
+    </div>
   );
 }
 
