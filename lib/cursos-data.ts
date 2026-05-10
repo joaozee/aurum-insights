@@ -300,56 +300,94 @@ export const CURSOS: Curso[] = [
     ],
   },
   {
-    id: "analise-fundamentalista",
+    id: "conta-no-azul",
     dbId: "a1c0b001-1111-4001-8001-000000000003",
-    titulo: "Análise Fundamentalista Completa",
-    descricao: "Aprenda a analisar empresas como um profissional e encontre as melhores oportunidades da bolsa.",
-    imagem: "/cursos/analise-fundamentalista.jpg",
-    categoria: "avancado",
-    nivel: "avancado",
+    titulo: "Conta no Azul: Controle Financeiro para Quem Quer Mudar de Vida",
+    descricao:
+      "Saia do vermelho e construa o orçamento que sustenta você e sua família. Diagnóstico real, plano de quitação de dívidas, método dos envelopes e reserva de emergência do zero, mesmo ganhando pouco.",
+    imagem: "/cursos/conta-no-azul.jpg",
+    categoria: "formacao",
+    nivel: "iniciante",
     preco: 397,
-    duracaoHoras: 25,
-    totalAulas: 18,
+    duracaoHoras: 5,
+    totalAulas: 25,
     alunos: 612,
     matriculado: false,
+    proximoPasso: {
+      id: "investimentos-do-zero",
+      titulo: "Investimentos do Zero ao Avançado",
+      preco: 297,
+      duracaoHoras: 13,
+    },
     aprendizado: [
-      "Leia balanços, DRE e fluxo de caixa",
-      "Domine os principais múltiplos (P/L, P/VP, ROE)",
-      "Avalie empresas com DCF e modelos relativos",
-      "Construa teses de investimento sólidas",
+      "Diagnóstico real: pra onde seu dinheiro vai todo mês",
+      "Plano simples pra negociar e quitar dívidas sem humilhação",
+      "Orçamento familiar que funciona (método dos envelopes)",
+      "Reserva de emergência do zero, mesmo ganhando pouco",
     ],
     modulos: [
       {
-        id: "af-1",
-        titulo: "Demonstrações Financeiras",
+        id: "ca-1",
+        titulo: "Entendendo Onde Você Está de Verdade",
         aulas: [
-          { id: "af-1-1", titulo: "Introdução à análise", duracaoMin: 10 },
-          { id: "af-1-2", titulo: "Balanço patrimonial", duracaoMin: 16 },
-          { id: "af-1-3", titulo: "DRE na prática", duracaoMin: 14 },
-          { id: "af-1-4", titulo: "Fluxo de caixa", duracaoMin: 13 },
+          { id: "ca-1-1", titulo: "Por Que o Dinheiro Some Antes do Fim do Mês?", duracaoMin: 11 },
+          { id: "ca-1-2", titulo: "Como Fazer Seu Raio-X Financeiro Sem Se Assustar", duracaoMin: 13 },
+          { id: "ca-1-3", titulo: "Quanto Você Realmente Ganha (e o Que Conta Como Renda)", duracaoMin: 11 },
+          { id: "ca-1-4", titulo: "Quanto Você Realmente Gasta (e o Que Você Nem Percebe)", duracaoMin: 13 },
+          { id: "ca-1-5", titulo: "O Primeiro Passo Para Sair do Buraco Começa Aqui", duracaoMin: 11 },
         ],
       },
       {
-        id: "af-2",
-        titulo: "Múltiplos e Indicadores",
+        id: "ca-2",
+        titulo: "Dívidas: Entender para Não Afundar",
         aulas: [
-          { id: "af-2-1", titulo: "P/L, P/VP, EV/EBITDA", duracaoMin: 18 },
-          { id: "af-2-2", titulo: "ROE, ROIC, ROA", duracaoMin: 15 },
-          { id: "af-2-3", titulo: "Margens e endividamento", duracaoMin: 14 },
+          { id: "ca-2-1", titulo: "O Que É Dívida Boa e Dívida Ruim na Prática", duracaoMin: 12 },
+          { id: "ca-2-2", titulo: "Como o Juro Devora o Seu Salário Todo Mês", duracaoMin: 13 },
+          { id: "ca-2-3", titulo: "Cartão de Crédito, Cheque Especial e Financeira: O Que Evitar", duracaoMin: 14 },
+          { id: "ca-2-4", titulo: "Como Negociar uma Dívida Sem Humilhação", duracaoMin: 13 },
+          { id: "ca-2-5", titulo: "Criando um Plano Simples para Quitar uma Dívida por Vez", duracaoMin: 13 },
         ],
       },
       {
-        id: "af-3",
-        titulo: "Valuation",
+        id: "ca-3",
+        titulo: "O Orçamento Doméstico que Funciona de Verdade",
         aulas: [
-          { id: "af-3-1", titulo: "Fluxo de caixa descontado", duracaoMin: 22 },
-          { id: "af-3-2", titulo: "Valuation por múltiplos", duracaoMin: 17 },
-          { id: "af-3-3", titulo: "Margem de segurança", duracaoMin: 14 },
-          { id: "af-3-4", titulo: "Construindo uma tese", duracaoMin: 19 },
+          { id: "ca-3-1", titulo: "O Que É Orçamento e Por Que a Sua Família Precisa de Um", duracaoMin: 11 },
+          { id: "ca-3-2", titulo: "Como Dividir o Salário Antes de Gastar (O Método dos Envelopes)", duracaoMin: 13 },
+          { id: "ca-3-3", titulo: "Contas Fixas, Variáveis e Supérfluas: Aprendendo a Diferenciar", duracaoMin: 12 },
+          { id: "ca-3-4", titulo: "Como Montar o Orçamento Familiar Junto Com Quem Mora Com Você", duracaoMin: 14 },
+          { id: "ca-3-5", titulo: "O Que Fazer Quando o Dinheiro Não Fecha no Mês", duracaoMin: 13 },
+        ],
+      },
+      {
+        id: "ca-4",
+        titulo: "Hábitos que Fazem o Dinheiro Durar Mais",
+        aulas: [
+          { id: "ca-4-1", titulo: "Compras por Impulso: Por Que Acontece e Como Parar", duracaoMin: 13 },
+          { id: "ca-4-2", titulo: "Como Fazer o Mercado Render Mais Gastando Menos", duracaoMin: 12 },
+          { id: "ca-4-3", titulo: "Contas de Luz, Água e Telefone: Pequenos Cortes que Somam Muito", duracaoMin: 11 },
+          { id: "ca-4-4", titulo: "Como Usar o Pix, o Boleto e o Dinheiro Vivo com Mais Inteligência", duracaoMin: 12 },
+          { id: "ca-4-5", titulo: "Criando uma Reserva de Emergência do Zero, Mesmo Ganhando Pouco", duracaoMin: 14 },
+        ],
+      },
+      {
+        id: "ca-5",
+        titulo: "Construindo um Futuro Diferente para Sua Família",
+        aulas: [
+          { id: "ca-5-1", titulo: "O Que É Ter uma Meta Financeira e Como Criar a Sua", duracaoMin: 11 },
+          { id: "ca-5-2", titulo: "Como Sonhar com os Pés no Chão (e Colocar Preço nos Seus Sonhos)", duracaoMin: 12 },
+          { id: "ca-5-3", titulo: "Ensinando Seus Filhos a Valorizar o Dinheiro Desde Cedo", duracaoMin: 12 },
+          { id: "ca-5-4", titulo: "Como Sair do Vermelho e Manter a Conta no Azul Todo Mês", duracaoMin: 14 },
+          { id: "ca-5-5", titulo: "Você Mudou: e Agora, Qual É o Próximo Passo?", duracaoMin: 11 },
         ],
       },
     ],
   },
+  // Slot 3 deste array foi reaproveitado. O currículo anterior
+  // "Análise Fundamentalista Completa" (3 módulos / 18 aulas) virou
+  // "Conta no Azul" no commit que reposicionou esse card pra educação
+  // financeira básica. dbId UUID preservado pra não quebrar FKs em
+  // user_enrollment do Supabase.
 ];
 
 export const CONTEUDO_GRATUITO: ConteudoGratuito[] = [
