@@ -196,6 +196,75 @@ export const SECTOR_PT_TO_EN: Record<string, string> = {
 };
 
 /**
+ * Dedup tickers da mesma empresa que tem múltiplas classes (ON/PN/Units).
+ *
+ * Regra de prioridade dentro do mesmo "root" (radical, ex: "PETR" pra
+ * PETR3/PETR4):
+ *   1. O ticker primary (se passado e estiver no grupo) — preserva a
+ *      navegação do usuário, ou seja, se ele tá vendo PETR3, não troca pra PETR4.
+ *   2. A variante terminada em 4 (preferenciais).
+ *   3. Maior número final (Units 11 > PN 4 > ON 3).
+ *
+ * Preserva a ordem original dos tickers no input.
+ *
+ * Exemplos:
+ *   dedupPreferPN(["PETR4", "PETR3", "PRIO3"]) → ["PETR4", "PRIO3"]
+ *   dedupPreferPN(["PETR3", "PETR4"], "PETR3") → ["PETR3"]
+ *   dedupPreferPN(["BBDC3", "BBDC4", "ITUB4"]) → ["BBDC4", "ITUB4"]
+ */
+export function dedupPreferPN(tickers: string[], primary?: string): string[] {
+  const tickerRoot = (t: string) => {
+    const m = t.match(/^([A-Z]+?)(\d+)$/);
+    return m ? m[1]! : t;
+  };
+  const tickerNum = (t: string) => {
+    const m = t.match(/(\d+)$/);
+    return m ? parseInt(m[1]!, 10) : 0;
+  };
+
+  // Agrupa por raiz preservando a primeira ocorrência
+  const byRoot = new Map<string, string[]>();
+  for (const t of tickers) {
+    const root = tickerRoot(t);
+    const arr = byRoot.get(root) ?? [];
+    if (!arr.includes(t)) arr.push(t);
+    byRoot.set(root, arr);
+  }
+
+  // Decide o vencedor por raiz
+  const chosenByRoot = new Map<string, string>();
+  byRoot.forEach((variants, root) => {
+    if (variants.length === 1) {
+      chosenByRoot.set(root, variants[0]!);
+      return;
+    }
+    if (primary && variants.includes(primary)) {
+      chosenByRoot.set(root, primary);
+      return;
+    }
+    const x4 = variants.find((v) => v.endsWith("4"));
+    if (x4) {
+      chosenByRoot.set(root, x4);
+      return;
+    }
+    const sorted = [...variants].sort((a, b) => tickerNum(b) - tickerNum(a));
+    chosenByRoot.set(root, sorted[0]!);
+  });
+
+  // Itera preservando ordem; só inclui o vencedor de cada raiz uma vez
+  const out: string[] = [];
+  const used = new Set<string>();
+  for (const t of tickers) {
+    const root = tickerRoot(t);
+    if (used.has(root)) continue;
+    if (chosenByRoot.get(root) !== t) continue;
+    used.add(root);
+    out.push(t);
+  }
+  return out;
+}
+
+/**
  * Retorna a lista de concorrentes para uma indústria (PT). Tenta match
  * exato primeiro, depois match parcial (substring) — útil quando a brapi
  * usa variações como "Bancos" vs "Bancos Diversificados".

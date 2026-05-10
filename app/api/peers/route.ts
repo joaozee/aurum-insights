@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { findCuratedPeers, SECTOR_PT_TO_EN } from "@/lib/peers";
+import { findCuratedPeers, SECTOR_PT_TO_EN, dedupPreferPN } from "@/lib/peers";
 
 const BASE = "https://brapi.dev/api";
 
@@ -35,7 +35,13 @@ export async function GET(req: Request) {
   // 1) Curado por indústria
   const curated = findCuratedPeers(industry);
   if (curated && curated.length > 0) {
-    const peers = curated.filter((t) => t !== exclude).slice(0, limit);
+    // Inclui o primary no input do dedup pra que, se ele for ON (X3) ou PN (X4),
+    // a regra "preserva o primary" funcione. Em seguida tira o primary do
+    // resultado e limita.
+    const seed = curated.includes(exclude) ? curated : [exclude, ...curated];
+    const peers = dedupPreferPN(seed, exclude)
+      .filter((t) => t !== exclude)
+      .slice(0, limit);
     return NextResponse.json(
       { peers, source: "curated", industry },
       { status: 200 },
@@ -66,9 +72,12 @@ export async function GET(req: Request) {
       return NextResponse.json({ peers: [], source: "fallback_error" }, { status: 200 });
     }
     const data = (await res.json()) as { stocks?: BrapiListItem[] };
-    const peers = (data.stocks ?? [])
-      .map((s) => s.stock)
-      .filter((t) => t && t !== exclude)
+    const raw = (data.stocks ?? []).map((s) => s.stock).filter(Boolean);
+    // Mesma estratégia: primary entra no dedup pra preservar a navegação,
+    // depois é removido do resultado.
+    const seed = raw.includes(exclude) ? raw : [exclude, ...raw];
+    const peers = dedupPreferPN(seed, exclude)
+      .filter((t) => t !== exclude)
       .slice(0, limit);
     return NextResponse.json(
       { peers, source: "sector_fallback", sectorEn },
