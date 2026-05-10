@@ -173,6 +173,7 @@ export default function AcaoContent({ ticker, userEmail, userName, userAvatar }:
   const [divChartType, setDivChartType] = useState<"yield" | "value">("yield");
   const [calendarPage, setCalendarPage] = useState(0);
   const [technicals, setTechnicals] = useState<Technicals>({ rsi14: null, rsi200: null, avgVolume90d: null, avgPrice52w: null });
+  const [yearAvgPrices, setYearAvgPrices] = useState<Map<number, number>>(new Map());
   const peersAutoPopulated = useRef(false);
 
   const loadQuote = useCallback(async (p: Period) => {
@@ -241,6 +242,49 @@ export default function AcaoContent({ ticker, userEmail, userName, userAvatar }:
     return () => ctrl.abort();
   }, [ticker]);
 
+  // Histórico longo (10y mensal) pra calcular preço médio POR ANO,
+  // que serve como denominador correto do DY anual. Se em 2019 o ativo
+  // custava em média R$10 e pagou R$1 de dividendo, o DY de 2019 deve ser
+  // 10% — não usando o preço de hoje. Usamos `close` raw (não adjustedClose)
+  // junto com `cashDividends.rate` raw: ambos escalam juntos em splits.
+  useEffect(() => {
+    const ctrl = new AbortController();
+    (async () => {
+      try {
+        const res = await fetch(
+          `/api/brapi-quote?tickers=${encodeURIComponent(ticker)}&range=10y&interval=1mo`,
+          { signal: ctrl.signal }
+        );
+        if (!res.ok) return;
+        const data = await res.json();
+        const result = data?.results?.[0] as BrapiQuoteFull | undefined;
+        const history = result?.historicalDataPrice ?? [];
+
+        // Agrupa close por ano e calcula a média
+        const sumByYear = new Map<number, { sum: number; count: number }>();
+        for (const point of history) {
+          const close = point.close;
+          if (typeof close !== "number" || close <= 0) continue;
+          const year = new Date(point.date * 1000).getFullYear();
+          if (isNaN(year)) continue;
+          const cur = sumByYear.get(year) ?? { sum: 0, count: 0 };
+          cur.sum += close;
+          cur.count += 1;
+          sumByYear.set(year, cur);
+        }
+
+        const avgs = new Map<number, number>();
+        sumByYear.forEach((agg, year) => {
+          if (agg.count > 0) avgs.set(year, agg.sum / agg.count);
+        });
+        setYearAvgPrices(avgs);
+      } catch {
+        // Silent — fallback usará preço atual
+      }
+    })();
+    return () => ctrl.abort();
+  }, [ticker]);
+
   // Concorrentes do mesmo setor: auto-popula uma vez quando quote carrega.
   // Não re-trigga em re-fetches do quote nem após edição manual do usuário.
   useEffect(() => {
@@ -281,12 +325,13 @@ export default function AcaoContent({ ticker, userEmail, userName, userAvatar }:
   useEffect(() => {
     peersAutoPopulated.current = false;
     setComparados([ticker]);
+    setYearAvgPrices(new Map());
   }, [ticker]);
 
   // Métricas calculadas
   const metrics = useMemo(() => calculateMetrics(quote), [quote]);
   const isFinance = useMemo(() => isFinanceSector(quote), [quote]);
-  const dividends = useMemo(() => buildDividends(quote), [quote]);
+  const dividends = useMemo(() => buildDividends(quote, yearAvgPrices), [quote, yearAvgPrices]);
   const incomeData = useMemo(() => buildIncomeData(quote), [quote]);
   const bazin = useMemo(() => bazinCeiling(quote?.dividendsData?.cashDividends), [quote]);
   const checklist = useMemo(() => {
@@ -752,7 +797,7 @@ export default function AcaoContent({ ticker, userEmail, userName, userAvatar }:
             <DivStat label="DY médio em 5 anos" value={dividends.avg5y !== null ? `${dividends.avg5y.toFixed(2)}%` : "—"} accent="#C9A84C" />
             <DivStat label="DY médio em 10 anos" value={dividends.avg10y !== null ? `${dividends.avg10y.toFixed(2)}%` : "—"} accent="#C9A84C" />
           </div>
-          <DividendBars data={dividends.byYear} type={divChartType} price={quote.regularMarketPrice ?? 0} />
+          <DividendBars data={dividends.byYear} type={divChartType} />
         </Section>
 
         {/* CALENDÁRIO DE DIVIDENDOS */}
@@ -1474,9 +1519,37 @@ function scoreLabel(pct: number): string {
 
 // ─── Dividends ────────────────────────────────────────────────────────────────
 
-interface DivList { list: BrapiCashDividend[]; byYear: { year: number; total: number }[]; avg5y: number | null; avg10y: number | null }
+interface DivYear {
+  year: number;
+  total: number;             // R$/ação total no ano
+  avgPrice: number | null;   // preço médio do ano (de yearAvgPrices) ou null se fora do range
+  yieldPct: number | null;   // (total / avgPrice) × 100 — DY do ano em sua época
+  isPartial: boolean;        // ano corrente, ainda está sendo somado
+}
 
-function buildDividends(q: BrapiQuoteFull | null): DivList {
+interface DivList {
+  list: BrapiCashDividend[];
+  byYear: DivYear[];
+  avg5y: number | null;      // média dos yields nos últimos 5 anos completos
+  avg10y: number | null;     // média dos yields nos últimos 10 anos completos
+}
+
+/**
+ * Calcula yields históricos usando o preço MÉDIO do próprio ano como
+ * denominador (vs. preço atual, que distorceria anos antigos).
+ *
+ * `yearAvgPrices` vem do useEffect que busca 10y/1mo de histórico e
+ * agrupa close por ano. Para o ano corrente parcial, fallback é o preço
+ * de hoje (mais coerente que média parcial).
+ *
+ * Splits/agrupamentos: usamos `close` raw (não adjustedClose) e `rate` raw
+ * — ambos escalam juntos no mesmo fator do split, então a divisão preserva
+ * o yield correto do ponto de vista de quem investiu naquele ano.
+ */
+function buildDividends(
+  q: BrapiQuoteFull | null,
+  yearAvgPrices: Map<number, number>,
+): DivList {
   if (!q || !q.dividendsData?.cashDividends) {
     return { list: [], byYear: [], avg5y: null, avg10y: null };
   }
@@ -1492,23 +1565,39 @@ function buildDividends(q: BrapiQuoteFull | null): DivList {
     if (!year || isNaN(year)) continue;
     byYearMap.set(year, (byYearMap.get(year) ?? 0) + (d.rate ?? 0));
   }
+
   const currentYear = new Date().getFullYear();
-  const byYear = Array.from(byYearMap.entries())
+  const currentPrice = q.regularMarketPrice ?? 0;
+
+  const byYear: DivYear[] = Array.from(byYearMap.entries())
     .filter(([y]) => y >= currentYear - 11 && y <= currentYear)
     .sort((a, b) => a[0] - b[0])
-    .map(([year, total]) => ({ year, total }));
+    .map(([year, total]) => {
+      const isPartial = year === currentYear;
+      // Pra ano corrente, preço de hoje é mais representativo que média parcial
+      const avgPrice = isPartial
+        ? (currentPrice > 0 ? currentPrice : (yearAvgPrices.get(year) ?? null))
+        : (yearAvgPrices.get(year) ?? null);
+      const yieldPct = avgPrice && avgPrice > 0 && total > 0
+        ? (total / avgPrice) * 100
+        : null;
+      return { year, total, avgPrice, yieldPct, isPartial };
+    });
 
-  const price = q.regularMarketPrice ?? 0;
-  const calcAvg = (years: number) => {
-    if (price <= 0) return null;
+  // Avg yield: média aritmética dos yields anuais nos N anos COMPLETOS
+  // anteriores ao ano corrente. Se não tem preço médio do ano,
+  // pula esse ano (evita inflar com 0 ou usar preço atual errado).
+  const calcAvgYield = (years: number): number | null => {
     const cutoff = currentYear - years;
-    const totals = byYear.filter((y) => y.year > cutoff && y.year < currentYear).map((y) => y.total);
-    if (totals.length === 0) return null;
-    const avg = totals.reduce((a, b) => a + b, 0) / totals.length;
-    return (avg / price) * 100;
+    const yields = byYear
+      .filter((d) => d.year > cutoff && d.year < currentYear && !d.isPartial)
+      .map((d) => d.yieldPct)
+      .filter((v): v is number => v !== null && v > 0);
+    if (yields.length === 0) return null;
+    return yields.reduce((a, b) => a + b, 0) / yields.length;
   };
 
-  return { list, byYear, avg5y: calcAvg(5), avg10y: calcAvg(10) };
+  return { list, byYear, avg5y: calcAvgYield(5), avg10y: calcAvgYield(10) };
 }
 
 // ─── Income (revenue & profit) ────────────────────────────────────────────────
@@ -3136,42 +3225,279 @@ function TooltipRow({
   );
 }
 
-function DividendBars({ data, type, price }: {
-  data: { year: number; total: number }[];
+function DividendBars({ data, type }: {
+  data: DivYear[];
   type: "yield" | "value";
-  price: number;
 }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [hoverIdx, setHoverIdx] = useState<number | null>(null);
+
   if (data.length === 0) {
     return <Empty text="Sem histórico de dividendos." />;
   }
-  const w = 1100, h = 220, pad = 30;
-  const values = data.map((d) => type === "value" ? d.total : (price > 0 ? (d.total / price) * 100 : 0));
+
+  const w = 1100, h = 260, padL = 56, padR = 16, padTop = 28, padBot = 36;
+
+  // Valor por ano (R$/ação ou %).
+  // Para "yield": usa d.yieldPct (já calculado com preço médio do próprio ano).
+  const values = data.map((d) =>
+    type === "value" ? d.total : (d.yieldPct ?? 0)
+  );
   const max = Math.max(...values, 0.01);
-  const barW = (w - pad * 2) / data.length * 0.7;
-  const gap = (w - pad * 2) / data.length * 0.3;
+
+  const innerW = w - padL - padR;
+  const slot = innerW / data.length;
+  const barW = slot * 0.62;
+  const x = (i: number) => padL + i * slot + (slot - barW) / 2;
+  const cx = (i: number) => padL + i * slot + slot / 2;
+  const yFor = (v: number) => h - padBot - (v / max) * (h - padTop - padBot);
+
+  // Y-axis: 4 ticks
+  const yTicks = [max, max * 0.66, max * 0.33, 0];
+
+  // Pointer handler
+  function updateHover(clientX: number) {
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const xRel = Math.max(0, Math.min(rect.width, clientX - rect.left));
+    const pct = xRel / rect.width;
+    const padLPct = padL / w;
+    const padRPct = padR / w;
+    const dataPct = Math.max(0, Math.min(1, (pct - padLPct) / (1 - padLPct - padRPct)));
+    const idx = Math.floor(dataPct * data.length);
+    setHoverIdx(Math.max(0, Math.min(data.length - 1, idx)));
+  }
+
+  const hovered = hoverIdx !== null ? data[hoverIdx] : null;
+  const tooltipLeftPct = hoverIdx !== null ? (cx(hoverIdx) / w) * 100 : 50;
+
+  const fmtY = (v: number) => type === "value"
+    ? `R$ ${v.toFixed(2).replace(".", ",")}`
+    : `${v.toFixed(1).replace(".", ",")}%`;
+
   return (
-    <div style={{ overflow: "hidden", borderRadius: "10px", background: "#0d0b07", padding: "8px" }}>
+    <div
+      ref={containerRef}
+      onPointerMove={(e) => updateHover(e.clientX)}
+      onPointerLeave={() => setHoverIdx(null)}
+      onPointerDown={(e) => {
+        containerRef.current?.setPointerCapture(e.pointerId);
+        updateHover(e.clientX);
+      }}
+      onPointerUp={(e) => {
+        if (e.pointerType === "touch") setHoverIdx(null);
+      }}
+      style={{
+        position: "relative",
+        overflow: "hidden",
+        borderRadius: "10px",
+        background: "#0d0b07",
+        padding: "8px",
+        cursor: "crosshair",
+        touchAction: "pan-y",
+        userSelect: "none",
+      }}
+      role="img"
+      aria-label={`Histórico de dividendos por ano. ${type === "yield" ? "Em %" : "Em R$/ação"}.`}
+    >
       <svg viewBox={`0 0 ${w} ${h}`} style={{ width: "100%", height: "auto", display: "block" }}>
-        {data.map((d, i) => {
-          const v = values[i];
-          const barH = (v / max) * (h - pad * 2);
-          const x = pad + i * (barW + gap);
-          const y = h - pad - barH;
+        <defs>
+          <linearGradient id="divBarFill" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#D4B86A" />
+            <stop offset="100%" stopColor="#A07820" />
+          </linearGradient>
+          <linearGradient id="divBarFillHover" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#E8CC7E" />
+            <stop offset="100%" stopColor="#C9A84C" />
+          </linearGradient>
+        </defs>
+
+        {/* Grid + Y labels */}
+        {yTicks.map((v, i) => {
+          const y = yFor(v);
           return (
-            <g key={d.year}>
-              <rect x={x} y={y} width={barW} height={barH} fill="#C9A84C" rx={3} />
-              <text x={x + barW / 2} y={h - 8} textAnchor="middle"
-                fontSize={10} fill="#a09068" fontFamily="var(--font-sans)">
-                {d.year}
-              </text>
-              <text x={x + barW / 2} y={y - 4} textAnchor="middle"
-                fontSize={9} fill="#C9A84C" fontFamily="var(--font-sans)" fontWeight={600}>
-                {type === "value" ? `R$ ${v.toFixed(2)}` : `${v.toFixed(1)}%`}
+            <g key={i}>
+              <line
+                x1={padL} x2={w - padR}
+                y1={y} y2={y}
+                stroke="rgba(201,168,76,0.06)"
+                strokeWidth={1}
+              />
+              <text
+                x={padL - 8} y={y + 3}
+                textAnchor="end" fontSize={9}
+                fill="#7a6d57" fontFamily="var(--font-sans)"
+                style={{ fontVariantNumeric: "tabular-nums" }}
+              >
+                {fmtY(v)}
               </text>
             </g>
           );
         })}
+
+        {/* Bars */}
+        {data.map((d, i) => {
+          const v = values[i] ?? 0;
+          const barH = (v / max) * (h - padTop - padBot);
+          const xb = x(i);
+          const yb = h - padBot - barH;
+          const isHover = hoverIdx === i;
+          const isPartial = d.isPartial;
+
+          return (
+            <g key={d.year}>
+              <rect
+                x={xb}
+                y={yb}
+                width={barW}
+                height={Math.max(2, barH)}
+                fill={isHover ? "url(#divBarFillHover)" : "url(#divBarFill)"}
+                rx={4}
+                opacity={isPartial ? 0.65 : 1}
+              />
+              {/* Pattern dots para ano parcial */}
+              {isPartial && (
+                <rect
+                  x={xb}
+                  y={yb}
+                  width={barW}
+                  height={Math.max(2, barH)}
+                  fill="rgba(201,168,76,0.18)"
+                  rx={4}
+                />
+              )}
+              {/* Value label sobre a barra (só se houver espaço) */}
+              {barH >= 24 && v > 0 && (
+                <text
+                  x={xb + barW / 2}
+                  y={yb - 6}
+                  textAnchor="middle"
+                  fontSize={10}
+                  fill={isHover ? "#e8dcc0" : "#C9A84C"}
+                  fontWeight={isHover ? 700 : 600}
+                  fontFamily="var(--font-sans)"
+                  style={{ fontVariantNumeric: "tabular-nums" }}
+                >
+                  {fmtY(v)}
+                </text>
+              )}
+              {/* Year label */}
+              <text
+                x={xb + barW / 2}
+                y={h - 12}
+                textAnchor="middle"
+                fontSize={10}
+                fill={isHover ? "#e8dcc0" : "#a09068"}
+                fontWeight={isHover ? 700 : 400}
+                fontFamily="var(--font-sans)"
+                style={{ fontVariantNumeric: "tabular-nums" }}
+              >
+                {d.year}
+              </text>
+            </g>
+          );
+        })}
+
+        {/* Hover guide vertical */}
+        {hoverIdx !== null && (
+          <line
+            x1={cx(hoverIdx)} x2={cx(hoverIdx)}
+            y1={padTop} y2={h - padBot}
+            stroke="rgba(201,168,76,0.4)"
+            strokeWidth={1}
+            strokeDasharray="4 3"
+            pointerEvents="none"
+          />
+        )}
       </svg>
+
+      {/* Tooltip */}
+      {hovered && (
+        <div
+          aria-hidden="true"
+          style={{
+            position: "absolute",
+            top: "12px",
+            left: `clamp(8px, calc(${tooltipLeftPct}% - 130px), calc(100% - 268px))`,
+            background: "rgba(15, 12, 7, 0.97)",
+            border: "1px solid rgba(201,168,76,0.25)",
+            borderRadius: "10px",
+            padding: "12px 14px",
+            minWidth: "260px",
+            boxShadow: "0 8px 24px rgba(0,0,0,0.55), 0 0 0 1px rgba(0,0,0,0.4)",
+            backdropFilter: "blur(8px)",
+            WebkitBackdropFilter: "blur(8px)",
+            pointerEvents: "none",
+            zIndex: 5,
+          }}
+        >
+          <p style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+            fontSize: "10px",
+            fontWeight: 700,
+            color: "#C9A84C",
+            fontFamily: "var(--font-sans)",
+            letterSpacing: "0.08em",
+            textTransform: "uppercase",
+            margin: 0,
+            marginBottom: "10px",
+            paddingBottom: "8px",
+            borderBottom: "1px solid rgba(201,168,76,0.12)",
+            fontVariantNumeric: "tabular-nums",
+          }}>
+            {hovered.year}
+            {hovered.isPartial && (
+              <span style={{
+                fontSize: "8px",
+                fontWeight: 600,
+                color: "#7a6d57",
+                background: "rgba(154,138,106,0.1)",
+                padding: "2px 6px",
+                borderRadius: "3px",
+                letterSpacing: "0.04em",
+                textTransform: "uppercase",
+              }}>
+                Parcial
+              </span>
+            )}
+          </p>
+
+          <TooltipRow
+            label="Dividendos no ano"
+            value={`R$ ${hovered.total.toFixed(2).replace(".", ",")} / ação`}
+            highlight
+          />
+          <TooltipRow
+            label="Preço médio do ano"
+            value={hovered.avgPrice !== null
+              ? `R$ ${hovered.avgPrice.toFixed(2).replace(".", ",")}`
+              : "—"}
+          />
+          <TooltipRow
+            label={hovered.isPartial ? "Yield (parcial)" : "Dividend Yield"}
+            value={hovered.yieldPct !== null
+              ? `${hovered.yieldPct.toFixed(2).replace(".", ",")}%`
+              : "—"}
+            valueColor="#C9A84C"
+            highlight
+          />
+
+          {hovered.avgPrice === null && !hovered.isPartial && (
+            <p style={{
+              fontSize: "10px",
+              color: "#7a6d57",
+              fontFamily: "var(--font-sans)",
+              fontStyle: "italic",
+              margin: "8px 0 0",
+              lineHeight: 1.45,
+            }}>
+              Preço médio fora do range disponível (10 anos). Yield não calculado.
+            </p>
+          )}
+        </div>
+      )}
     </div>
   );
 }
