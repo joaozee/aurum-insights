@@ -65,6 +65,18 @@ export const NIVEL_LABEL: Record<CursoNivel, string> = {
 };
 
 // ─── Dados ────────────────────────────────────────────────────────────────────
+//
+// Imagens dos cursos vivem em /public/cursos/{id}.jpg (recomendo 1200×600).
+// Direção editorial: foto contextual brasileira (papelada de IR, B3, leitura
+// de Valor/Money Times, recibo Tesouro Direto, contracheque, gráfico do
+// Ibovespa), nunca stock-photo genérico americano. Quando o arquivo não
+// existe, o hero renderiza um placeholder tonal dourado com ícone — sem
+// imagem quebrada.
+//
+// Sugestão de tema por curso (para curadoria das fotos):
+//   investimentos-do-zero     →  caderno + caneta + extrato, ou tela do home broker BR
+//   dividendos-renda-passiva  →  recibos de proventos, planilha de carteira, calc
+//   analise-fundamentalista   →  release de balanço, monitor com gráfico de empresa B3
 
 export const CURSOS: Curso[] = [
   {
@@ -73,8 +85,7 @@ export const CURSOS: Curso[] = [
     titulo: "Investimentos do Zero ao Avançado",
     descricao:
       "Curso completo para quem quer começar a investir do zero e dominar as principais estratégias do mercado financeiro.",
-    imagem:
-      "https://images.unsplash.com/photo-1554224155-6726b3ff858f?auto=format&fit=crop&w=1200&q=80",
+    imagem: "/cursos/investimentos-do-zero.jpg",
     categoria: "formacao",
     nivel: "iniciante",
     bestseller: true,
@@ -137,8 +148,7 @@ export const CURSOS: Curso[] = [
     dbId: "a1c0b001-1111-4001-8001-000000000002",
     titulo: "Dividendos: Viva de Renda Passiva",
     descricao: "Estratégias comprovadas para construir uma carteira que gera renda mensal.",
-    imagem:
-      "https://images.unsplash.com/photo-1542744173-8e7e53415bb0?auto=format&fit=crop&w=1200&q=80",
+    imagem: "/cursos/dividendos-renda-passiva.jpg",
     categoria: "investimentos",
     nivel: "intermediario",
     bestseller: true,
@@ -192,8 +202,7 @@ export const CURSOS: Curso[] = [
     dbId: "a1c0b001-1111-4001-8001-000000000003",
     titulo: "Análise Fundamentalista Completa",
     descricao: "Aprenda a analisar empresas como um profissional e encontre as melhores oportunidades da bolsa.",
-    imagem:
-      "https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&w=1200&q=80",
+    imagem: "/cursos/analise-fundamentalista.jpg",
     categoria: "avancado",
     nivel: "avancado",
     preco: 397,

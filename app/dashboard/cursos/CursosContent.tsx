@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   GraduationCap, Search, ChevronDown, Star, BookOpen,
@@ -383,6 +383,12 @@ function CursoCard({
   curso: typeof CURSOS[number];
   onClick: () => void;
 }) {
+  const [imgFailed, setImgFailed] = useState(false);
+  const imgRef = useRef<HTMLImageElement>(null);
+  useEffect(() => {
+    const img = imgRef.current;
+    if (img && img.complete && img.naturalWidth === 0) setImgFailed(true);
+  }, []);
   return (
     <div
       onClick={onClick}
@@ -404,16 +410,33 @@ function CursoCard({
         e.currentTarget.style.transform = "translateY(0)";
       }}
     >
-      {/* Imagem */}
-      <div style={{ position: "relative", height: "150px", overflow: "hidden" }}>
-        <img
-          src={curso.imagem}
-          alt={curso.titulo}
-          style={{ width: "100%", height: "100%", objectFit: "cover" }}
-        />
+      {/* Imagem (overlay leve, fallback tonal pra foto editorial brasileira em /public/cursos/) */}
+      <div style={{
+        position: "relative", height: "150px", overflow: "hidden",
+        background: "linear-gradient(135deg, #1a1410 0%, #130f09 60%, #0d0b07 100%)",
+      }}>
+        {!imgFailed && (
+          <img
+            ref={imgRef}
+            src={curso.imagem}
+            alt={curso.titulo}
+            onError={() => setImgFailed(true)}
+            style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+          />
+        )}
+        {imgFailed && (
+          <div style={{
+            position: "absolute", inset: 0,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            color: "rgba(201,168,76,0.32)",
+          }}>
+            <BookOpen size={36} strokeWidth={1.2} />
+          </div>
+        )}
         <div style={{
           position: "absolute", inset: 0,
-          background: "linear-gradient(180deg, rgba(13,11,7,0.1) 0%, rgba(13,11,7,0.6) 100%)",
+          background: "linear-gradient(180deg, transparent 55%, rgba(13,11,7,0.45) 100%)",
+          pointerEvents: "none",
         }} />
         {curso.desconto && (
           <span style={{

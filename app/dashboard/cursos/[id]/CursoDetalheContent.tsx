@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   ChevronLeft, Clock, BookOpen, Users, CheckCircle2, ChevronDown,
@@ -29,6 +29,12 @@ export default function CursoDetalheContent({
   const [moduloAberto, setModuloAberto] = useState<string | null>(curso.modulos[0]?.id ?? null);
   const [enrollment, setEnrollment] = useState<InitialEnrollment | null>(initialEnrollment);
   const [enrolling, setEnrolling] = useState(false);
+  const [heroFailed, setHeroFailed] = useState(false);
+  const heroImgRef = useRef<HTMLImageElement>(null);
+  useEffect(() => {
+    const img = heroImgRef.current;
+    if (img && img.complete && img.naturalWidth === 0) setHeroFailed(true);
+  }, []);
 
   const matriculado = enrollment !== null;
   const progresso = enrollment ? progressFromLessons(curso, enrollment.completed_lessons) : 0;
@@ -73,23 +79,39 @@ export default function CursoDetalheContent({
         <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: "32px" }}>
           {/* Coluna principal */}
           <div>
-            {/* Hero image (sem badge sobreposto) */}
+            {/* Hero image (sem badge sobreposto, overlay leve, fallback tonal) */}
             <div style={{
               position: "relative",
               borderRadius: "14px",
               overflow: "hidden",
               marginBottom: "28px",
               height: "260px",
-              border: "1px solid rgba(201,168,76,0.1)",
+              border: "1px solid rgba(201,168,76,0.12)",
+              background: "linear-gradient(135deg, #1a1410 0%, #130f09 60%, #0d0b07 100%)",
             }}>
-              <img
-                src={curso.imagem}
-                alt={curso.titulo}
-                style={{ width: "100%", height: "100%", objectFit: "cover" }}
-              />
+              {!heroFailed && (
+                <img
+                  ref={heroImgRef}
+                  src={curso.imagem}
+                  alt={curso.titulo}
+                  onError={() => setHeroFailed(true)}
+                  style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                />
+              )}
+              {heroFailed && (
+                <div style={{
+                  position: "absolute", inset: 0,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  color: "rgba(201,168,76,0.35)",
+                }}>
+                  <BookOpen size={56} strokeWidth={1.2} />
+                </div>
+              )}
+              {/* Overlay sutil só pra ancorar na borda inferior */}
               <div style={{
                 position: "absolute", inset: 0,
-                background: "linear-gradient(180deg, rgba(13,11,7,0.2) 0%, rgba(13,11,7,0.7) 100%)",
+                background: "linear-gradient(180deg, transparent 60%, rgba(13,11,7,0.35) 100%)",
+                pointerEvents: "none",
               }} />
             </div>
 
