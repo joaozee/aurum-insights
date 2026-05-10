@@ -5,13 +5,14 @@ import { useRouter } from "next/navigation";
 import {
   Camera, Pencil, Bookmark, Users, Activity, BarChart2,
   MessageSquare, Star,
-  FolderOpen, Briefcase, BookOpen, Newspaper, MessageCircle, Heart,
+  FolderOpen, Briefcase, Newspaper, MessageCircle, Heart,
   Repeat2, Share2, Link2, Trophy, GraduationCap, Calendar, Check,
   Crown, ExternalLink, Plus,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import type { ProfileBundle } from "./load";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
 
 interface Props {
   mode: "self" | "public";
@@ -451,38 +452,23 @@ export default function ProfileContent({ mode, currentUserEmail, currentUserName
 
                 {editing && (
                   <div style={{ display: "flex", gap: "8px", marginTop: "12px" }}>
-                    <button
+                    <Button
+                      variant="gold"
+                      size="sm"
                       onClick={saveProfileFields}
                       disabled={savingProfile}
-                      style={{
-                        background: "linear-gradient(135deg, #C9A84C, #A07820)",
-                        border: "none",
-                        borderRadius: "8px",
-                        padding: "8px 18px",
-                        color: "#0d0b07",
-                        fontSize: "12px",
-                        fontWeight: 600,
-                        fontFamily: "var(--font-sans)",
-                        cursor: "pointer",
-                      }}
+                      className="px-4 text-xs font-semibold"
                     >
                       {savingProfile ? "Salvando..." : "Salvar"}
-                    </button>
-                    <button
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
                       onClick={() => { setEditing(false); setName(profile.user_name); setBio(profile.bio ?? ""); }}
-                      style={{
-                        background: "transparent",
-                        border: "1px solid rgba(201,168,76,0.2)",
-                        borderRadius: "8px",
-                        padding: "8px 18px",
-                        color: "#9a8a6a",
-                        fontSize: "12px",
-                        fontFamily: "var(--font-sans)",
-                        cursor: "pointer",
-                      }}
+                      className="px-4 text-xs"
                     >
                       Cancelar
-                    </button>
+                    </Button>
                   </div>
                 )}
               </div>
@@ -631,7 +617,7 @@ export default function ProfileContent({ mode, currentUserEmail, currentUserName
                   <button
                     onClick={copyProfileLink}
                     aria-label="Copiar link"
-                    style={{ background: "transparent", border: "none", cursor: "pointer", color: linkCopied ? "#10b981" : "#C9A84C", padding: "2px", display: "flex", alignItems: "center" }}
+                    style={{ background: "transparent", border: "none", cursor: "pointer", color: linkCopied ? "var(--positive)" : "var(--gold)", padding: "2px", display: "flex", alignItems: "center" }}
                   >
                     {linkCopied ? <Check size={13} /> : <ExternalLink size={13} />}
                   </button>
@@ -705,8 +691,8 @@ export default function ProfileContent({ mode, currentUserEmail, currentUserName
                       padding: "9px 12px",
                       border: "none",
                       borderRadius: "6px",
-                      background: conqTab === id ? "linear-gradient(135deg, #2a1f3e, #1a1410)" : "transparent",
-                      color: conqTab === id ? "#e8dcc0" : "#a09068",
+                      background: conqTab === id ? "rgba(201,168,76,0.1)" : "transparent",
+                      color: conqTab === id ? "var(--gold)" : "var(--text-muted)",
                       fontSize: "12px",
                       fontWeight: conqTab === id ? 600 : 500,
                       fontFamily: "var(--font-sans)",
@@ -759,7 +745,7 @@ export default function ProfileContent({ mode, currentUserEmail, currentUserName
                           </p>
                         </div>
                         {c.final_score != null && (
-                          <span style={{ fontSize: "12px", fontWeight: 700, color: "#10b981", fontFamily: "var(--font-sans)" }}>
+                          <span style={{ fontSize: "12px", fontWeight: 700, color: "var(--positive)", fontFamily: "var(--font-sans)" }}>
                             {c.final_score.toFixed(0)}%
                           </span>
                         )}
@@ -819,30 +805,15 @@ function HeaderBtn({
   icon, label, onClick, primary, disabled,
 }: { icon: React.ReactNode; label: string; onClick: () => void; primary?: boolean; disabled?: boolean }) {
   return (
-    <button
+    <Button
+      variant={primary ? "gold" : "outline"}
+      size="sm"
       onClick={onClick}
       disabled={disabled}
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: "6px",
-        padding: "7px 14px",
-        borderRadius: "8px",
-        border: "1px solid rgba(201,168,76,0.25)",
-        background: primary
-          ? "linear-gradient(135deg, #C9A84C, #A07820)"
-          : "rgba(13,11,7,0.7)",
-        backdropFilter: "blur(8px)",
-        color: primary ? "#0d0b07" : "#e8dcc0",
-        fontSize: "11px",
-        fontWeight: 600,
-        fontFamily: "var(--font-sans)",
-        cursor: disabled ? "wait" : "pointer",
-        opacity: disabled ? 0.6 : 1,
-      }}
+      className="gap-1.5 h-8 px-3.5 text-[11px] font-semibold backdrop-blur-md bg-[rgba(13,11,7,0.7)]"
     >
       {icon} {label}
-    </button>
+    </Button>
   );
 }
 
@@ -886,26 +857,14 @@ function PrimaryBtn({
   icon, label, onClick,
 }: { icon: React.ReactNode; label: string; onClick: () => void }) {
   return (
-    <button
+    <Button
+      variant="gold"
+      size="sm"
       onClick={onClick}
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: "5px",
-        padding: "7px 12px",
-        borderRadius: "7px",
-        border: "none",
-        background: "linear-gradient(135deg, #C9A84C, #A07820)",
-        color: "#0d0b07",
-        fontSize: "11px",
-        fontWeight: 600,
-        fontFamily: "var(--font-sans)",
-        cursor: "pointer",
-        boxShadow: "0 2px 12px rgba(201,168,76,0.25)",
-      }}
+      className="gap-1.5 h-8 px-3 text-[11px] font-semibold"
     >
       {icon} {label}
-    </button>
+    </Button>
   );
 }
 
@@ -1030,7 +989,7 @@ function SavedTab({ supabase, email }: { supabase: any; email: string }) {
           {news.map((n) => (
             <div key={n.id} style={{ background: "#0d0b07", border: "1px solid rgba(201,168,76,0.08)", borderRadius: "8px", padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0 }}>
-                <Newspaper size={12} style={{ color: "#3b82f6", flexShrink: 0 }} />
+                <Newspaper size={12} style={{ color: "var(--gold)", flexShrink: 0 }} />
                 <span style={{ fontSize: "12px", color: "#c8b89a", fontFamily: "var(--font-sans)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {n.title}
                 </span>
