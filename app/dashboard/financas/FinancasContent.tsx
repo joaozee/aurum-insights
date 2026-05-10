@@ -33,6 +33,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
+import EmpresaFinancas from "./empresa/EmpresaFinancas";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -1001,7 +1002,16 @@ export default function FinancasContent({ userEmail }: Props) {
           </div>
         </div>
 
-        {/* Action buttons */}
+        {/* Empresa: modulo dedicado (DRE, Balanco, Fluxo, Contas, Centros, Executivo) */}
+        {accountType === "empresa" && (
+          <EmpresaFinancas
+            userEmail={userEmail}
+            onOpenTxModal={() => openTxModal("saida")}
+          />
+        )}
+
+        {/* Action buttons (apenas PF) */}
+        {accountType === "pessoal" && (
         <div style={{ display: "flex", gap: "10px", marginBottom: "24px" }}>
           <Button
             variant="gold"
@@ -1022,8 +1032,11 @@ export default function FinancasContent({ userEmail }: Props) {
             <span className="ml-1 text-[9px] uppercase tracking-[0.12em] text-[var(--text-faint)] font-medium">em breve</span>
           </Button>
         </div>
+        )}
 
-        {/* Tabs */}
+        {/* Tabs + content (apenas PF) */}
+        {accountType === "pessoal" && (
+        <>
         <div style={{ display: "flex", gap: "4px", marginBottom: "28px", borderBottom: "1px solid #1a1408" }}>
           {([
             { id: "painel",    label: "Painel",     Icon: LayoutDashboard },
@@ -1709,6 +1722,8 @@ export default function FinancasContent({ userEmail }: Props) {
               </>
             )}
           </>
+        )}
+        </>
         )}
       </div>
 
