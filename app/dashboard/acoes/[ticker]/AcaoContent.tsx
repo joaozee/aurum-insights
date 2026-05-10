@@ -123,6 +123,7 @@ interface Technicals {
   rsi14: number | null;
   rsi200: number | null;
   avgVolume90d: number | null;
+  avgPrice52w: number | null;
 }
 
 interface AcaoContentProps {
@@ -142,7 +143,7 @@ export default function AcaoContent({ ticker, userEmail, userName, userAvatar }:
   const [novoTicker, setNovoTicker] = useState("");
   const [divChartType, setDivChartType] = useState<"yield" | "value">("yield");
   const [calendarPage, setCalendarPage] = useState(0);
-  const [technicals, setTechnicals] = useState<Technicals>({ rsi14: null, rsi200: null, avgVolume90d: null });
+  const [technicals, setTechnicals] = useState<Technicals>({ rsi14: null, rsi200: null, avgVolume90d: null, avgPrice52w: null });
   const peersAutoPopulated = useRef(false);
 
   const loadQuote = useCallback(async (p: Period) => {
@@ -202,6 +203,7 @@ export default function AcaoContent({ ticker, userEmail, userName, userAvatar }:
           rsi14: computeRSI(closes, 14),
           rsi200: computeRSI(closes, 200),
           avgVolume90d: avgLastN(volumes, 90),
+          avgPrice52w: avgLastN(closes, 252), // ~252 pregões = 52 semanas
         });
       } catch {
         // Silent — technicals são opcionais
@@ -408,7 +410,13 @@ export default function AcaoContent({ ticker, userEmail, userName, userAvatar }:
               ))}
             </div>
           </SectionHeader>
-          <PriceChart history={quote.historicalDataPrice ?? []} positive={positive} />
+          <PriceChart
+            history={quote.historicalDataPrice ?? []}
+            positive={positive}
+            low52w={quote.fiftyTwoWeekLow ?? null}
+            high52w={quote.fiftyTwoWeekHigh ?? null}
+            avg52w={technicals.avgPrice52w}
+          />
           <div style={{
             display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "12px",
             marginTop: "16px", paddingTop: "14px",
@@ -2216,43 +2224,331 @@ function ChecklistGroup({ group }: { group: ChecklistGroupT }) {
   );
 }
 
-function PriceChart({ history, positive }: { history: BrapiHistoricalPrice[]; positive: boolean }) {
+interface PriceChartProps {
+  history: BrapiHistoricalPrice[];
+  positive: boolean;
+  low52w: number | null;
+  high52w: number | null;
+  avg52w: number | null;
+}
+
+function PriceChart({ history, positive, low52w, high52w, avg52w }: PriceChartProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [hoverIdx, setHoverIdx] = useState<number | null>(null);
+
   if (history.length < 2) {
     return (
-      <div style={{ height: "220px", display: "flex", alignItems: "center", justifyContent: "center", color: "#9a8a6a", fontSize: "12px", fontFamily: "var(--font-sans)" }}>
+      <div style={{
+        height: "240px",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        color: "#9a8a6a",
+        fontSize: "12px",
+        fontFamily: "var(--font-sans)",
+        background: "#0d0b07",
+        borderRadius: "10px",
+      }}>
         Sem dados históricos suficientes.
       </div>
     );
   }
-  const w = 1100, h = 220, pad = 28;
-  const closes = history.map((h) => h.close);
-  const min = Math.min(...closes), max = Math.max(...closes);
+
+  // Geometria do gráfico
+  const w = 1100, h = 280;
+  const padL = 56, padR = 16, padTop = 20, padBot = 32;
+  const closes = history.map((p) => p.close);
+  const min = Math.min(...closes);
+  const max = Math.max(...closes);
   const range = max - min || 1;
-  const step = (w - pad * 2) / (history.length - 1);
-  const points = history.map((p, i) => {
-    const x = pad + i * step;
-    const y = pad + (1 - (p.close - min) / range) * (h - pad * 2);
-    return [x, y] as const;
-  });
+  const xStep = history.length > 1 ? (w - padL - padR) / (history.length - 1) : 0;
+  const x = (i: number) => padL + i * xStep;
+  const y = (v: number) => padTop + (1 - (v - min) / range) * (h - padTop - padBot);
+
+  const points = history.map((p, i) => [x(i), y(p.close)] as const);
   const lineColor = positive ? "#34d399" : "#f87171";
   const path = points.map((p, i) => `${i === 0 ? "M" : "L"}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(" ");
-  const area = `${path} L${points[points.length - 1][0].toFixed(1)},${h - pad} L${points[0][0].toFixed(1)},${h - pad} Z`;
+  const area = `${path} L${points[points.length - 1][0].toFixed(1)},${(h - padBot).toFixed(1)} L${points[0][0].toFixed(1)},${(h - padBot).toFixed(1)} Z`;
+
+  // Y ticks (4 níveis: max, q2, q1, min)
+  const yTicks = [
+    { v: max, label: max.toFixed(2) },
+    { v: min + range * 0.66, label: (min + range * 0.66).toFixed(2) },
+    { v: min + range * 0.33, label: (min + range * 0.33).toFixed(2) },
+    { v: min, label: min.toFixed(2) },
+  ];
+
+  // X labels (5 datas evenly spaced)
+  const xLabelCount = Math.min(5, history.length);
+  const xLabels: { idx: number; label: string }[] = [];
+  for (let i = 0; i < xLabelCount; i++) {
+    const idx = Math.floor((i / (xLabelCount - 1)) * (history.length - 1));
+    const date = new Date(history[idx]!.date * 1000);
+    xLabels.push({
+      idx,
+      label: date.toLocaleDateString("pt-BR", { month: "short", year: "2-digit" }).replace(/\.$/, ""),
+    });
+  }
+
+  // Pointer handlers — atualiza hoverIdx pela posição do dedo/mouse
+  function updateHover(clientX: number) {
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const xRel = Math.max(0, Math.min(rect.width, clientX - rect.left));
+    const pct = xRel / rect.width;
+    // Mapeia o pct para o intervalo de dados visível (excluindo padL/padR)
+    const padLPct = padL / w;
+    const dataPct = Math.max(0, Math.min(1, (pct - padLPct) / (1 - padLPct - padR / w)));
+    const idx = Math.round(dataPct * (history.length - 1));
+    setHoverIdx(Math.max(0, Math.min(history.length - 1, idx)));
+  }
+
+  const hoveredPoint = hoverIdx !== null ? history[hoverIdx] : null;
+  const hoveredDate = hoveredPoint ? new Date(hoveredPoint.date * 1000) : null;
+
+  // Posição do tooltip em % do container — clampa pra não estourar as bordas
+  const tooltipLeftPct = hoverIdx !== null ? (x(hoverIdx) / w) * 100 : 50;
+
   return (
-    <div style={{ overflow: "hidden", borderRadius: "10px", background: "#0d0b07", padding: "8px" }}>
+    <div
+      ref={containerRef}
+      onPointerMove={(e) => updateHover(e.clientX)}
+      onPointerLeave={() => setHoverIdx(null)}
+      onPointerDown={(e) => {
+        containerRef.current?.setPointerCapture(e.pointerId);
+        updateHover(e.clientX);
+      }}
+      onPointerUp={(e) => {
+        if (e.pointerType === "touch") setHoverIdx(null);
+      }}
+      style={{
+        position: "relative",
+        overflow: "hidden",
+        borderRadius: "10px",
+        background: "#0d0b07",
+        padding: "8px",
+        cursor: "crosshair",
+        touchAction: "pan-y",
+        userSelect: "none",
+      }}
+      role="img"
+      aria-label={`Histórico de preços. Mínima ${low52w?.toFixed(2) ?? "—"}, máxima ${high52w?.toFixed(2) ?? "—"}, média 52 semanas ${avg52w?.toFixed(2) ?? "—"}.`}
+    >
       <svg viewBox={`0 0 ${w} ${h}`} style={{ width: "100%", height: "auto", display: "block" }}>
         <defs>
           <linearGradient id="priceArea" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={lineColor} stopOpacity={0.3} />
+            <stop offset="0%" stopColor={lineColor} stopOpacity={0.32} />
             <stop offset="100%" stopColor={lineColor} stopOpacity={0} />
           </linearGradient>
         </defs>
-        {[0, 0.25, 0.5, 0.75, 1].map((p) => (
-          <line key={p} x1={pad} x2={w - pad} y1={pad + p * (h - pad * 2)} y2={pad + p * (h - pad * 2)}
-            stroke="rgba(201,168,76,0.06)" strokeWidth={1} />
+
+        {/* Y grid + labels */}
+        {yTicks.map((t, i) => (
+          <g key={`y-${i}`}>
+            <line
+              x1={padL} x2={w - padR}
+              y1={y(t.v)} y2={y(t.v)}
+              stroke="rgba(201,168,76,0.05)"
+              strokeWidth={1}
+            />
+            <text
+              x={padL - 8} y={y(t.v) + 3}
+              textAnchor="end" fontSize={9}
+              fill="#7a6d57" fontFamily="var(--font-sans)"
+              style={{ fontVariantNumeric: "tabular-nums" }}
+            >
+              R$ {t.label}
+            </text>
+          </g>
         ))}
+
+        {/* Linha de referência: média 52 semanas */}
+        {avg52w !== null && avg52w >= min && avg52w <= max && (
+          <g>
+            <line
+              x1={padL} x2={w - padR}
+              y1={y(avg52w)} y2={y(avg52w)}
+              stroke="rgba(201,168,76,0.35)"
+              strokeWidth={1}
+              strokeDasharray="3 4"
+            />
+            <text
+              x={w - padR - 4} y={y(avg52w) - 4}
+              textAnchor="end" fontSize={9}
+              fill="#C9A84C" fontFamily="var(--font-sans)" fontWeight={600}
+              style={{ fontVariantNumeric: "tabular-nums" }}
+            >
+              média 52sem
+            </text>
+          </g>
+        )}
+
+        {/* X labels */}
+        {xLabels.map((l, i) => (
+          <text
+            key={`x-${i}`}
+            x={x(l.idx)} y={h - 10}
+            textAnchor={i === 0 ? "start" : i === xLabels.length - 1 ? "end" : "middle"}
+            fontSize={9}
+            fill="#7a6d57" fontFamily="var(--font-sans)"
+            style={{ fontVariantNumeric: "tabular-nums", textTransform: "lowercase" }}
+          >
+            {l.label}
+          </text>
+        ))}
+
+        {/* Área + linha */}
         <path d={area} fill="url(#priceArea)" />
-        <path d={path} fill="none" stroke={lineColor} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+        <path d={path} fill="none" stroke={lineColor} strokeWidth={2}
+          strokeLinecap="round" strokeLinejoin="round" />
+
+        {/* Hover guide + dot */}
+        {hoverIdx !== null && (
+          <g pointerEvents="none">
+            <line
+              x1={x(hoverIdx)} x2={x(hoverIdx)}
+              y1={padTop} y2={h - padBot}
+              stroke="rgba(201,168,76,0.45)"
+              strokeWidth={1}
+              strokeDasharray="4 3"
+            />
+            <circle
+              cx={x(hoverIdx)} cy={y(history[hoverIdx]!.close)}
+              r={5} fill={lineColor}
+              stroke="#0d0b07" strokeWidth={2.5}
+            />
+          </g>
+        )}
       </svg>
+
+      {/* Tooltip estilo carteira */}
+      {hoveredPoint && hoveredDate && (
+        <div
+          aria-hidden="true"
+          style={{
+            position: "absolute",
+            top: "12px",
+            left: `clamp(8px, calc(${tooltipLeftPct}% - 120px), calc(100% - 248px))`,
+            background: "rgba(15, 12, 7, 0.97)",
+            border: "1px solid rgba(201,168,76,0.25)",
+            borderRadius: "10px",
+            padding: "12px 14px",
+            minWidth: "240px",
+            boxShadow: "0 8px 24px rgba(0,0,0,0.55), 0 0 0 1px rgba(0,0,0,0.4)",
+            backdropFilter: "blur(8px)",
+            WebkitBackdropFilter: "blur(8px)",
+            pointerEvents: "none",
+            zIndex: 5,
+          }}
+        >
+          <p style={{
+            fontSize: "10px",
+            fontWeight: 700,
+            color: "#C9A84C",
+            fontFamily: "var(--font-sans)",
+            letterSpacing: "0.08em",
+            textTransform: "uppercase",
+            margin: 0,
+            marginBottom: "10px",
+            paddingBottom: "8px",
+            borderBottom: "1px solid rgba(201,168,76,0.12)",
+            fontVariantNumeric: "tabular-nums",
+          }}>
+            {hoveredDate.toLocaleDateString("pt-BR", {
+              day: "2-digit",
+              month: "short",
+              year: "numeric",
+            }).replace(/\.$/, "")}
+          </p>
+
+          <TooltipRow
+            label="Preço atual"
+            value={`R$ ${hoveredPoint.close.toFixed(2).replace(".", ",")}`}
+            highlight
+          />
+          {avg52w !== null && (
+            <TooltipRow
+              label="Preço médio 52sem"
+              value={`R$ ${avg52w.toFixed(2).replace(".", ",")}`}
+              delta={(() => {
+                const d = ((hoveredPoint.close - avg52w) / avg52w) * 100;
+                return {
+                  text: `${d >= 0 ? "+" : ""}${d.toFixed(1)}%`,
+                  color: d >= 0 ? "#34d399" : "#f87171",
+                };
+              })()}
+            />
+          )}
+          {low52w !== null && (
+            <TooltipRow
+              label="Mínima 52sem"
+              value={`R$ ${low52w.toFixed(2).replace(".", ",")}`}
+              valueColor="#f87171"
+            />
+          )}
+          {high52w !== null && (
+            <TooltipRow
+              label="Máxima 52sem"
+              value={`R$ ${high52w.toFixed(2).replace(".", ",")}`}
+              valueColor="#34d399"
+            />
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TooltipRow({
+  label, value, highlight, valueColor, delta,
+}: {
+  label: string;
+  value: string;
+  highlight?: boolean;
+  valueColor?: string;
+  delta?: { text: string; color: string };
+}) {
+  return (
+    <div style={{
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      gap: "16px",
+      padding: "5px 0",
+    }}>
+      <span style={{
+        fontSize: "11px",
+        color: "#a09068",
+        fontFamily: "var(--font-sans)",
+        whiteSpace: "nowrap",
+      }}>
+        {label}
+      </span>
+      <span style={{
+        display: "flex",
+        alignItems: "baseline",
+        gap: "8px",
+        fontVariantNumeric: "tabular-nums",
+      }}>
+        <span style={{
+          fontSize: highlight ? "14px" : "12px",
+          fontWeight: highlight ? 700 : 600,
+          color: valueColor ?? (highlight ? "#e8dcc0" : "#c8b89a"),
+          fontFamily: "var(--font-display)",
+        }}>
+          {value}
+        </span>
+        {delta && (
+          <span style={{
+            fontSize: "10px",
+            fontWeight: 600,
+            color: delta.color,
+            fontFamily: "var(--font-sans)",
+          }}>
+            {delta.text}
+          </span>
+        )}
+      </span>
     </div>
   );
 }
