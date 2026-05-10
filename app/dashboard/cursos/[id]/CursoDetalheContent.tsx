@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   ChevronLeft, Clock, BookOpen, Users, CheckCircle2, ChevronDown,
@@ -49,11 +49,24 @@ export default function CursoDetalheContent({
 
   const primeiraAula = curso.modulos[0]?.aulas[0];
 
+  // Set de aulas concluídas, recomputado quando enrollment muda.
+  const completedSet = useMemo(
+    () => new Set(enrollment?.completed_lessons ?? []),
+    [enrollment]
+  );
+  // Próxima aula = primeira não concluída (ou primeira do curso, se nada feito).
+  // Usado pra destacar no accordion E pra direcionar "Continuar curso".
+  const proximaAulaId = useMemo(() => {
+    const found = curso.modulos
+      .flatMap((m) => m.aulas)
+      .find((a) => !completedSet.has(a.id));
+    return found?.id ?? primeiraAula?.id ?? null;
+  }, [completedSet, curso.modulos, primeiraAula]);
+
   function handleContinuar() {
-    const completed = new Set(enrollment?.completed_lessons ?? []);
-    const next = curso.modulos.flatMap((m) => m.aulas).find((a) => !completed.has(a.id))
-      ?? primeiraAula;
-    if (next) router.push(`/dashboard/cursos/${curso.id}/aulas/${next.id}`);
+    if (proximaAulaId) {
+      router.push(`/dashboard/cursos/${curso.id}/aulas/${proximaAulaId}`);
+    }
   }
 
   async function handleConfirmarMatricula() {
@@ -144,7 +157,7 @@ export default function CursoDetalheContent({
             {/* Badges */}
             <div style={{ display: "flex", gap: "8px", marginBottom: "16px" }}>
               <Badge color="#C9A84C">{CATEGORIA_LABEL[curso.categoria]}</Badge>
-              <Badge color="#34d399">{NIVEL_LABEL[curso.nivel]}</Badge>
+              <Badge color="var(--positive)" bg="var(--positive-bg)">{NIVEL_LABEL[curso.nivel]}</Badge>
             </div>
 
             {/* Título */}
@@ -209,7 +222,7 @@ export default function CursoDetalheContent({
                     </button>
                     <span style={{
                       display: "flex", alignItems: "center", gap: "6px",
-                      fontSize: "12px", color: "#34d399",
+                      fontSize: "12px", color: "var(--positive)",
                       fontFamily: "var(--font-sans)",
                     }}>
                       <CheckCircle2 size={13} /> Você está matriculado
@@ -227,15 +240,24 @@ export default function CursoDetalheContent({
                       </span>
                       <span style={{ color: "#C9A84C", fontWeight: 600 }}>{progresso}%</span>
                     </div>
-                    <div style={{
-                      width: "100%", height: "4px",
-                      background: "rgba(201,168,76,0.08)", borderRadius: "2px",
-                      overflow: "hidden",
-                    }}>
+                    <div
+                      role="progressbar"
+                      aria-valuenow={progresso}
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                      aria-label="Progresso do curso"
+                      style={{
+                        width: "100%", height: "4px",
+                        background: "rgba(201,168,76,0.08)", borderRadius: "2px",
+                        overflow: "hidden",
+                      }}
+                    >
                       <div style={{
-                        width: `${progresso}%`, height: "100%",
+                        width: "100%", height: "100%",
                         background: "#C9A84C",
-                        transition: "width 0.3s",
+                        transformOrigin: "left center",
+                        transform: `scaleX(${progresso / 100})`,
+                        transition: "transform 0.3s cubic-bezier(0.16, 1, 0.3, 1)",
                       }} />
                     </div>
                   </div>
@@ -384,7 +406,7 @@ export default function CursoDetalheContent({
             }}>
               {curso.aprendizado.map((item, i) => (
                 <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: "10px" }}>
-                  <CheckCircle2 size={15} style={{ color: "#34d399", flexShrink: 0, marginTop: "1px" }} />
+                  <CheckCircle2 size={15} style={{ color: "var(--positive)", flexShrink: 0, marginTop: "1px" }} />
                   <span style={{ fontSize: "13px", color: "#a09068", fontFamily: "var(--font-sans)", lineHeight: 1.55 }}>
                     {item}
                   </span>
@@ -460,28 +482,65 @@ export default function CursoDetalheContent({
                             display: "flex", flexDirection: "column", gap: "4px",
                           }}
                         >
-                          {modulo.aulas.map((aula) => (
-                            <button
-                              key={aula.id}
-                              onClick={() => router.push(`/dashboard/cursos/${curso.id}/aulas/${aula.id}`)}
-                              style={{
-                                display: "flex", alignItems: "center", gap: "10px",
-                                padding: "8px 10px", borderRadius: "6px",
-                                background: "transparent", border: "none",
-                                cursor: "pointer", textAlign: "left",
-                                transition: "background 0.15s",
-                              }}
-                              className="aurum-hover-bg aurum-hover-transition"
-                            >
-                              <PlayCircle size={13} style={{ color: "#a09068" }} />
-                              <span style={{ flex: 1, fontSize: "13px", color: "#a09068", fontFamily: "var(--font-sans)" }}>
-                                {aula.titulo}
-                              </span>
-                              <span style={{ fontSize: "11px", color: "#a09068", fontFamily: "var(--font-sans)" }}>
-                                {aula.duracaoMin} min
-                              </span>
-                            </button>
-                          ))}
+                          {modulo.aulas.map((aula) => {
+                            const concluida = completedSet.has(aula.id);
+                            const isProxima = matriculado && aula.id === proximaAulaId;
+                            const Icon = concluida ? CheckCircle2 : PlayCircle;
+                            const iconColor = concluida
+                              ? "var(--positive)"
+                              : isProxima
+                              ? "#C9A84C"
+                              : "#a09068";
+                            const titleColor = isProxima
+                              ? "#e8dcc0"
+                              : "#a09068";
+                            return (
+                              <button
+                                key={aula.id}
+                                onClick={() => router.push(`/dashboard/cursos/${curso.id}/aulas/${aula.id}`)}
+                                style={{
+                                  display: "flex", alignItems: "center", gap: "10px",
+                                  padding: "8px 10px", borderRadius: "6px",
+                                  background: isProxima ? "rgba(201,168,76,0.06)" : "transparent",
+                                  border: "1px solid",
+                                  borderColor: isProxima ? "rgba(201,168,76,0.18)" : "transparent",
+                                  cursor: "pointer", textAlign: "left",
+                                  transition: "background 0.15s, border-color 0.15s",
+                                }}
+                                className={isProxima ? undefined : "aurum-hover-bg aurum-hover-transition"}
+                              >
+                                <Icon size={13} style={{ color: iconColor, flexShrink: 0 }} />
+                                <span style={{
+                                  flex: 1, fontSize: "13px",
+                                  color: titleColor,
+                                  fontWeight: isProxima ? 600 : 400,
+                                  fontFamily: "var(--font-sans)",
+                                  textDecoration: concluida ? "line-through" : "none",
+                                  textDecorationColor: "rgba(160,144,104,0.5)",
+                                }}>
+                                  {aula.titulo}
+                                </span>
+                                {isProxima && (
+                                  <span style={{
+                                    fontSize: "10px", fontWeight: 600,
+                                    color: "#C9A84C",
+                                    fontFamily: "var(--font-sans)",
+                                    letterSpacing: "0.06em",
+                                    textTransform: "uppercase",
+                                  }}>
+                                    Próxima
+                                  </span>
+                                )}
+                                <span style={{
+                                  fontSize: "11px", color: "#a09068",
+                                  fontFamily: "var(--font-sans)",
+                                  fontVariantNumeric: "tabular-nums",
+                                }}>
+                                  {aula.duracaoMin} min
+                                </span>
+                              </button>
+                            );
+                          })}
                         </div>
                       )}
                     </div>
@@ -562,11 +621,18 @@ export default function CursoDetalheContent({
 
 // ─── Subcomponents ────────────────────────────────────────────────────────────
 
-function Badge({ children, color }: { children: React.ReactNode; color: string }) {
+function Badge({
+  children, color, bg,
+}: {
+  children: React.ReactNode;
+  color: string;
+  /** bg explícito, pra cobrir tokens CSS (var(--x)) onde concat hex + alpha não funciona. */
+  bg?: string;
+}) {
   return (
     <span style={{
       fontSize: "10px", fontWeight: 600, color,
-      background: `${color}1a`,
+      background: bg ?? (color.startsWith("#") ? `${color}1a` : "rgba(201,168,76,0.10)"),
       padding: "4px 10px", borderRadius: "5px",
       fontFamily: "var(--font-sans)", letterSpacing: "0.06em",
     }}>

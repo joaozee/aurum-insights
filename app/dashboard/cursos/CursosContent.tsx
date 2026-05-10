@@ -272,9 +272,10 @@ export default function CursosContent({ userEmail }: CursosContentProps) {
           </h2>
           <span style={{
             fontSize: "10px", fontWeight: 700,
-            background: "linear-gradient(135deg, #10b981, #059669)",
-            color: "#0a0806", padding: "3px 8px",
-            borderRadius: "4px", letterSpacing: "0.06em",
+            background: "var(--positive-bg)",
+            color: "var(--positive)",
+            padding: "3px 8px",
+            borderRadius: "4px", letterSpacing: "0.08em",
             fontFamily: "var(--font-sans)",
           }}>
             GRÁTIS
@@ -454,8 +455,8 @@ function CursoCard({
             {CATEGORIA_LABEL[curso.categoria]}
           </span>
           <span style={{
-            fontSize: "10px", fontWeight: 600, color: "#34d399",
-            background: "rgba(16,185,129,0.1)",
+            fontSize: "10px", fontWeight: 600, color: "var(--positive)",
+            background: "var(--positive-bg)",
             padding: "3px 8px", borderRadius: "4px",
             fontFamily: "var(--font-sans)", letterSpacing: "0.04em",
           }}>

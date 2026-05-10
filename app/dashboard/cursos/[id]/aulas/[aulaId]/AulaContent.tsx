@@ -264,16 +264,26 @@ export default function AulaContent({
                   {progressoCurso}%
                 </span>
               </div>
-              <div style={{
-                height: "6px",
-                background: "rgba(201,168,76,0.08)",
-                borderRadius: "3px",
-                overflow: "hidden", marginBottom: "16px",
-              }}>
-                <div style={{
-                  width: `${progressoCurso}%`, height: "100%",
-                  background: "linear-gradient(90deg, #C9A84C 0%, #A07820 100%)",
+              <div
+                role="progressbar"
+                aria-valuenow={progressoCurso}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-label="Progresso do curso"
+                style={{
+                  height: "6px",
+                  background: "rgba(201,168,76,0.08)",
                   borderRadius: "3px",
+                  overflow: "hidden", marginBottom: "16px",
+                }}
+              >
+                <div style={{
+                  width: "100%", height: "100%",
+                  background: "#C9A84C",
+                  borderRadius: "3px",
+                  transformOrigin: "left center",
+                  transform: `scaleX(${progressoCurso / 100})`,
+                  transition: "transform 0.3s cubic-bezier(0.16, 1, 0.3, 1)",
                 }} />
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
@@ -288,7 +298,7 @@ export default function AulaContent({
                     }}>
                       <div style={{
                         width: "22px", height: "22px", borderRadius: "50%",
-                        background: prog === 100 ? "#34d399" : "rgba(201,168,76,0.15)",
+                        background: prog === 100 ? "var(--positive)" : "rgba(201,168,76,0.15)",
                         color: prog === 100 ? "#0a0806" : "#C9A84C",
                         display: "flex", alignItems: "center", justifyContent: "center",
                         fontSize: "10px", fontWeight: 700,
@@ -306,15 +316,24 @@ export default function AulaContent({
                         }}>
                           {m.titulo}
                         </p>
-                        <div style={{
-                          height: "3px",
-                          background: "rgba(201,168,76,0.08)",
-                          borderRadius: "2px", overflow: "hidden",
-                        }}>
+                        <div
+                          role="progressbar"
+                          aria-valuenow={prog}
+                          aria-valuemin={0}
+                          aria-valuemax={100}
+                          style={{
+                            height: "3px",
+                            background: "rgba(201,168,76,0.08)",
+                            borderRadius: "2px", overflow: "hidden",
+                          }}
+                        >
                           <div style={{
-                            width: `${prog}%`, height: "100%",
-                            background: prog === 100 ? "#34d399" : "#C9A84C",
+                            width: "100%", height: "100%",
+                            background: prog === 100 ? "var(--positive)" : "#C9A84C",
                             borderRadius: "2px",
+                            transformOrigin: "left center",
+                            transform: `scaleX(${prog / 100})`,
+                            transition: "transform 0.3s cubic-bezier(0.16, 1, 0.3, 1)",
                           }} />
                         </div>
                       </div>
@@ -420,7 +439,7 @@ export default function AulaContent({
                                 }}
                               >
                                 {concluida ? (
-                                  <CheckCircle2 size={11} style={{ color: "#34d399", flexShrink: 0 }} />
+                                  <CheckCircle2 size={11} style={{ color: "var(--positive)", flexShrink: 0 }} />
                                 ) : ativa ? (
                                   <PlayCircle size={11} style={{ color: "#C9A84C", flexShrink: 0 }} />
                                 ) : (
