@@ -7,6 +7,7 @@ import {
   CheckCircle2, XCircle, Building2, Calendar as CalendarIcon,
   Newspaper, ExternalLink, Plus,
   Calculator, ShieldCheck, Coins, Rocket, Landmark,
+  Globe, Hash, Users, MapPin, Twitter,
 } from "lucide-react";
 import AssetDiscussion from "@/components/AssetDiscussion";
 import { IndicatorHelp } from "@/components/IndicatorHelp";
@@ -96,6 +97,13 @@ interface BrapiQuoteFull {
     industry?: string;
     website?: string;
     fullTimeEmployees?: number;
+    startDate?: string;        // "1953-10-03"
+    twitter?: string;          // "@petrobras"
+    cnpj?: string;             // "33000167000101"
+    city?: string | null;
+    state?: string | null;
+    country?: string | null;
+    phone?: string | null;
   };
   defaultKeyStatistics?: {
     bookValue?: number;
@@ -931,46 +939,134 @@ export default function AcaoContent({ ticker, userEmail, userName, userAvatar }:
         {/* SOBRE A EMPRESA */}
         {quote.summaryProfile?.longBusinessSummary && (
           <Section>
-            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px" }}>
-              <Building2 size={14} style={{ color: "#C9A84C" }} />
-              <h3 style={{ fontSize: "14px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-display)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "20px" }}>
+              <Building2 size={15} style={{ color: "#C9A84C" }} aria-hidden="true" />
+              <h3 style={{
+                fontSize: "14px",
+                fontWeight: 600,
+                color: "#e8dcc0",
+                fontFamily: "var(--font-display)",
+                letterSpacing: "0.02em",
+                margin: 0,
+              }}>
                 Sobre a Empresa
               </h3>
             </div>
-            <div style={{ display: "flex", gap: "12px", alignItems: "flex-start", marginBottom: "12px" }}>
+
+            {/* Header com logo grande + nome + chips de setor/indústria */}
+            <div style={{ display: "flex", gap: "20px", alignItems: "center", marginBottom: "20px", flexWrap: "wrap" }}>
               {quote.logourl && (
                 /* eslint-disable-next-line @next/next/no-img-element */
-                <img src={quote.logourl} alt="" style={{ width: "44px", height: "44px", borderRadius: "10px", background: "#fff", padding: "4px", objectFit: "contain" }} />
+                <img
+                  src={quote.logourl}
+                  alt=""
+                  style={{
+                    width: "76px",
+                    height: "76px",
+                    borderRadius: "16px",
+                    objectFit: "contain",
+                    flexShrink: 0,
+                    filter: "drop-shadow(0 6px 18px rgba(0,0,0,0.5))",
+                  }}
+                />
               )}
-              <div>
-                <p style={{ fontSize: "14px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-sans)", marginBottom: "2px" }}>
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <p style={{
+                  fontSize: "20px",
+                  fontWeight: 700,
+                  color: "#e8dcc0",
+                  fontFamily: "var(--font-display)",
+                  letterSpacing: "-0.01em",
+                  lineHeight: 1.2,
+                  marginBottom: "10px",
+                  margin: 0,
+                  marginTop: 0,
+                }}>
                   {quote.longName ?? quote.shortName}
                 </p>
-                <p style={{ fontSize: "11px", color: "#a09068", fontFamily: "var(--font-sans)" }}>
-                  {quote.summaryProfile.sector ?? "—"} {quote.summaryProfile.industry && `· ${quote.summaryProfile.industry}`}
-                </p>
+                <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginTop: "10px" }}>
+                  {quote.summaryProfile.sector && (
+                    <SectorChip label="Setor" value={quote.summaryProfile.sector} accent="#4F8A82" />
+                  )}
+                  {quote.summaryProfile.industry && (
+                    <SectorChip label="Indústria" value={quote.summaryProfile.industry} accent="#C9A84C" />
+                  )}
+                </div>
               </div>
             </div>
+
+            {/* Descrição: typography pra leitura confortável */}
             <p style={{
-              fontSize: "13px", color: "#c8b89a",
-              fontFamily: "var(--font-sans)", lineHeight: 1.7,
-              marginBottom: "12px",
+              fontSize: "14px",
+              color: "#d4c5a8",
+              fontFamily: "var(--font-sans)",
+              lineHeight: 1.78,
+              maxWidth: "72ch",
+              margin: 0,
+              marginBottom: "20px",
+              letterSpacing: "0.005em",
             }}>
               {quote.summaryProfile.longBusinessSummary}
             </p>
-            <div style={{ display: "flex", gap: "20px", flexWrap: "wrap", paddingTop: "12px", borderTop: "1px solid rgba(201,168,76,0.06)" }}>
+
+            {/* Stats grid: aproveita campos da brapi que estavam ignorados */}
+            <div style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+              gap: "12px",
+              paddingTop: "16px",
+              borderTop: "1px solid rgba(201,168,76,0.08)",
+            }}>
               {quote.summaryProfile.website && (
-                <a href={quote.summaryProfile.website} target="_blank" rel="noopener noreferrer" style={{
-                  fontSize: "11px", color: "#C9A84C", fontFamily: "var(--font-sans)",
-                  textDecoration: "none", display: "flex", alignItems: "center", gap: "4px",
-                }}>
-                  Website <ExternalLink size={10} />
-                </a>
+                <CompanyStatItem
+                  icon={<Globe size={13} aria-hidden="true" />}
+                  label="Website"
+                  value={quote.summaryProfile.website.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "")}
+                  href={quote.summaryProfile.website}
+                />
               )}
+              {quote.summaryProfile.startDate && (() => {
+                const year = new Date(quote.summaryProfile.startDate).getFullYear();
+                if (isNaN(year)) return null;
+                const age = new Date().getFullYear() - year;
+                return (
+                  <CompanyStatItem
+                    icon={<CalendarIcon size={13} aria-hidden="true" />}
+                    label="Fundada em"
+                    value={`${year}`}
+                    sub={`${age} anos`}
+                  />
+                );
+              })()}
               {quote.summaryProfile.fullTimeEmployees && (
-                <span style={{ fontSize: "11px", color: "#a09068", fontFamily: "var(--font-sans)" }}>
-                  {quote.summaryProfile.fullTimeEmployees.toLocaleString("pt-BR")} funcionários
-                </span>
+                <CompanyStatItem
+                  icon={<Users size={13} aria-hidden="true" />}
+                  label="Funcionários"
+                  value={quote.summaryProfile.fullTimeEmployees.toLocaleString("pt-BR")}
+                />
+              )}
+              {quote.summaryProfile.twitter && (
+                <CompanyStatItem
+                  icon={<Twitter size={13} aria-hidden="true" />}
+                  label="X / Twitter"
+                  value={quote.summaryProfile.twitter.startsWith("@") ? quote.summaryProfile.twitter : `@${quote.summaryProfile.twitter}`}
+                  href={`https://x.com/${quote.summaryProfile.twitter.replace("@", "")}`}
+                />
+              )}
+              {quote.summaryProfile.cnpj && (
+                <CompanyStatItem
+                  icon={<Hash size={13} aria-hidden="true" />}
+                  label="CNPJ"
+                  value={formatCNPJ(quote.summaryProfile.cnpj)}
+                />
+              )}
+              {(quote.summaryProfile.city || quote.summaryProfile.state || quote.summaryProfile.country) && (
+                <CompanyStatItem
+                  icon={<MapPin size={13} aria-hidden="true" />}
+                  label="Localização"
+                  value={[quote.summaryProfile.city, quote.summaryProfile.state, quote.summaryProfile.country]
+                    .filter(Boolean).join(", ") || "—"}
+                />
               )}
             </div>
           </Section>
@@ -2648,6 +2744,125 @@ function FinanceIndicators({ metrics, quote }: { metrics: Metrics; quote: BrapiQ
       <Indicator helpKey="cash" label="Caixa" value={fmtMoney(quote.financialData?.totalCash)} />
     </div>
   );
+}
+
+function SectorChip({ label, value, accent }: { label: string; value: string; accent: string }) {
+  return (
+    <div
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: "6px",
+        background: `${accent}10`,
+        border: `1px solid ${accent}30`,
+        padding: "5px 10px",
+        borderRadius: "6px",
+        fontFamily: "var(--font-sans)",
+      }}
+    >
+      <span style={{
+        fontSize: "9px",
+        fontWeight: 700,
+        color: accent,
+        letterSpacing: "0.06em",
+        textTransform: "uppercase",
+      }}>
+        {label}
+      </span>
+      <span style={{
+        fontSize: "11px",
+        fontWeight: 600,
+        color: "#e8dcc0",
+        letterSpacing: "0.01em",
+      }}>
+        {value}
+      </span>
+    </div>
+  );
+}
+
+function CompanyStatItem({
+  icon, label, value, sub, href,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  sub?: string;
+  href?: string;
+}) {
+  const content = (
+    <>
+      <div style={{
+        display: "flex",
+        alignItems: "center",
+        gap: "6px",
+        marginBottom: "4px",
+        color: "#7a6d57",
+      }}>
+        {icon}
+        <span style={{
+          fontSize: "9px",
+          fontWeight: 700,
+          letterSpacing: "0.06em",
+          textTransform: "uppercase",
+          fontFamily: "var(--font-sans)",
+        }}>
+          {label}
+        </span>
+      </div>
+      <p style={{
+        fontSize: "13px",
+        fontWeight: 600,
+        color: href ? "#C9A84C" : "#e8dcc0",
+        fontFamily: "var(--font-sans)",
+        margin: 0,
+        lineHeight: 1.3,
+        wordBreak: "break-word",
+        display: "flex",
+        alignItems: "center",
+        gap: "4px",
+        fontVariantNumeric: "tabular-nums",
+      }}>
+        <span>{value}</span>
+        {href && <ExternalLink size={10} aria-hidden="true" style={{ flexShrink: 0 }} />}
+      </p>
+      {sub && (
+        <p style={{
+          fontSize: "10px",
+          color: "#9a8a6a",
+          fontFamily: "var(--font-sans)",
+          margin: "2px 0 0",
+          fontVariantNumeric: "tabular-nums",
+        }}>
+          {sub}
+        </p>
+      )}
+    </>
+  );
+
+  if (href) {
+    return (
+      <a
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        style={{
+          textDecoration: "none",
+          display: "block",
+          padding: "2px 0",
+          transition: "transform 0.15s",
+        }}
+      >
+        {content}
+      </a>
+    );
+  }
+  return <div style={{ padding: "2px 0" }}>{content}</div>;
+}
+
+function formatCNPJ(raw: string): string {
+  const digits = raw.replace(/\D/g, "").padStart(14, "0").slice(0, 14);
+  return `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(5, 8)}/${digits.slice(8, 12)}-${digits.slice(12, 14)}`;
 }
 
 function Section({ children, noMargin }: { children: React.ReactNode; noMargin?: boolean }) {
