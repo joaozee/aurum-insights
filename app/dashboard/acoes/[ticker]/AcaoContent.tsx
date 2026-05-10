@@ -143,6 +143,7 @@ export default function AcaoContent({ ticker, userEmail, userName, userAvatar }:
   const [divChartType, setDivChartType] = useState<"yield" | "value">("yield");
   const [calendarPage, setCalendarPage] = useState(0);
   const [technicals, setTechnicals] = useState<Technicals>({ rsi14: null, rsi200: null, avgVolume90d: null });
+  const peersAutoPopulated = useRef(false);
 
   const loadQuote = useCallback(async (p: Period) => {
     setLoading(true);
@@ -207,6 +208,48 @@ export default function AcaoContent({ ticker, userEmail, userName, userAvatar }:
       }
     })();
     return () => ctrl.abort();
+  }, [ticker]);
+
+  // Concorrentes do mesmo setor: auto-popula uma vez quando quote carrega.
+  // Não re-trigga em re-fetches do quote nem após edição manual do usuário.
+  useEffect(() => {
+    if (!quote || peersAutoPopulated.current) return;
+    peersAutoPopulated.current = true;
+
+    const industry = quote.summaryProfile?.industry ?? "";
+    const sector = quote.summaryProfile?.sector ?? "";
+    const ctrl = new AbortController();
+
+    (async () => {
+      try {
+        const params = new URLSearchParams({
+          industry,
+          sector,
+          exclude: ticker,
+          limit: "7",
+        });
+        const res = await fetch(`/api/peers?${params}`, { signal: ctrl.signal });
+        if (!res.ok) return;
+        const data = (await res.json()) as { peers?: string[] };
+        const peers = (data.peers ?? []).filter((p) => p && p !== ticker);
+        if (peers.length === 0) return;
+
+        // Só auto-popula se o usuário ainda não mexeu (lista = só o ticker primário)
+        setComparados((prev) => (prev.length === 1 && prev[0] === ticker
+          ? [ticker, ...peers]
+          : prev));
+      } catch {
+        // Ignora — só desabilita auto-população
+      }
+    })();
+
+    return () => ctrl.abort();
+  }, [quote, ticker]);
+
+  // Reseta o flag se o usuário navegou pra outro ticker
+  useEffect(() => {
+    peersAutoPopulated.current = false;
+    setComparados([ticker]);
   }, [ticker]);
 
   // Métricas calculadas
@@ -471,7 +514,22 @@ export default function AcaoContent({ ticker, userEmail, userName, userAvatar }:
 
         {/* COMPARAÇÃO DE ATIVOS */}
         <Section>
-          <SectionHeader title="Comparação de Ativos" />
+          <SectionHeader title="Comparação de Ativos">
+            {quote.summaryProfile?.industry && comparados.length > 1 && (
+              <span style={{
+                fontSize: "10px",
+                fontWeight: 600,
+                color: "#a09068",
+                background: "rgba(201,168,76,0.06)",
+                border: "1px solid rgba(201,168,76,0.12)",
+                padding: "4px 10px",
+                borderRadius: "12px",
+                fontFamily: "var(--font-sans)",
+              }}>
+                Setor: <strong style={{ color: "#C9A84C" }}>{quote.summaryProfile.industry}</strong>
+              </span>
+            )}
+          </SectionHeader>
           <div style={{ display: "flex", gap: "8px", marginBottom: "12px" }}>
             <input
               value={novoTicker}
@@ -500,39 +558,75 @@ export default function AcaoContent({ ticker, userEmail, userName, userAvatar }:
                 }
               }}
               style={{
-                background: "linear-gradient(135deg, #8b5cf6, #6d28d9)",
-                border: "none", borderRadius: "8px",
-                padding: "0 16px", color: "#fff",
-                fontSize: "12px", fontWeight: 600,
-                fontFamily: "var(--font-sans)", cursor: "pointer",
-                display: "flex", alignItems: "center", gap: "5px",
+                background: "linear-gradient(135deg, #C9A84C 0%, #A07820 100%)",
+                border: "none",
+                borderRadius: "8px",
+                padding: "0 16px",
+                minHeight: "36px",
+                color: "#0d0b07",
+                fontSize: "11px",
+                fontWeight: 700,
+                fontFamily: "var(--font-sans)",
+                letterSpacing: "0.04em",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: "5px",
               }}
             >
-              <Plus size={12} /> Adicionar
+              <Plus size={12} aria-hidden="true" /> Adicionar
             </button>
           </div>
-          <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginBottom: "12px" }}>
-            {comparados.map((t) => (
-              <div key={t} style={{
-                display: "flex", alignItems: "center", gap: "6px",
-                background: t === ticker ? "rgba(201,168,76,0.12)" : "rgba(139,92,246,0.12)",
-                border: `1px solid ${t === ticker ? "rgba(201,168,76,0.3)" : "rgba(139,92,246,0.3)"}`,
-                borderRadius: "6px", padding: "4px 10px",
-                fontSize: "11px", fontWeight: 600,
-                color: t === ticker ? "#C9A84C" : "#a89aba",
-                fontFamily: "var(--font-sans)",
-              }}>
-                {t}
-                {t !== ticker && (
-                  <button
-                    onClick={() => setComparados(comparados.filter((x) => x !== t))}
-                    style={{ background: "transparent", border: "none", color: "inherit", cursor: "pointer", padding: 0, display: "flex" }}
-                  >
-                    <X size={11} />
-                  </button>
-                )}
-              </div>
-            ))}
+          <div role="list" aria-label="Tickers em comparação"
+            style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginBottom: "12px" }}>
+            {comparados.map((t) => {
+              const isPrimary = t === ticker;
+              return (
+                <div
+                  key={t}
+                  role="listitem"
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    minHeight: "28px",
+                    background: isPrimary ? "rgba(201,168,76,0.14)" : "rgba(201,168,76,0.04)",
+                    border: `1px solid ${isPrimary ? "rgba(201,168,76,0.4)" : "rgba(201,168,76,0.12)"}`,
+                    borderRadius: "6px",
+                    padding: "4px 4px 4px 10px",
+                    fontSize: "11px",
+                    fontWeight: 600,
+                    color: isPrimary ? "#C9A84C" : "#c8b89a",
+                    fontFamily: "var(--font-sans)",
+                    letterSpacing: "0.04em",
+                  }}
+                >
+                  <span>{t}</span>
+                  {!isPrimary && (
+                    <button
+                      onClick={() => setComparados(comparados.filter((x) => x !== t))}
+                      aria-label={`Remover ${t} da comparação`}
+                      style={{
+                        background: "transparent",
+                        border: "none",
+                        color: "inherit",
+                        cursor: "pointer",
+                        padding: "4px",
+                        marginLeft: "2px",
+                        display: "flex",
+                        alignItems: "center",
+                        borderRadius: "4px",
+                        transition: "background 0.15s",
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(201,168,76,0.1)")}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                    >
+                      <X size={11} aria-hidden="true" />
+                    </button>
+                  )}
+                </div>
+              );
+            })}
           </div>
           <ComparadorTable
             tickers={comparados}
