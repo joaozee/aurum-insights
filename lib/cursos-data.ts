@@ -308,7 +308,7 @@ export const CURSOS: Curso[] = [
     imagem: "/cursos/conta-no-azul.jpg",
     categoria: "formacao",
     nivel: "iniciante",
-    preco: 397,
+    preco: 49.90,
     duracaoHoras: 5,
     totalAulas: 25,
     alunos: 612,
