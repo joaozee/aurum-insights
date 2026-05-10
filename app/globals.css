@@ -242,7 +242,10 @@ p, li, span, h1, h2, h3, h4, h5, h6 {
   div[style*="max-width: 1200px"],
   div[style*="max-width: 1100px"],
   div[style*="max-width: 1080px"],
-  div[style*="max-width: 960px"] {
+  div[style*="max-width: 960px"],
+  div[style*="max-width: 880px"],
+  div[style*="max-width: 720px"],
+  div[style*="max-width: 680px"] {
     padding-left: 16px !important;
     padding-right: 16px !important;
   }
@@ -271,6 +274,14 @@ p, li, span, h1, h2, h3, h4, h5, h6 {
     width: 100% !important;
   }
 
+  /* Radix Dialog/AlertDialog/Popover (shadcn): mantém 16px de respiro lateral
+     no viewport mobile pra não colar em borda. Targets aria-modal="true" pra
+     pegar Dialog e AlertDialog sem afetar Popover. */
+  [role="dialog"][aria-modal="true"],
+  [role="alertdialog"][aria-modal="true"] {
+    max-width: calc(100vw - 32px) !important;
+  }
+
   /* Inputs/selects forçados a um min font 16px em iOS pra evitar zoom de form
      (Safari mobile faz zoom ao focar input <16px). */
   input,
@@ -297,6 +308,16 @@ p, li, span, h1, h2, h3, h4, h5, h6 {
   }
   div[style*="padding: 26px 32px"] {
     padding: 18px 16px !important;
+  }
+  /* Stub pages e Aulas usam paddings menores */
+  div[style*="padding: 14px 24px"] {
+    padding: 12px 14px !important;
+  }
+  div[style*="padding: 24px 24px"] {
+    padding: 18px 14px !important;
+  }
+  div[style*="padding: 20px 24px"] {
+    padding: 16px 14px !important;
   }
 
   /* Navbar mais compacta */
