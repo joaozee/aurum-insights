@@ -37,7 +37,6 @@ export default function CursoDetalheContent({
 
   async function handleCta() {
     if (matriculado) {
-      // Continuar a partir da próxima aula não-concluída
       const completed = new Set(enrollment?.completed_lessons ?? []);
       const next = curso.modulos.flatMap((m) => m.aulas).find((a) => !completed.has(a.id))
         ?? primeiraAula;
@@ -71,15 +70,15 @@ export default function CursoDetalheContent({
           <ChevronLeft size={15} /> Voltar para cursos
         </button>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: "24px" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: "32px" }}>
           {/* Coluna principal */}
           <div>
-            {/* Hero image */}
+            {/* Hero image (sem badge sobreposto) */}
             <div style={{
               position: "relative",
               borderRadius: "14px",
               overflow: "hidden",
-              marginBottom: "24px",
+              marginBottom: "28px",
               height: "260px",
               border: "1px solid rgba(201,168,76,0.1)",
             }}>
@@ -92,79 +91,192 @@ export default function CursoDetalheContent({
                 position: "absolute", inset: 0,
                 background: "linear-gradient(180deg, rgba(13,11,7,0.2) 0%, rgba(13,11,7,0.7) 100%)",
               }} />
-              {curso.bestseller && (
-                <span style={{
-                  position: "absolute", top: "16px", left: "16px",
-                  background: "linear-gradient(135deg, var(--gold-light), var(--gold), var(--gold-dim))",
-                  color: "#0d0b07", fontSize: "11px", fontWeight: 700,
-                  padding: "5px 12px", borderRadius: "6px",
-                  fontFamily: "var(--font-sans)", letterSpacing: "0.06em",
-                  display: "flex", alignItems: "center", gap: "5px",
-                }}>
-                  <Sparkles size={11} /> Bestseller
-                </span>
+            </div>
+
+            {/* Bestseller eyebrow tipográfico */}
+            {curso.bestseller && (
+              <p style={{
+                fontSize: "10px", fontWeight: 600, color: "#a09068",
+                fontFamily: "var(--font-sans)",
+                letterSpacing: "0.14em", textTransform: "uppercase",
+                marginBottom: "12px",
+              }}>
+                Bestseller
+              </p>
+            )}
+
+            {/* Badges */}
+            <div style={{ display: "flex", gap: "8px", marginBottom: "16px" }}>
+              <Badge color="#C9A84C">{CATEGORIA_LABEL[curso.categoria]}</Badge>
+              <Badge color="#34d399">{NIVEL_LABEL[curso.nivel]}</Badge>
+            </div>
+
+            {/* Título */}
+            <h1 style={{
+              fontSize: "32px", fontWeight: 700, color: "#e8dcc0",
+              fontFamily: "var(--font-display)", marginBottom: "14px",
+              letterSpacing: "-0.01em", lineHeight: 1.18,
+            }}>
+              {curso.titulo}
+            </h1>
+
+            {/* Descrição */}
+            <p style={{
+              fontSize: "15px", color: "#a09068", fontFamily: "var(--font-sans)",
+              lineHeight: 1.65, marginBottom: "20px", maxWidth: "62ch",
+            }}>
+              {curso.descricao}
+            </p>
+
+            {/* Métricas */}
+            <div style={{
+              display: "flex", gap: "24px", flexWrap: "wrap",
+              fontSize: "13px", color: "#a09068", fontFamily: "var(--font-sans)",
+              marginBottom: "24px",
+            }}>
+              <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                <Clock size={14} style={{ color: "#C9A84C" }} /> {curso.duracaoHoras} horas
+              </span>
+              <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                <BookOpen size={14} style={{ color: "#C9A84C" }} /> {curso.totalAulas} aulas
+              </span>
+              <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                <Users size={14} style={{ color: "#C9A84C" }} /> {curso.alunos.toLocaleString("pt-BR")} alunos
+              </span>
+            </div>
+
+            {/* CTA + Status (inline, sem card sticky, botão menor calmo) */}
+            <div style={{
+              display: "flex", flexDirection: "column", gap: "14px",
+              marginBottom: "32px",
+            }}>
+              {matriculado ? (
+                <>
+                  <div style={{ display: "flex", alignItems: "center", gap: "16px", flexWrap: "wrap" }}>
+                    <button
+                      onClick={handleCta}
+                      style={{
+                        background: "#C9A84C",
+                        border: "none", borderRadius: "8px",
+                        padding: "10px 18px", color: "#0d0b07",
+                        fontSize: "13px", fontWeight: 600,
+                        fontFamily: "var(--font-sans)", cursor: "pointer",
+                        letterSpacing: "0.02em",
+                        display: "flex", alignItems: "center", gap: "8px",
+                        transition: "background 0.15s",
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = "#E8C96A"; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = "#C9A84C"; }}
+                    >
+                      <Play size={12} fill="#0d0b07" />
+                      Continuar curso
+                    </button>
+                    <span style={{
+                      display: "flex", alignItems: "center", gap: "6px",
+                      fontSize: "12px", color: "#34d399",
+                      fontFamily: "var(--font-sans)",
+                    }}>
+                      <CheckCircle2 size={13} /> Você está matriculado
+                    </span>
+                  </div>
+                  {/* Progresso */}
+                  <div style={{ display: "flex", flexDirection: "column", gap: "6px", maxWidth: "420px" }}>
+                    <div style={{
+                      display: "flex", justifyContent: "space-between",
+                      fontSize: "11px", color: "#a09068",
+                      fontFamily: "var(--font-sans)",
+                    }}>
+                      <span style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+                        <Award size={11} /> Progresso
+                      </span>
+                      <span style={{ color: "#C9A84C", fontWeight: 600 }}>{progresso}%</span>
+                    </div>
+                    <div style={{
+                      width: "100%", height: "4px",
+                      background: "rgba(201,168,76,0.08)", borderRadius: "2px",
+                      overflow: "hidden",
+                    }}>
+                      <div style={{
+                        width: `${progresso}%`, height: "100%",
+                        background: "#C9A84C",
+                        transition: "width 0.3s",
+                      }} />
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div style={{ display: "flex", alignItems: "center", gap: "16px", flexWrap: "wrap" }}>
+                  <button
+                    onClick={handleCta}
+                    disabled={enrolling}
+                    style={{
+                      background: "#C9A84C",
+                      border: "none", borderRadius: "8px",
+                      padding: "10px 20px", color: "#0d0b07",
+                      fontSize: "13px", fontWeight: 600,
+                      fontFamily: "var(--font-sans)",
+                      cursor: enrolling ? "wait" : "pointer",
+                      letterSpacing: "0.02em",
+                      display: "flex", alignItems: "center", gap: "8px",
+                      transition: "background 0.15s",
+                      opacity: enrolling ? 0.7 : 1,
+                    }}
+                    onMouseEnter={(e) => { if (!enrolling) e.currentTarget.style.background = "#E8C96A"; }}
+                    onMouseLeave={(e) => { if (!enrolling) e.currentTarget.style.background = "#C9A84C"; }}
+                  >
+                    <Play size={12} fill="#0d0b07" />
+                    {enrolling ? "Matriculando..." : "Matricular"}
+                  </button>
+                  <div style={{ display: "flex", alignItems: "baseline", gap: "10px" }}>
+                    <span style={{
+                      fontSize: "20px", fontWeight: 600, color: "#e8dcc0",
+                      fontFamily: "var(--font-display)",
+                    }}>
+                      R$ {curso.preco.toFixed(2).replace(".", ",")}
+                    </span>
+                    {curso.precoOriginal && (
+                      <span style={{
+                        fontSize: "12px", color: "#9a8a6a",
+                        textDecoration: "line-through",
+                        fontFamily: "var(--font-sans)",
+                      }}>
+                        De R$ {curso.precoOriginal.toFixed(2).replace(".", ",")}
+                      </span>
+                    )}
+                  </div>
+                </div>
               )}
             </div>
 
-            {/* Badges + Título */}
-            <div style={{ background: "#130f09", border: "1px solid rgba(201,168,76,0.1)", borderRadius: "14px", padding: "28px 32px", marginBottom: "20px" }}>
-              <div style={{ display: "flex", gap: "8px", marginBottom: "16px" }}>
-                <Badge color="#C9A84C">{CATEGORIA_LABEL[curso.categoria]}</Badge>
-                <Badge color="#34d399">{NIVEL_LABEL[curso.nivel]}</Badge>
-              </div>
-              <h1 style={{
-                fontSize: "28px", fontWeight: 700, color: "#e8dcc0",
-                fontFamily: "var(--font-display)", marginBottom: "12px",
-                letterSpacing: "-0.01em", lineHeight: 1.2,
-              }}>
-                {curso.titulo}
-              </h1>
-              <p style={{
-                fontSize: "14px", color: "#8a7a5a", fontFamily: "var(--font-sans)",
-                lineHeight: 1.7, marginBottom: "20px",
-              }}>
-                {curso.descricao}
-              </p>
-              <div style={{
-                display: "flex", gap: "20px", paddingTop: "16px",
-                borderTop: "1px solid rgba(201,168,76,0.08)",
-                fontSize: "13px", color: "#9a8a6a", fontFamily: "var(--font-sans)",
-              }}>
-                <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                  <Clock size={14} style={{ color: "#C9A84C" }} /> {curso.duracaoHoras} horas
-                </span>
-                <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                  <BookOpen size={14} style={{ color: "#C9A84C" }} /> {curso.totalAulas} aulas
-                </span>
-                <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                  <Users size={14} style={{ color: "#C9A84C" }} /> {curso.alunos.toLocaleString("pt-BR")} alunos
-                </span>
-              </div>
+            {/* Regra horizontal */}
+            <div style={{ height: "1px", background: "rgba(201,168,76,0.10)", marginBottom: "28px" }} />
+
+            {/* O que vai aprender (sem card) */}
+            <h2 style={{
+              fontSize: "18px", fontWeight: 600, color: "#e8dcc0",
+              fontFamily: "var(--font-display)", marginBottom: "18px",
+              letterSpacing: "-0.005em",
+            }}>
+              O que você vai aprender
+            </h2>
+            <div style={{
+              display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "14px",
+              marginBottom: "32px",
+            }}>
+              {curso.aprendizado.map((item, i) => (
+                <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: "10px" }}>
+                  <CheckCircle2 size={15} style={{ color: "#34d399", flexShrink: 0, marginTop: "1px" }} />
+                  <span style={{ fontSize: "13px", color: "#a09068", fontFamily: "var(--font-sans)", lineHeight: 1.55 }}>
+                    {item}
+                  </span>
+                </div>
+              ))}
             </div>
 
-            {/* O que vai aprender */}
-            <div style={{ background: "#130f09", border: "1px solid rgba(201,168,76,0.1)", borderRadius: "14px", padding: "24px 28px", marginBottom: "20px" }}>
-              <h2 style={{
-                fontSize: "16px", fontWeight: 600, color: "#e8dcc0",
-                fontFamily: "var(--font-display)", marginBottom: "16px",
-              }}>
-                O que você vai aprender
-              </h2>
-              <div style={{
-                display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "12px",
-              }}>
-                {curso.aprendizado.map((item, i) => (
-                  <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: "10px" }}>
-                    <CheckCircle2 size={15} style={{ color: "#34d399", flexShrink: 0, marginTop: "1px" }} />
-                    <span style={{ fontSize: "13px", color: "#9a8a6a", fontFamily: "var(--font-sans)", lineHeight: 1.5 }}>
-                      {item}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
+            {/* Regra horizontal */}
+            <div style={{ height: "1px", background: "rgba(201,168,76,0.10)", marginBottom: "28px" }} />
 
-            {/* Conteúdo do Curso */}
+            {/* Conteúdo do Curso (card faz sentido aqui como container de lista densa) */}
             <div style={{ background: "#130f09", border: "1px solid rgba(201,168,76,0.1)", borderRadius: "14px", padding: "24px 28px" }}>
               <h2 style={{
                 fontSize: "16px", fontWeight: 600, color: "#e8dcc0",
@@ -238,10 +350,10 @@ export default function CursoDetalheContent({
                               className="aurum-hover-bg aurum-hover-transition"
                             >
                               <PlayCircle size={13} style={{ color: "#a09068" }} />
-                              <span style={{ flex: 1, fontSize: "13px", color: "#9a8a6a", fontFamily: "var(--font-sans)" }}>
+                              <span style={{ flex: 1, fontSize: "13px", color: "#a09068", fontFamily: "var(--font-sans)" }}>
                                 {aula.titulo}
                               </span>
-                              <span style={{ fontSize: "11px", color: "#9a8a6a", fontFamily: "var(--font-sans)" }}>
+                              <span style={{ fontSize: "11px", color: "#a09068", fontFamily: "var(--font-sans)" }}>
                                 {aula.duracaoMin} min
                               </span>
                             </button>
@@ -255,108 +367,8 @@ export default function CursoDetalheContent({
             </div>
           </div>
 
-          {/* Sidebar */}
-          <div style={{ display: "flex", flexDirection: "column", gap: "16px", height: "fit-content", position: "sticky", top: "78px" }}>
-            {/* Status / CTA */}
-            <div style={{
-              background: "#130f09",
-              border: "1px solid rgba(16,185,129,0.2)",
-              borderRadius: "14px", padding: "24px",
-            }}>
-              {matriculado ? (
-                <>
-                  <div style={{
-                    display: "flex", alignItems: "center", gap: "8px",
-                    color: "#34d399", marginBottom: "6px",
-                  }}>
-                    <CheckCircle2 size={16} />
-                    <span style={{ fontSize: "14px", fontWeight: 600, fontFamily: "var(--font-sans)" }}>
-                      Você está matriculado!
-                    </span>
-                  </div>
-                  <p style={{ fontSize: "12px", color: "#a09068", fontFamily: "var(--font-sans)", marginBottom: "16px" }}>
-                    Continue de onde parou.
-                  </p>
-                </>
-              ) : (
-                <>
-                  <p style={{
-                    fontSize: "20px", fontWeight: 700, color: "#C9A84C",
-                    fontFamily: "var(--font-display)", marginBottom: "4px",
-                  }}>
-                    R$ {curso.preco.toFixed(2).replace(".", ",")}
-                  </p>
-                  {curso.precoOriginal && (
-                    <p style={{
-                      fontSize: "12px", color: "#9a8a6a",
-                      textDecoration: "line-through",
-                      fontFamily: "var(--font-sans)", marginBottom: "16px",
-                    }}>
-                      De R$ {curso.precoOriginal.toFixed(2).replace(".", ",")}
-                    </p>
-                  )}
-                </>
-              )}
-
-              <button
-                onClick={handleCta}
-                disabled={enrolling}
-                style={{
-                  width: "100%",
-                  background: "linear-gradient(135deg, #C9A84C 0%, #A07820 100%)",
-                  border: "none", borderRadius: "8px",
-                  padding: "12px 18px", color: "#0d0b07",
-                  fontSize: "13px", fontWeight: 600,
-                  fontFamily: "var(--font-sans)", cursor: "pointer",
-                  letterSpacing: "0.04em",
-                  display: "flex", alignItems: "center", justifyContent: "center", gap: "8px",
-                  boxShadow: "0 2px 14px rgba(201,168,76,0.25)",
-                  transition: "box-shadow 0.15s",
-                  marginBottom: "10px",
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.boxShadow = "0 4px 22px rgba(201,168,76,0.4)"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.boxShadow = "0 2px 14px rgba(201,168,76,0.25)"; }}
-              >
-                <Play size={13} fill="#0d0b07" />
-                {enrolling ? "Matriculando..." : matriculado ? "Continuar Curso" : "Matricular"}
-              </button>
-
-              {matriculado && (
-                <div
-                  style={{
-                    width: "100%",
-                    background: "transparent",
-                    border: "1px solid rgba(201,168,76,0.2)",
-                    borderRadius: "8px",
-                    padding: "10px 14px",
-                    color: "#C9A84C",
-                    fontSize: "12px", fontWeight: 500,
-                    fontFamily: "var(--font-sans)",
-                    display: "flex", flexDirection: "column", gap: "6px",
-                  }}
-                >
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                      <Award size={12} /> Progresso
-                    </span>
-                    <span style={{ fontWeight: 700 }}>{progresso}%</span>
-                  </div>
-                  <div style={{
-                    width: "100%", height: "6px",
-                    background: "rgba(201,168,76,0.1)", borderRadius: "3px",
-                    overflow: "hidden",
-                  }}>
-                    <div style={{
-                      width: `${progresso}%`, height: "100%",
-                      background: "linear-gradient(90deg, #C9A84C, #E8C96A)",
-                      transition: "width 0.3s",
-                    }} />
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Próximos Passos */}
+          {/* Sidebar — só Próximos Passos, sem sticky */}
+          <div style={{ display: "flex", flexDirection: "column", gap: "16px", height: "fit-content" }}>
             {curso.proximoPasso && (
               <div style={{
                 background: "#130f09",
@@ -403,7 +415,7 @@ export default function CursoDetalheContent({
                       {curso.proximoPasso.titulo}
                     </p>
                     <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                      <span style={{ fontSize: "11px", color: "#9a8a6a", display: "flex", alignItems: "center", gap: "3px" }}>
+                      <span style={{ fontSize: "11px", color: "#a09068", display: "flex", alignItems: "center", gap: "3px" }}>
                         <Clock size={9} /> {curso.proximoPasso.duracaoHoras}h
                       </span>
                       <span style={{
