@@ -7,6 +7,7 @@ import {
   CheckCircle2, XCircle, Building2, Calendar as CalendarIcon,
   Newspaper, ExternalLink, Plus,
 } from "lucide-react";
+import AssetDiscussion from "@/components/AssetDiscussion";
 
 // ─── Tipos brapi ──────────────────────────────────────────────────────────────
 
@@ -124,7 +125,14 @@ interface Technicals {
   avgVolume90d: number | null;
 }
 
-export default function AcaoContent({ ticker }: { ticker: string }) {
+interface AcaoContentProps {
+  ticker: string;
+  userEmail: string;
+  userName: string;
+  userAvatar: string | null;
+}
+
+export default function AcaoContent({ ticker, userEmail, userName, userAvatar }: AcaoContentProps) {
   const router = useRouter();
   const [period, setPeriod] = useState<Period>("1y");
   const [quote, setQuote] = useState<BrapiQuoteFull | null>(null);
@@ -700,6 +708,14 @@ export default function AcaoContent({ ticker }: { ticker: string }) {
           </div>
           <NewsList ticker={ticker} />
         </Section>
+
+        {/* DISCUSSÃO */}
+        <AssetDiscussion
+          ticker={ticker}
+          userEmail={userEmail}
+          userName={userName}
+          userAvatar={userAvatar}
+        />
       </div>
     </div>
   );
