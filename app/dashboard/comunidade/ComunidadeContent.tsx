@@ -546,8 +546,8 @@ export default function ComunidadeContent({ userEmail, userName, userAvatar }: P
 
           {/* Profile card */}
           <div style={{
-            background: "linear-gradient(135deg, #2a1f3e 0%, #1a1410 50%, #2a1f12 100%)",
-            border: "1px solid rgba(139,92,246,0.2)",
+            background: "var(--bg-card)",
+            border: "1px solid var(--border-soft)",
             borderRadius: "12px", padding: "20px 16px",
             display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center",
           }}>
@@ -555,23 +555,23 @@ export default function ComunidadeContent({ userEmail, userName, userAvatar }: P
               width: "56px", height: "56px", borderRadius: "50%",
               background: userAvatar
                 ? `url(${userAvatar}) center/cover no-repeat`
-                : "linear-gradient(135deg, #8b5cf6, #6d28d9)",
+                : "linear-gradient(135deg, var(--gold-light), var(--gold-dim))",
               display: "flex", alignItems: "center", justifyContent: "center",
-              color: "#fff", fontSize: "20px", fontWeight: 700,
+              color: "#0d0b07", fontSize: "20px", fontWeight: 700,
               fontFamily: "var(--font-sans)", marginBottom: "10px",
-              border: "2px solid rgba(139,92,246,0.4)",
+              border: "2px solid var(--border-emphasis)",
               overflow: "hidden",
             }}>
               {!userAvatar && userInitial}
             </div>
             <p style={{
-              fontSize: "13px", fontWeight: 600, color: "#e8dcc0",
+              fontSize: "13px", fontWeight: 600, color: "var(--text-default)",
               fontFamily: "var(--font-sans)", marginBottom: "2px",
               overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "100%",
             }}>
               {userName}
             </p>
-            <p style={{ fontSize: "10px", color: "#9a8aaa", fontFamily: "var(--font-sans)", marginBottom: "14px", letterSpacing: "0.04em" }}>
+            <p style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-sans)", marginBottom: "14px", letterSpacing: "0.04em" }}>
               Investidor
             </p>
             <button
@@ -579,18 +579,16 @@ export default function ComunidadeContent({ userEmail, userName, userAvatar }: P
               style={{
                 width: "100%",
                 background: "rgba(13,11,7,0.5)",
-                border: "1px solid rgba(139,92,246,0.25)",
+                border: "1px solid var(--border-soft)",
                 borderRadius: "8px", padding: "8px 12px",
-                color: "#e8dcc0", fontSize: "11px",
+                color: "var(--text-default)", fontSize: "11px",
                 fontFamily: "var(--font-sans)", cursor: "pointer",
                 display: "flex", alignItems: "center", justifyContent: "space-between",
-                transition: "border-color 0.15s",
               }}
-              onMouseEnter={(e) => { e.currentTarget.style.borderColor = "rgba(139,92,246,0.5)"; }}
-              onMouseLeave={(e) => { e.currentTarget.style.borderColor = "rgba(139,92,246,0.25)"; }}
+              className="aurum-hover-border aurum-hover-transition"
             >
-              <span style={{ color: "#9a8aaa" }}>Conexões</span>
-              <span style={{ fontWeight: 700, color: "#e8dcc0" }}>{followingCount + followersCount}</span>
+              <span style={{ color: "var(--text-muted)" }}>Conexões</span>
+              <span style={{ fontWeight: 700, color: "var(--text-default)" }}>{followingCount + followersCount}</span>
             </button>
           </div>
 
@@ -698,16 +696,16 @@ export default function ComunidadeContent({ userEmail, userName, userAvatar }: P
                 disabled={(!composerText.trim() && !pendingImage) || posting || uploading}
                 style={{
                   background: (composerText.trim() || pendingImage) && !posting && !uploading
-                    ? "linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)"
-                    : "rgba(139,92,246,0.2)",
+                    ? "linear-gradient(135deg, var(--gold-light), var(--gold), var(--gold-dim))"
+                    : "rgba(201,168,76,0.2)",
                   border: "none", borderRadius: "8px",
                   padding: "8px 18px",
-                  color: (composerText.trim() || pendingImage) && !posting && !uploading ? "#fff" : "#7a6a8a",
-                  fontSize: "12px", fontWeight: 600,
+                  color: (composerText.trim() || pendingImage) && !posting && !uploading ? "#0d0b07" : "var(--text-faint)",
+                  fontSize: "12px", fontWeight: 700,
                   fontFamily: "var(--font-sans)",
                   cursor: (composerText.trim() || pendingImage) && !posting && !uploading ? "pointer" : "not-allowed",
                   letterSpacing: "0.04em",
-                  boxShadow: (composerText.trim() || pendingImage) && !posting && !uploading ? "0 2px 12px rgba(139,92,246,0.3)" : "none",
+                  boxShadow: (composerText.trim() || pendingImage) && !posting && !uploading ? "0 2px 12px rgba(201,168,76,0.3)" : "none",
                   transition: "box-shadow 0.15s",
                 }}
               >
@@ -927,8 +925,8 @@ function PostCard({
         </div>
         {isNews && (
           <span style={{
-            fontSize: "9px", fontWeight: 700, color: "#3b82f6",
-            background: "rgba(59,130,246,0.1)",
+            fontSize: "9px", fontWeight: 700, color: "var(--gold)",
+            background: "rgba(201,168,76,0.1)",
             padding: "3px 8px", borderRadius: "4px",
             letterSpacing: "0.06em",
             fontFamily: "var(--font-sans)",
@@ -942,10 +940,10 @@ function PostCard({
       {isNews && main.news_title && (
         <div style={{
           background: "#0d0b07",
-          border: "1px solid rgba(59,130,246,0.15)",
+          border: "1px solid var(--border-soft)",
           borderRadius: "10px", padding: "12px 14px", marginBottom: "10px",
         }}>
-          <p style={{ fontSize: "13px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-sans)", marginBottom: "4px", lineHeight: 1.4 }}>
+          <p style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-default)", fontFamily: "var(--font-sans)", marginBottom: "4px", lineHeight: 1.4 }}>
             {main.news_title}
           </p>
           {main.news_url && (
@@ -955,10 +953,11 @@ function PostCard({
               rel="noopener noreferrer"
               style={{
                 display: "inline-flex", alignItems: "center", gap: "4px",
-                fontSize: "11px", color: "#3b82f6",
+                fontSize: "11px", color: "var(--gold)",
                 fontFamily: "var(--font-sans)", textDecoration: "none",
                 marginTop: "6px",
               }}
+              className="aurum-hover-gold aurum-hover-transition"
             >
               Ver fonte <ExternalLink size={10} />
             </a>
@@ -1027,10 +1026,10 @@ function PostCard({
         position: "relative",
       }}>
         <ActionBtn
-          icon={<Heart size={13} fill={liked ? "#ef4444" : "none"} />}
+          icon={<Heart size={13} fill={liked ? "#f87171" : "none"} />}
           count={main.likes_count}
           active={liked}
-          activeColor="#ef4444"
+          activeColor="#f87171"
           onClick={onLike}
         />
         <ActionBtn
@@ -1045,7 +1044,7 @@ function PostCard({
             icon={<Repeat2 size={13} />}
             count={main.reposts_count}
             active={reposted}
-            activeColor="#10b981"
+            activeColor="#34d399"
             onClick={() => setRepostMenu((v) => !v)}
           />
           {repostMenu && (
@@ -1124,12 +1123,12 @@ function PostCard({
                 }}
                 style={{
                   background: commentDraft.trim()
-                    ? "linear-gradient(135deg, #8b5cf6, #6d28d9)"
-                    : "rgba(139,92,246,0.2)",
+                    ? "linear-gradient(135deg, var(--gold-light), var(--gold-dim))"
+                    : "rgba(201,168,76,0.2)",
                   border: "none", borderRadius: "50%",
                   width: "28px", height: "28px",
                   display: "flex", alignItems: "center", justifyContent: "center",
-                  color: commentDraft.trim() ? "#fff" : "#7a6a8a",
+                  color: commentDraft.trim() ? "#0d0b07" : "var(--text-faint)",
                   cursor: commentDraft.trim() ? "pointer" : "not-allowed",
                   flexShrink: 0,
                 }}
@@ -1193,21 +1192,13 @@ function RepostMenuItem({
   return (
     <button
       onClick={onClick}
+      className="aurum-hover-bg aurum-hover-gold aurum-hover-transition"
       style={{
         width: "100%", display: "flex", alignItems: "center", gap: "8px",
         padding: "8px 10px", borderRadius: "6px",
         background: "transparent", border: "none", cursor: "pointer",
-        color: "#c8b89a", fontSize: "12px",
+        color: "var(--text-body)", fontSize: "12px",
         fontFamily: "var(--font-sans)", textAlign: "left",
-        transition: "background 0.15s, color 0.15s",
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.background = "rgba(201,168,76,0.08)";
-        e.currentTarget.style.color = "#C9A84C";
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.background = "transparent";
-        e.currentTarget.style.color = "#c8b89a";
       }}
     >
       {icon} {label}
@@ -1384,15 +1375,15 @@ function QuoteRepostModal({
             disabled={!canSubmit}
             style={{
               background: canSubmit
-                ? "linear-gradient(135deg, #8b5cf6, #6d28d9)"
-                : "rgba(139,92,246,0.2)",
+                ? "linear-gradient(135deg, var(--gold-light), var(--gold), var(--gold-dim))"
+                : "rgba(201,168,76,0.2)",
               border: "none", borderRadius: "8px",
               padding: "9px 18px",
-              color: canSubmit ? "#fff" : "#7a6a8a",
-              fontSize: "12px", fontWeight: 600,
+              color: canSubmit ? "#0d0b07" : "var(--text-faint)",
+              fontSize: "12px", fontWeight: 700,
               fontFamily: "var(--font-sans)",
               cursor: canSubmit ? "pointer" : "not-allowed",
-              boxShadow: canSubmit ? "0 2px 12px rgba(139,92,246,0.3)" : "none",
+              boxShadow: canSubmit ? "0 2px 12px rgba(201,168,76,0.3)" : "none",
             }}
           >
             Repostar
@@ -1508,8 +1499,8 @@ function PersonalizarFeedModal({
                     width: "100%", textAlign: "left",
                     padding: "12px 14px", borderRadius: "8px",
                     border: "1px solid",
-                    borderColor: ativo ? "rgba(139,92,246,0.4)" : "rgba(201,168,76,0.1)",
-                    background: ativo ? "rgba(139,92,246,0.08)" : "#0d0b07",
+                    borderColor: ativo ? "var(--border-strong)" : "var(--border-soft)",
+                    background: ativo ? "rgba(201,168,76,0.08)" : "#0d0b07",
                     cursor: "pointer", transition: "all 0.15s",
                     display: "flex", alignItems: "center", justifyContent: "space-between",
                   }}
@@ -1526,7 +1517,7 @@ function PersonalizarFeedModal({
                       {a.description}
                     </p>
                   </div>
-                  {ativo && <span style={{ color: "#8b5cf6", fontSize: "14px" }}>✓</span>}
+                  {ativo && <span style={{ color: "var(--gold)", fontSize: "14px" }}>✓</span>}
                 </button>
               );
             })}
@@ -1535,14 +1526,14 @@ function PersonalizarFeedModal({
 
         {/* Tip */}
         <div style={{
-          background: "rgba(139,92,246,0.06)",
-          border: "1px solid rgba(139,92,246,0.15)",
+          background: "rgba(201,168,76,0.05)",
+          border: "1px solid var(--border-soft)",
           borderRadius: "8px", padding: "10px 12px",
-          fontSize: "11px", color: "#8a7a9a",
+          fontSize: "11px", color: "var(--text-muted)",
           fontFamily: "var(--font-sans)", lineHeight: 1.5,
           marginBottom: "20px",
         }}>
-          💡 <strong style={{ color: "#a89aba" }}>Dica:</strong> Suas preferências ajudam a IA a sugerir conteúdo mais relevante para você. Você também pode seguir usuários específicos para ver seus posts no topo do feed.
+          💡 <strong style={{ color: "var(--text-default)" }}>Dica:</strong> Suas preferências ajudam a IA a sugerir conteúdo mais relevante para você. Você também pode seguir usuários específicos para ver seus posts no topo do feed.
         </div>
 
         {/* Actions */}
@@ -1562,12 +1553,12 @@ function PersonalizarFeedModal({
           <button
             onClick={() => onSave(topicos, algoritmo)}
             style={{
-              background: "linear-gradient(135deg, #8b5cf6, #6d28d9)",
+              background: "linear-gradient(135deg, var(--gold-light), var(--gold), var(--gold-dim))",
               border: "none", borderRadius: "8px",
-              padding: "9px 18px", color: "#fff",
-              fontSize: "12px", fontWeight: 600,
+              padding: "9px 18px", color: "#0d0b07",
+              fontSize: "12px", fontWeight: 700,
               fontFamily: "var(--font-sans)", cursor: "pointer",
-              boxShadow: "0 2px 12px rgba(139,92,246,0.3)",
+              boxShadow: "0 2px 12px rgba(201,168,76,0.3)",
             }}
           >
             Salvar Preferências
@@ -1625,9 +1616,9 @@ function Avatar({ initial, size, url }: { initial: string; size: number; url?: s
       width: `${size}px`, height: `${size}px`, borderRadius: "50%",
       background: url
         ? `url(${url}) center/cover no-repeat`
-        : "linear-gradient(135deg, #8b5cf6, #6d28d9)",
+        : "linear-gradient(135deg, var(--gold-light), var(--gold-dim))",
       display: "flex", alignItems: "center", justifyContent: "center",
-      color: "#fff", fontSize: `${Math.round(size * 0.4)}px`, fontWeight: 700,
+      color: "#0d0b07", fontSize: `${Math.round(size * 0.4)}px`, fontWeight: 700,
       fontFamily: "var(--font-sans)", flexShrink: 0,
       overflow: "hidden",
     }}>
@@ -1660,22 +1651,14 @@ function ComposerIconBtn({ icon, label, onClick }: { icon: React.ReactNode; labe
     <button
       aria-label={label}
       onClick={onClick}
+      className="aurum-hover-gold aurum-hover-border aurum-hover-transition"
       style={{
         display: "flex", alignItems: "center", gap: "5px",
         padding: "5px 10px", borderRadius: "6px",
         background: "transparent",
-        border: "1px solid rgba(201,168,76,0.1)",
-        color: "#a09068", fontSize: "11px", fontWeight: 500,
+        border: "1px solid var(--border-soft)",
+        color: "var(--text-muted)", fontSize: "11px", fontWeight: 500,
         fontFamily: "var(--font-sans)", cursor: "pointer",
-        transition: "all 0.15s",
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.borderColor = "rgba(201,168,76,0.25)";
-        e.currentTarget.style.color = "#C9A84C";
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.borderColor = "rgba(201,168,76,0.1)";
-        e.currentTarget.style.color = "#a09068";
       }}
     >
       {icon} {label}
@@ -1695,20 +1678,14 @@ function ActionBtn({
   return (
     <button
       onClick={onClick}
+      className={onClick && !active ? "aurum-hover-gold aurum-hover-transition" : undefined}
       style={{
         display: "flex", alignItems: "center", gap: "5px",
         background: "transparent", border: "none",
         cursor: onClick ? "pointer" : "default",
-        color: active && activeColor ? activeColor : "#a09068",
+        color: active && activeColor ? activeColor : "var(--text-muted)",
         fontSize: "12px", fontFamily: "var(--font-sans)",
         padding: "4px 6px", borderRadius: "4px",
-        transition: "all 0.15s",
-      }}
-      onMouseEnter={(e) => {
-        if (onClick && !active) e.currentTarget.style.color = "#C9A84C";
-      }}
-      onMouseLeave={(e) => {
-        if (onClick && !active) e.currentTarget.style.color = "#a09068";
       }}
     >
       {icon} {count !== undefined && <span>{count}</span>}
@@ -1804,16 +1781,21 @@ function RightItem({ label, meta }: { label: string; meta: string }) {
 }
 
 function TopInvestor({ name, points, rank }: { name: string; points: number; rank: number }) {
-  const medal = rank === 1 ? "🥇" : rank === 2 ? "🥈" : "🥉";
   return (
     <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-      <span style={{ fontSize: "16px" }}>{medal}</span>
+      <span style={{
+        fontSize: "11px", fontWeight: 700, color: "var(--gold)",
+        fontFamily: "var(--font-sans)", width: "18px", textAlign: "center",
+        flexShrink: 0,
+      }}>
+        {rank}
+      </span>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <p style={{ fontSize: "12px", color: "#e8dcc0", fontFamily: "var(--font-sans)", marginBottom: "2px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+        <p style={{ fontSize: "12px", color: "var(--text-default)", fontFamily: "var(--font-sans)", marginBottom: "2px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           {name}
         </p>
-        <p style={{ fontSize: "10px", color: "#C9A84C", fontFamily: "var(--font-sans)", fontWeight: 600 }}>
-          {points.toLocaleString("pt-BR")} XP
+        <p style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-sans)" }}>
+          {points.toLocaleString("pt-BR")} interações
         </p>
       </div>
     </div>
