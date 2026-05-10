@@ -75,9 +75,17 @@ interface BrapiQuoteFull {
     enterpriseToEbitda?: number;
     enterpriseToRevenue?: number;
     beta?: number;
+    totalAssets?: number;
+    netIncomeToCommon?: number;
+    dividendYield?: number;
+    sharesOutstanding?: number;
+    revenuePerShare?: number;
+    earningsPerShare?: number;
+    trailingEps?: number;
   };
   financialData?: {
     currentRatio?: number;
+    quickRatio?: number;
     debtToEquity?: number;
     grossMargins?: number;
     operatingMargins?: number;
@@ -86,6 +94,7 @@ interface BrapiQuoteFull {
     returnOnAssets?: number;
     returnOnEquity?: number;
     totalRevenue?: number;
+    revenuePerShare?: number;
     grossProfits?: number;
     ebitda?: number;
     freeCashflow?: number;
@@ -194,7 +203,8 @@ export default function AcaoContent({ ticker }: { ticker: string }) {
 
   // Métricas calculadas
   const metrics = useMemo(() => calculateMetrics(quote), [quote]);
-  const checklist = useMemo(() => buildChecklist(metrics), [metrics]);
+  const isFinance = useMemo(() => isFinanceSector(quote), [quote]);
+  const checklist = useMemo(() => buildChecklist(metrics, isFinance), [metrics, isFinance]);
   const dividends = useMemo(() => buildDividends(quote), [quote]);
   const incomeData = useMemo(() => buildIncomeData(quote), [quote]);
 
@@ -332,56 +342,56 @@ export default function AcaoContent({ ticker }: { ticker: string }) {
         {/* INDICADORES FUNDAMENTALISTAS */}
         <Section>
           <SectionHeader title="Indicadores Fundamentalistas">
-            <select disabled style={{
-              background: "#0d0b07",
-              border: "1px solid rgba(201,168,76,0.1)",
-              borderRadius: "6px", padding: "5px 10px",
-              color: "#9a8a6a", fontSize: "11px",
-              fontFamily: "var(--font-sans)", outline: "none",
-            }}>
-              <option>Sem comparação</option>
-            </select>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              {isFinance && <SectorBadge label="Setor Financeiro" />}
+              <select disabled style={{
+                background: "#0d0b07",
+                border: "1px solid rgba(201,168,76,0.1)",
+                borderRadius: "6px", padding: "5px 10px",
+                color: "#9a8a6a", fontSize: "11px",
+                fontFamily: "var(--font-sans)", outline: "none",
+              }}>
+                <option>Sem comparação</option>
+              </select>
+            </div>
           </SectionHeader>
-          <div style={{
-            display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "10px",
-          }}>
-            <Indicator label="P/L" value={fmtNum(metrics.pl, 2)} />
-            <Indicator label="P/VP" value={fmtNum(metrics.pvp, 2)} />
-            <Indicator label="Dividend Yield" value={metrics.dy !== null ? `${metrics.dy.toFixed(2)}%` : "—"} />
-            <Indicator label="Payout" value={metrics.payout !== null ? `${metrics.payout.toFixed(2)}%` : "—"} />
-            <Indicator label="EV/EBITDA" value={fmtNum(quote.defaultKeyStatistics?.enterpriseToEbitda, 2)} />
-            <Indicator label="EV/EBIT" value={fmtNum(metrics.evEbit, 2)} />
-            <Indicator label="LPA" value={quote.earningsPerShare !== null && quote.earningsPerShare !== undefined ? `R$ ${quote.earningsPerShare.toFixed(2).replace(".", ",")}` : "—"} />
-            <Indicator label="VPA" value={quote.defaultKeyStatistics?.bookValue !== undefined ? `R$ ${quote.defaultKeyStatistics.bookValue.toFixed(2).replace(".", ",")}` : "—"} />
-            <Indicator label="Dívida Líquida" value={fmtMoney(metrics.netDebt)} />
-            <Indicator label="Dív. Líq./PL" value={fmtNum(metrics.netDebtToEquity, 2)} />
-            <Indicator label="Dív. Líq./EBITDA" value={fmtNum(metrics.netDebtToEbitda, 2)} />
-            <Indicator label="Passivos/Ativos" value={fmtPct(metrics.liabilitiesToAssets)} />
-            <Indicator label="Liquidez Corrente" value={fmtNum(quote.financialData?.currentRatio, 2)} />
-            <Indicator label="Margem Bruta" value={fmtPct(quote.financialData?.grossMargins)} />
-            <Indicator label="Margem Líquida" value={fmtPct(quote.financialData?.profitMargins)} />
-            <Indicator label="Margem EBITDA" value={fmtPct(quote.financialData?.ebitdaMargins)} />
-            <Indicator label="Margem Operacional" value={fmtPct(quote.financialData?.operatingMargins)} />
-            <Indicator label="ROE" value={fmtPct(quote.financialData?.returnOnEquity)} />
-            <Indicator label="ROA" value={fmtPct(quote.financialData?.returnOnAssets)} />
-            <Indicator label="CAGR Receita 5A" value={fmtPct(quote.financialData?.revenueGrowth)} />
-            <Indicator label="CAGR Lucro 5A" value={fmtPct(quote.financialData?.earningsGrowth)} />
-            <Indicator label="Receita Líquida" value={fmtMoney(quote.financialData?.totalRevenue)} />
-            <Indicator label="EBITDA" value={fmtMoney(quote.financialData?.ebitda)} />
-            <Indicator label="Lucro Líquido" value={fmtMoney(metrics.netIncome)} />
-            <Indicator label="Free Cash Flow" value={fmtMoney(quote.financialData?.freeCashflow)} />
-            <Indicator label="Beta" value={fmtNum(quote.defaultKeyStatistics?.beta, 2)} />
-          </div>
+          {isFinance ? (
+            <FinanceIndicators metrics={metrics} quote={quote} />
+          ) : (
+            <DefaultIndicators metrics={metrics} quote={quote} />
+          )}
           <div style={{
             display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "12px",
             marginTop: "16px", paddingTop: "14px",
             borderTop: "1px solid rgba(201,168,76,0.06)",
           }}>
             <MiniStat label="Market Cap" value={fmtMoney(quote.marketCap)} color="#9a8a6a" />
-            <MiniStat label="Qtd. de Ações" value={metrics.sharesOutstanding ? fmtBig(metrics.sharesOutstanding) : "—"} color="#9a8a6a" />
+            {isFinance ? (
+              <MiniStat label="Ativos Totais" value={fmtMoney(metrics.totalAssets)} color="#9a8a6a" />
+            ) : (
+              <MiniStat label="Qtd. de Ações" value={metrics.sharesOutstanding ? fmtBig(metrics.sharesOutstanding) : "—"} color="#9a8a6a" />
+            )}
             <MiniStat label="Beta" value={fmtNum(quote.defaultKeyStatistics?.beta, 2)} color="#9a8a6a" />
             <MiniStat label="Vol. Médio (90d)" value={technicals.avgVolume90d !== null ? fmtBig(technicals.avgVolume90d) : "—"} color="#9a8a6a" />
           </div>
+          {isFinance && (
+            <div style={{
+              marginTop: "14px",
+              background: "rgba(79,138,130,0.06)",
+              border: "1px solid rgba(79,138,130,0.18)",
+              borderRadius: "10px",
+              padding: "10px 14px",
+              display: "flex", gap: "10px", alignItems: "flex-start",
+            }}>
+              <Info size={13} style={{ color: "#4F8A82", marginTop: "2px", flexShrink: 0 }} />
+              <p style={{ fontSize: "11px", color: "#a5b8b3", fontFamily: "var(--font-sans)", lineHeight: 1.55, margin: 0 }}>
+                Bancos não usam EBITDA, dívida líquida ou liquidez corrente como métricas centrais.
+                Os indicadores acima foram adaptados para o setor: <strong style={{ color: "#c8b89a" }}>alavancagem</strong> (ativos/PL),
+                <strong style={{ color: "#c8b89a" }}> capital ratio</strong> (PL/ativos, proxy de Basileia) e
+                <strong style={{ color: "#c8b89a" }}> ROE/ROA</strong> são os termômetros corretos.
+              </p>
+            </div>
+          )}
         </Section>
 
         {/* CHECKLIST DO INVESTIDOR */}
@@ -692,6 +702,20 @@ interface Metrics {
   netIncome: number | null;
   equity: number | null;
   sharesOutstanding: number | null;
+  // Específicos pra setor financeiro
+  totalAssets: number | null;
+  leverage: number | null;       // Ativos / PL
+  capitalRatio: number | null;   // PL / Ativos (proxy de Basileia)
+  revenuePerShare: number | null;
+  totalRevenue: number | null;
+}
+
+function isFinanceSector(q: BrapiQuoteFull | null): boolean {
+  if (!q?.summaryProfile) return false;
+  const s = (q.summaryProfile.sector ?? "").toLowerCase();
+  const i = (q.summaryProfile.industry ?? "").toLowerCase();
+  return s.includes("financ") || s.includes("seguros") ||
+    i.includes("banco") || i.includes("bank") || i.includes("seguradora");
 }
 
 function calculateMetrics(q: BrapiQuoteFull | null): Metrics {
@@ -700,6 +724,8 @@ function calculateMetrics(q: BrapiQuoteFull | null): Metrics {
     netDebt: null, netDebtToEquity: null, netDebtToEbitda: null,
     liabilitiesToAssets: null, netIncome: null, equity: null,
     sharesOutstanding: null,
+    totalAssets: null, leverage: null, capitalRatio: null,
+    revenuePerShare: null, totalRevenue: null,
   };
 
   const price = q.regularMarketPrice ?? 0;
@@ -742,17 +768,51 @@ function calculateMetrics(q: BrapiQuoteFull | null): Metrics {
     ? totalLiab / totalAssets
     : null;
 
-  const netIncome = (q.incomeStatementHistory?.incomeStatementHistory ?? [])[0]?.netIncome ?? null;
+  // Lucro: prioriza incomeStatementHistory; fallback para defaultKeyStatistics.netIncomeToCommon
+  // (bancos costumam vir com IS vazio na brapi)
+  const netIncome = (q.incomeStatementHistory?.incomeStatementHistory ?? [])[0]?.netIncome
+    ?? q.defaultKeyStatistics?.netIncomeToCommon
+    ?? null;
 
-  // Qtd. de ações: usa sharesOutstanding direto da brapi; fallback = marketCap / preço
-  const sharesOutstanding = q.sharesOutstanding ??
-    (q.marketCap && price > 0 ? q.marketCap / price : null);
+  // Qtd. de ações: sharesOutstanding direto > defaultKeyStatistics > fallback marketCap/preço
+  const sharesOutstanding = q.sharesOutstanding
+    ?? q.defaultKeyStatistics?.sharesOutstanding
+    ?? (q.marketCap && price > 0 ? q.marketCap / price : null);
+
+  // Equity: prioriza balanceSheet; fallback = bookValue × shares
+  const equityFromBV = q.defaultKeyStatistics?.bookValue && sharesOutstanding
+    ? q.defaultKeyStatistics.bookValue * sharesOutstanding
+    : null;
+  const finalEquity = equity ?? equityFromBV;
+
+  // Total Assets: defaultKeyStatistics > balanceSheet
+  const finalTotalAssets = q.defaultKeyStatistics?.totalAssets ?? totalAssets;
+
+  // Alavancagem patrimonial = Ativos / PL (típico de banco: 8–14×)
+  const leverage = finalTotalAssets !== null && finalEquity !== null && finalEquity > 0
+    ? finalTotalAssets / finalEquity
+    : null;
+
+  // Capital Ratio = PL / Ativos (proxy do índice de Basileia; banco saudável: ≥ 8%)
+  const capitalRatio = finalTotalAssets !== null && finalEquity !== null && finalTotalAssets > 0
+    ? finalEquity / finalTotalAssets
+    : null;
+
+  const totalRevenue = q.financialData?.totalRevenue ?? null;
+  const revenuePerShare = q.financialData?.revenuePerShare
+    ?? q.defaultKeyStatistics?.revenuePerShare
+    ?? (totalRevenue && sharesOutstanding ? totalRevenue / sharesOutstanding : null);
 
   return {
     pl, pvp, dy, payout, evEbit,
     netDebt, netDebtToEquity, netDebtToEbitda,
-    liabilitiesToAssets, netIncome, equity,
+    liabilitiesToAssets, netIncome, equity: finalEquity,
     sharesOutstanding,
+    totalAssets: finalTotalAssets,
+    leverage,
+    capitalRatio,
+    revenuePerShare,
+    totalRevenue,
   };
 }
 
@@ -801,16 +861,14 @@ function rsiColor(rsi: number | null): string {
 interface ChecklistItem { label: string; description: string; passed: boolean }
 interface ChecklistGroupT { title: string; items: ChecklistItem[]; passed: number; total: number }
 
-function buildChecklist(m: Metrics): {
-  groups: ChecklistGroupT[]; passedTotal: number; total: number; scorePct: number;
-} {
-  const groups: ChecklistGroupT[] = [
+function buildDefaultChecklist(m: Metrics): ChecklistGroupT[] {
+  return [
     {
       title: "Análise Fundamentalista",
       items: [
         { label: "P/L Atrativo", description: "P/L menor que 15", passed: m.pl !== null && m.pl > 0 && m.pl < 15 },
         { label: "P/VP Atrativo", description: "Preço/Valor Patrimonial menor que 1,5", passed: m.pvp !== null && m.pvp > 0 && m.pvp < 1.5 },
-        { label: "ROE Elevado", description: "Retorno do Equity acima de 15%", passed: false }, // ROE precisa de mais cálculo
+        { label: "ROE Elevado", description: "Retorno do Equity acima de 15%", passed: false },
         { label: "Margens Saudáveis", description: "Margem líquida acima de 10%", passed: false },
       ],
       passed: 0, total: 4,
@@ -844,6 +902,74 @@ function buildChecklist(m: Metrics): {
       passed: 0, total: 3,
     },
   ];
+}
+
+function buildFinanceChecklist(m: Metrics): ChecklistGroupT[] {
+  // ROE/ROA da brapi vêm em decimal (0.15 = 15%); aplicamos a mesma heurística do fmtPct
+  return [
+    {
+      title: "Valuation Bancário",
+      items: [
+        { label: "P/L Atrativo", description: "P/L abaixo de 12 (banco)", passed: m.pl !== null && m.pl > 0 && m.pl < 12 },
+        { label: "P/VP Abaixo do Patrimônio", description: "P/VP menor que 1,2 indica desconto sobre PL", passed: m.pvp !== null && m.pvp > 0 && m.pvp < 1.2 },
+        { label: "Dividend Yield Forte", description: "DY acima de 6% — bancos brasileiros costumam pagar bem", passed: m.dy !== null && m.dy >= 6 },
+        { label: "Payout Sustentável", description: "Payout entre 30% e 80%", passed: m.payout !== null && m.payout >= 30 && m.payout <= 80 },
+      ],
+      passed: 0, total: 4,
+    },
+    {
+      title: "Saúde Bancária",
+      items: [
+        {
+          label: "Capital Ratio Adequado",
+          description: "PL/Ativos acima de 8% (proxy do índice de Basileia)",
+          passed: m.capitalRatio !== null && m.capitalRatio >= 0.08,
+        },
+        {
+          label: "Alavancagem Prudente",
+          description: "Ativos/PL abaixo de 14× — bancos saudáveis ficam entre 8× e 14×",
+          passed: m.leverage !== null && m.leverage > 0 && m.leverage < 14,
+        },
+        {
+          label: "Lucro Positivo",
+          description: "Lucro líquido positivo no último período",
+          passed: m.netIncome !== null && m.netIncome > 0,
+        },
+        {
+          label: "Patrimônio Sólido",
+          description: "Patrimônio líquido positivo e relevante",
+          passed: m.equity !== null && m.equity > 0,
+        },
+      ],
+      passed: 0, total: 4,
+    },
+    {
+      title: "Rentabilidade",
+      items: [
+        { label: "ROE Elevado", description: "ROE acima de 15% — alto retorno sobre o patrimônio", passed: false },
+        { label: "ROA Sólido", description: "ROA acima de 1% — eficiência sobre os ativos", passed: false },
+        { label: "Margem Líquida Forte", description: "Margem líquida acima de 20% (típico de banco)", passed: false },
+      ],
+      passed: 0, total: 3,
+    },
+    {
+      title: "Crescimento e Mercado",
+      items: [
+        { label: "Receita em Crescimento", description: "Crescimento de receita positivo", passed: false },
+        { label: "Lucro em Crescimento", description: "Crescimento de lucro positivo", passed: false },
+        { label: "Valor de Mercado Sólido", description: "Market Cap relevante", passed: false },
+      ],
+      passed: 0, total: 3,
+    },
+  ];
+}
+
+function buildChecklist(m: Metrics, isFinance: boolean): {
+  groups: ChecklistGroupT[]; passedTotal: number; total: number; scorePct: number;
+} {
+  const groups: ChecklistGroupT[] = isFinance
+    ? buildFinanceChecklist(m)
+    : buildDefaultChecklist(m);
 
   let passedTotal = 0, total = 0;
   for (const g of groups) {
@@ -939,6 +1065,106 @@ function BackButton({ onClick }: { onClick: () => void }) {
     >
       <ChevronLeft size={15} /> Voltar para análise
     </button>
+  );
+}
+
+function SectorBadge({ label }: { label: string }) {
+  return (
+    <span style={{
+      fontSize: "9px",
+      fontWeight: 700,
+      color: "#4F8A82",
+      background: "rgba(79,138,130,0.12)",
+      border: "1px solid rgba(79,138,130,0.3)",
+      padding: "3px 8px",
+      borderRadius: "4px",
+      fontFamily: "var(--font-sans)",
+      letterSpacing: "0.06em",
+      textTransform: "uppercase",
+    }}>
+      {label}
+    </span>
+  );
+}
+
+function DefaultIndicators({ metrics, quote }: { metrics: Metrics; quote: BrapiQuoteFull }) {
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "10px" }}>
+      <Indicator label="P/L" value={fmtNum(metrics.pl, 2)} />
+      <Indicator label="P/VP" value={fmtNum(metrics.pvp, 2)} />
+      <Indicator label="Dividend Yield" value={metrics.dy !== null ? `${metrics.dy.toFixed(2)}%` : "—"} />
+      <Indicator label="Payout" value={metrics.payout !== null ? `${metrics.payout.toFixed(2)}%` : "—"} />
+      <Indicator label="EV/EBITDA" value={fmtNum(quote.defaultKeyStatistics?.enterpriseToEbitda, 2)} />
+      <Indicator label="EV/EBIT" value={fmtNum(metrics.evEbit, 2)} />
+      <Indicator label="LPA" value={quote.earningsPerShare !== null && quote.earningsPerShare !== undefined ? `R$ ${quote.earningsPerShare.toFixed(2).replace(".", ",")}` : "—"} />
+      <Indicator label="VPA" value={quote.defaultKeyStatistics?.bookValue !== undefined ? `R$ ${quote.defaultKeyStatistics.bookValue.toFixed(2).replace(".", ",")}` : "—"} />
+      <Indicator label="Dívida Líquida" value={fmtMoney(metrics.netDebt)} />
+      <Indicator label="Dív. Líq./PL" value={fmtNum(metrics.netDebtToEquity, 2)} />
+      <Indicator label="Dív. Líq./EBITDA" value={fmtNum(metrics.netDebtToEbitda, 2)} />
+      <Indicator label="Passivos/Ativos" value={fmtPct(metrics.liabilitiesToAssets)} />
+      <Indicator label="Liquidez Corrente" value={fmtNum(quote.financialData?.currentRatio, 2)} />
+      <Indicator label="Margem Bruta" value={fmtPct(quote.financialData?.grossMargins)} />
+      <Indicator label="Margem Líquida" value={fmtPct(quote.financialData?.profitMargins)} />
+      <Indicator label="Margem EBITDA" value={fmtPct(quote.financialData?.ebitdaMargins)} />
+      <Indicator label="Margem Operacional" value={fmtPct(quote.financialData?.operatingMargins)} />
+      <Indicator label="ROE" value={fmtPct(quote.financialData?.returnOnEquity)} />
+      <Indicator label="ROA" value={fmtPct(quote.financialData?.returnOnAssets)} />
+      <Indicator label="CAGR Receita 5A" value={fmtPct(quote.financialData?.revenueGrowth)} />
+      <Indicator label="CAGR Lucro 5A" value={fmtPct(quote.financialData?.earningsGrowth)} />
+      <Indicator label="Receita Líquida" value={fmtMoney(quote.financialData?.totalRevenue)} />
+      <Indicator label="EBITDA" value={fmtMoney(quote.financialData?.ebitda)} />
+      <Indicator label="Lucro Líquido" value={fmtMoney(metrics.netIncome)} />
+      <Indicator label="Free Cash Flow" value={fmtMoney(quote.financialData?.freeCashflow)} />
+      <Indicator label="Beta" value={fmtNum(quote.defaultKeyStatistics?.beta, 2)} />
+    </div>
+  );
+}
+
+function FinanceIndicators({ metrics, quote }: { metrics: Metrics; quote: BrapiQuoteFull }) {
+  // Valuation primeiro, depois rentabilidade, depois estrutura/saúde, depois tamanho
+  const lpa = quote.earningsPerShare ?? quote.defaultKeyStatistics?.trailingEps ?? null;
+  const vpa = quote.defaultKeyStatistics?.bookValue ?? null;
+
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "10px" }}>
+      {/* Valuation */}
+      <Indicator label="P/L" value={fmtNum(metrics.pl, 2)} />
+      <Indicator label="P/VP" value={fmtNum(metrics.pvp, 2)} />
+      <Indicator label="Dividend Yield" value={metrics.dy !== null ? `${metrics.dy.toFixed(2)}%` : "—"} />
+      <Indicator label="Payout" value={metrics.payout !== null ? `${metrics.payout.toFixed(2)}%` : "—"} />
+
+      {/* Por ação */}
+      <Indicator label="LPA" value={lpa !== null && lpa !== undefined ? `R$ ${lpa.toFixed(2).replace(".", ",")}` : "—"} />
+      <Indicator label="VPA" value={vpa !== null && vpa !== undefined ? `R$ ${vpa.toFixed(2).replace(".", ",")}` : "—"} />
+      <Indicator
+        label="Receita / Ação"
+        value={metrics.revenuePerShare !== null ? `R$ ${metrics.revenuePerShare.toFixed(2).replace(".", ",")}` : "—"}
+      />
+      <Indicator label="Beta" value={fmtNum(quote.defaultKeyStatistics?.beta, 2)} />
+
+      {/* Rentabilidade */}
+      <Indicator label="ROE" value={fmtPct(quote.financialData?.returnOnEquity)} />
+      <Indicator label="ROA" value={fmtPct(quote.financialData?.returnOnAssets)} />
+      <Indicator label="Margem Líquida" value={fmtPct(quote.financialData?.profitMargins)} />
+      <Indicator label="Margem Bruta" value={fmtPct(quote.financialData?.grossMargins)} />
+
+      {/* Estrutura bancária — substitui dívida/EBITDA/liquidez */}
+      <Indicator label="Alavancagem (Ativos/PL)" value={metrics.leverage !== null ? `${metrics.leverage.toFixed(2)}×` : "—"} />
+      <Indicator label="Capital Ratio (PL/Ativos)" value={fmtPctDecimal(metrics.capitalRatio)} />
+      <Indicator label="Receita / Ativos" value={metrics.totalRevenue && metrics.totalAssets ? fmtPctDecimal(metrics.totalRevenue / metrics.totalAssets) : "—"} />
+      <Indicator label="Lucro / Ativos" value={metrics.netIncome && metrics.totalAssets ? fmtPctDecimal(metrics.netIncome / metrics.totalAssets) : "—"} />
+
+      {/* Crescimento */}
+      <Indicator label="Crescimento Receita" value={fmtPct(quote.financialData?.revenueGrowth)} />
+      <Indicator label="Crescimento Lucro" value={fmtPct(quote.financialData?.earningsGrowth)} />
+
+      {/* Tamanho */}
+      <Indicator label="Receita Líquida" value={fmtMoney(metrics.totalRevenue)} />
+      <Indicator label="Lucro Líquido" value={fmtMoney(metrics.netIncome)} />
+      <Indicator label="Patrimônio Líquido" value={fmtMoney(metrics.equity)} />
+      <Indicator label="Ativos Totais" value={fmtMoney(metrics.totalAssets)} />
+      <Indicator label="Caixa" value={fmtMoney(quote.financialData?.totalCash)} />
+    </div>
   );
 }
 
@@ -1445,6 +1671,12 @@ function fmtPct(v: number | null | undefined): string {
   // brapi retorna ratios como 0.15 = 15%
   const pct = Math.abs(v) <= 1.5 ? v * 100 : v;
   return `${pct.toFixed(2)}%`;
+}
+
+// Sempre interpreta entrada como decimal (0.085 → "8,50%"), sem heurística.
+function fmtPctDecimal(v: number | null | undefined): string {
+  if (v === null || v === undefined || isNaN(v)) return "—";
+  return `${(v * 100).toFixed(2).replace(".", ",")}%`;
 }
 
 function fmtMoney(v: number | null | undefined): string {
