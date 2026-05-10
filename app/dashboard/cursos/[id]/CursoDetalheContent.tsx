@@ -95,8 +95,8 @@ export default function CursoDetalheContent({
               {curso.bestseller && (
                 <span style={{
                   position: "absolute", top: "16px", left: "16px",
-                  background: "linear-gradient(135deg, #8b5cf6, #6d28d9)",
-                  color: "#fff", fontSize: "11px", fontWeight: 700,
+                  background: "linear-gradient(135deg, var(--gold-light), var(--gold), var(--gold-dim))",
+                  color: "#0d0b07", fontSize: "11px", fontWeight: 700,
                   padding: "5px 12px", borderRadius: "6px",
                   fontFamily: "var(--font-sans)", letterSpacing: "0.06em",
                   display: "flex", alignItems: "center", gap: "5px",

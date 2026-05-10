@@ -10,6 +10,7 @@ import {
   type Curso, CATEGORIA_LABEL, getProximaAula,
 } from "@/lib/cursos-data";
 import { setLessonComplete } from "@/lib/enrollment";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface Props {
   curso: Curso;
@@ -119,35 +120,58 @@ export default function AulaContent({
           {/* Coluna principal */}
           <div>
             {/* Player */}
-            <div style={{
-              background: "#0d0b07",
-              border: "1px solid rgba(201,168,76,0.1)",
-              borderRadius: "14px",
-              aspectRatio: "16 / 9",
-              display: "flex", flexDirection: "column",
-              alignItems: "center", justifyContent: "center",
-              gap: "8px", marginBottom: "16px",
-            }}>
+            {aulaAtual.videoUrl ? (
               <div style={{
-                width: "64px", height: "64px",
-                borderRadius: "50%",
-                background: "rgba(201,168,76,0.1)",
-                border: "1px solid rgba(201,168,76,0.2)",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                color: "#C9A84C",
+                position: "relative",
+                background: "#0d0b07",
+                border: "1px solid rgba(201,168,76,0.1)",
+                borderRadius: "14px",
+                aspectRatio: "16 / 9",
+                marginBottom: "16px",
+                overflow: "hidden",
               }}>
-                <Play size={26} fill="#C9A84C" />
+                {/* Skeleton enquanto iframe não monta */}
+                <Skeleton className="absolute inset-0 rounded-[14px]" />
+                <iframe
+                  src={aulaAtual.videoUrl}
+                  title={aulaAtual.titulo}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                  className="relative w-full h-full"
+                  style={{ border: 0 }}
+                />
               </div>
-              <p style={{
-                fontSize: "14px", color: "#9a8a6a",
-                fontFamily: "var(--font-sans)", marginTop: "4px",
+            ) : (
+              <div style={{
+                background: "#0d0b07",
+                border: "1px solid rgba(201,168,76,0.1)",
+                borderRadius: "14px",
+                aspectRatio: "16 / 9",
+                display: "flex", flexDirection: "column",
+                alignItems: "center", justifyContent: "center",
+                gap: "8px", marginBottom: "16px",
               }}>
-                {aulaAtual.videoUrl ? "Carregando vídeo..." : "Vídeo não disponível"}
-              </p>
-              <p style={{ fontSize: "12px", color: "#9a8a6a", fontFamily: "var(--font-sans)" }}>
-                {aulaAtual.videoUrl ? "" : "URL do vídeo não adicionada"}
-              </p>
-            </div>
+                <div style={{
+                  width: "64px", height: "64px",
+                  borderRadius: "50%",
+                  background: "rgba(201,168,76,0.1)",
+                  border: "1px solid rgba(201,168,76,0.2)",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  color: "var(--gold)",
+                }}>
+                  <Play size={26} fill="currentColor" />
+                </div>
+                <p style={{
+                  fontSize: "14px", color: "var(--text-faint)",
+                  fontFamily: "var(--font-sans)", marginTop: "4px",
+                }}>
+                  Vídeo não disponível
+                </p>
+                <p style={{ fontSize: "12px", color: "var(--text-faint)", fontFamily: "var(--font-sans)" }}>
+                  URL do vídeo não adicionada
+                </p>
+              </div>
+            )}
 
             {/* Info da aula */}
             <div style={{

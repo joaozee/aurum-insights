@@ -418,8 +418,8 @@ function CursoCard({
         {curso.desconto && (
           <span style={{
             position: "absolute", top: "10px", left: "10px",
-            background: "linear-gradient(135deg, #ef4444, #dc2626)",
-            color: "#fff", fontSize: "11px", fontWeight: 700,
+            background: "var(--negative)",
+            color: "var(--text-strong)", fontSize: "11px", fontWeight: 700,
             padding: "4px 10px", borderRadius: "6px",
             fontFamily: "var(--font-sans)", letterSpacing: "0.04em",
           }}>
