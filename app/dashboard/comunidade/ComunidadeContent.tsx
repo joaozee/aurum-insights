@@ -224,12 +224,14 @@ export default function ComunidadeContent({ userEmail, userName, userAvatar }: P
   }, [supabase, userEmail]);
 
   const loadSidebarData = useCallback(async () => {
-    // Top movers — top 3 altas do dia via /api/acoes-overview
+    // Top movers — top 3 altas do dia (ações) via /api/acoes-movers
     try {
-      const res = await fetch("/api/acoes-overview");
+      const res = await fetch("/api/acoes-movers");
       if (res.ok) {
-        const data = (await res.json()) as { topGainers?: { symbol: string; name: string; change: number | null }[] };
-        setTopMovers((data.topGainers ?? []).slice(0, 3).map((m) => ({
+        const data = (await res.json()) as {
+          stocks?: { gainers?: { symbol: string; name: string; change: number | null }[] };
+        };
+        setTopMovers((data.stocks?.gainers ?? []).slice(0, 3).map((m) => ({
           symbol: m.symbol, name: m.name, change: m.change,
         })));
       }

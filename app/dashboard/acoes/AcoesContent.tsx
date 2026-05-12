@@ -31,14 +31,14 @@ interface OverviewMoversBundle { gainers: OverviewMover[]; losers: OverviewMover
 interface OverviewResponse {
   ibov: OverviewIbov;
   ifix: OverviewIbov;
-  movers: {
-    stocks: OverviewMoversBundle;
-    fiis: OverviewMoversBundle;
-    cryptos: OverviewMoversBundle;
-  };
   currencies: OverviewCurrency[];
   cryptos: OverviewCrypto[];
   indices: OverviewIndex[];
+}
+interface MoversResponse {
+  stocks: OverviewMoversBundle;
+  fiis: OverviewMoversBundle;
+  cryptos: OverviewMoversBundle;
 }
 
 const HERO_INDEX_LABELS: Record<HeroIndex, { short: string; full: string; venue: string }> = {
@@ -97,9 +97,12 @@ export default function AcoesContent() {
   const [searchLoading, setSearchLoading] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const [overview, setOverview] = useState<OverviewResponse | null>(null);
+  const [movers, setMovers] = useState<MoversResponse | null>(null);
   const [news, setNews] = useState<MarketNewsItem[]>([]);
   const [overviewLoading, setOverviewLoading] = useState(true);
   const [overviewError, setOverviewError] = useState<string | null>(null);
+  const [moversLoading, setMoversLoading] = useState(true);
+  const [moversError, setMoversError] = useState<string | null>(null);
   const [newsLoading, setNewsLoading] = useState(true);
   const [newsError, setNewsError] = useState<string | null>(null);
 
@@ -124,6 +127,21 @@ export default function AcoesContent() {
     }
   }, []);
 
+  const loadMovers = useCallback(async () => {
+    setMoversLoading(true);
+    setMoversError(null);
+    try {
+      const res = await fetch("/api/acoes-movers");
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      setMovers(await res.json());
+    } catch (err) {
+      console.error("[acoes-movers]", err);
+      setMoversError("Não consegui carregar os movers.");
+    } finally {
+      setMoversLoading(false);
+    }
+  }, []);
+
   const loadNews = useCallback(async () => {
     setNewsLoading(true);
     setNewsError(null);
@@ -140,7 +158,7 @@ export default function AcoesContent() {
     }
   }, []);
 
-  useEffect(() => { loadOverview(); loadNews(); }, [loadOverview, loadNews]);
+  useEffect(() => { loadOverview(); loadMovers(); loadNews(); }, [loadOverview, loadMovers, loadNews]);
 
   // Debounced search — busca ações E FIIs em paralelo
   useEffect(() => {
@@ -353,7 +371,9 @@ export default function AcoesContent() {
           </div>
         </div>
 
-        {/* Top row: Ibovespa Hero | Maiores Altas | Maiores Baixas */}
+        {/* Top row: Hero (overview) | Maiores Altas (movers) | Maiores Baixas (movers)
+            Cada um tem seu próprio loading — overview chega rápido, movers carrega
+            em paralelo e mostra skeleton independente. */}
         {overviewError ? (
           <div style={{ marginBottom: "20px" }}>
             <ErrorState
@@ -362,39 +382,51 @@ export default function AcoesContent() {
               onRetry={loadOverview}
             />
           </div>
-        ) : overviewLoading && !overview ? (
-          <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr 1fr", gap: "14px", marginBottom: "20px" }}>
-            <Skeleton className="h-[220px] rounded-[14px]" />
-            <Skeleton className="h-[220px] rounded-[14px]" />
-            <Skeleton className="h-[220px] rounded-[14px]" />
-          </div>
         ) : (
           <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr 1fr", gap: "14px", marginBottom: "20px" }}>
-            <IndexHeroCard
-              value={heroIndex === "ibov" ? overview?.ibov ?? null : overview?.ifix ?? null}
-              activeIndex={heroIndex}
-              onChange={setHeroIndex}
-            />
-            <MoversCard
-              title="Maiores Altas"
-              icon={<TrendingUp size={13} />}
-              color="var(--positive)"
-              colorBg="var(--positive-bg)"
-              movers={(overview?.movers?.[gainersClass]?.gainers) ?? []}
-              assetClass={gainersClass}
-              onAssetClassChange={setGainersClass}
-              onClick={(s) => handleMoverClick(gainersClass, s)}
-            />
-            <MoversCard
-              title="Maiores Baixas"
-              icon={<TrendingDown size={13} />}
-              color="var(--negative)"
-              colorBg="var(--negative-bg)"
-              movers={(overview?.movers?.[losersClass]?.losers) ?? []}
-              assetClass={losersClass}
-              onAssetClassChange={setLosersClass}
-              onClick={(s) => handleMoverClick(losersClass, s)}
-            />
+            {overviewLoading && !overview ? (
+              <Skeleton className="h-[220px] rounded-[14px]" />
+            ) : (
+              <IndexHeroCard
+                value={heroIndex === "ibov" ? overview?.ibov ?? null : overview?.ifix ?? null}
+                activeIndex={heroIndex}
+                onChange={setHeroIndex}
+              />
+            )}
+
+            {moversLoading && !movers ? (
+              <Skeleton className="h-[220px] rounded-[14px]" />
+            ) : (
+              <MoversCard
+                title="Maiores Altas"
+                icon={<TrendingUp size={13} />}
+                color="var(--positive)"
+                colorBg="var(--positive-bg)"
+                movers={movers?.[gainersClass]?.gainers ?? []}
+                assetClass={gainersClass}
+                onAssetClassChange={setGainersClass}
+                onClick={(s) => handleMoverClick(gainersClass, s)}
+                errored={!!moversError}
+                onRetry={loadMovers}
+              />
+            )}
+
+            {moversLoading && !movers ? (
+              <Skeleton className="h-[220px] rounded-[14px]" />
+            ) : (
+              <MoversCard
+                title="Maiores Baixas"
+                icon={<TrendingDown size={13} />}
+                color="var(--negative)"
+                colorBg="var(--negative-bg)"
+                movers={movers?.[losersClass]?.losers ?? []}
+                assetClass={losersClass}
+                onAssetClassChange={setLosersClass}
+                onClick={(s) => handleMoverClick(losersClass, s)}
+                errored={!!moversError}
+                onRetry={loadMovers}
+              />
+            )}
           </div>
         )}
 
@@ -642,6 +674,9 @@ function IndexHeroCard({
   const color = positive ? "var(--positive)" : "var(--negative)";
   const colorHex = positive ? "#34d399" : "#f87171";
   const meta = HERO_INDEX_LABELS[activeIndex];
+  // Quando o índice atual veio sem preço (ex: IFIX fora de pregão ou falha brapi),
+  // mostramos um placeholder amigável ao invés de "—" repetido.
+  const hasData = value !== null && value.price !== null && Number.isFinite(value.price);
 
   return (
     <div style={{
@@ -680,24 +715,28 @@ function IndexHeroCard({
         <div style={{
           display: "flex", alignItems: "center", gap: "6px",
           padding: "3px 10px 3px 8px",
-          background: positive ? "var(--positive-bg)" : "var(--negative-bg)",
+          background: hasData
+            ? (positive ? "var(--positive-bg)" : "var(--negative-bg)")
+            : "rgba(154,138,106,0.08)",
           borderRadius: "999px",
-          border: `1px solid ${positive ? "rgba(52,211,153,0.25)" : "rgba(248,113,113,0.25)"}`,
+          border: `1px solid ${hasData
+            ? (positive ? "rgba(52,211,153,0.25)" : "rgba(248,113,113,0.25)")
+            : "var(--border-faint)"}`,
         }}>
           <span
-            className="aurum-live-dot"
+            className={hasData ? "aurum-live-dot" : ""}
             style={{
               width: "6px", height: "6px", borderRadius: "50%",
-              background: colorHex,
-              boxShadow: `0 0 8px ${colorHex}`,
+              background: hasData ? colorHex : "var(--text-faint)",
+              boxShadow: hasData ? `0 0 8px ${colorHex}` : "none",
             }}
           />
           <span style={{
-            fontSize: "9px", fontWeight: 700, color,
+            fontSize: "9px", fontWeight: 700, color: hasData ? color : "var(--text-faint)",
             fontFamily: "var(--font-sans)", letterSpacing: "0.08em",
             textTransform: "uppercase",
           }}>
-            Ao vivo
+            {hasData ? "Ao vivo" : "Indisponível"}
           </span>
         </div>
       </div>
@@ -929,6 +968,7 @@ function HeroSparkline({ values, color, positive }: { values: number[]; color: s
 function MoversCard({
   title, icon, color, colorBg, movers, onClick,
   assetClass, onAssetClassChange,
+  errored, onRetry,
 }: {
   title: string;
   icon: React.ReactNode;
@@ -938,6 +978,8 @@ function MoversCard({
   onClick: (symbol: string) => void;
   assetClass: AssetClass;
   onAssetClassChange: (v: AssetClass) => void;
+  errored?: boolean;
+  onRetry?: () => void;
 }) {
   const maxChange = useMemo(
     () => movers.reduce((m, x) => Math.max(m, Math.abs(x.change ?? 0)), 0) || 1,
@@ -981,9 +1023,35 @@ function MoversCard({
       </div>
 
       {movers.length === 0 ? (
-        <p style={{ fontSize: "11px", color: "var(--text-faint)", fontFamily: "var(--font-sans)", padding: "8px 0" }}>
-          Sem dados disponíveis no momento para {ASSET_CLASS_META[assetClass].pluralLabel}.
-        </p>
+        errored ? (
+          <div style={{ padding: "8px 0", display: "flex", flexDirection: "column", gap: "8px", alignItems: "flex-start" }}>
+            <p style={{ fontSize: "11px", color: "var(--text-faint)", fontFamily: "var(--font-sans)" }}>
+              Não consegui carregar {ASSET_CLASS_META[assetClass].pluralLabel}.
+            </p>
+            {onRetry && (
+              <button
+                onClick={onRetry}
+                style={{
+                  fontSize: "10px", color: "var(--gold)",
+                  background: "rgba(201,168,76,0.1)",
+                  border: "1px solid var(--border-soft)",
+                  borderRadius: "6px",
+                  padding: "4px 10px",
+                  cursor: "pointer",
+                  fontFamily: "var(--font-sans)", fontWeight: 600,
+                  letterSpacing: "0.04em",
+                }}
+                className="aurum-hover-bg aurum-hover-transition"
+              >
+                Tentar novamente
+              </button>
+            )}
+          </div>
+        ) : (
+          <p style={{ fontSize: "11px", color: "var(--text-faint)", fontFamily: "var(--font-sans)", padding: "8px 0" }}>
+            Sem movimentação em {ASSET_CLASS_META[assetClass].pluralLabel} no momento.
+          </p>
+        )
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: "4px", flex: 1 }}>
           {movers.slice(0, 4).map((m) => {
