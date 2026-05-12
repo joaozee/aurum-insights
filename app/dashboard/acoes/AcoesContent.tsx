@@ -5,10 +5,13 @@ import { useRouter } from "next/navigation";
 import {
   Search, TrendingUp, TrendingDown, BarChart3, DollarSign,
   Bitcoin, Newspaper, ExternalLink, Sparkles, ChevronRight,
-  Activity, ArrowUpRight, ArrowDownRight,
+  Activity, ArrowUpRight, ArrowDownRight, Building2,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorState } from "@/components/ui/error-state";
+
+type AssetClass = "stocks" | "fiis" | "cryptos";
+type HeroIndex = "ibov" | "ifix";
 
 interface OverviewIbov {
   price: number | null;
@@ -24,14 +27,30 @@ interface OverviewMover { symbol: string; name: string; price: number | null; ch
 interface OverviewCurrency { symbol: string; label: string; price: number | null; changePct: number | null }
 interface OverviewCrypto { symbol: string; name: string; price: number | null; changePct: number | null; logo?: string }
 interface OverviewIndex { label: string; value: number; unit: string }
+interface OverviewMoversBundle { gainers: OverviewMover[]; losers: OverviewMover[] }
 interface OverviewResponse {
   ibov: OverviewIbov;
-  topGainers: OverviewMover[];
-  topLosers: OverviewMover[];
+  ifix: OverviewIbov;
+  movers: {
+    stocks: OverviewMoversBundle;
+    fiis: OverviewMoversBundle;
+    cryptos: OverviewMoversBundle;
+  };
   currencies: OverviewCurrency[];
   cryptos: OverviewCrypto[];
   indices: OverviewIndex[];
 }
+
+const HERO_INDEX_LABELS: Record<HeroIndex, { short: string; full: string; venue: string }> = {
+  ibov: { short: "IBOV", full: "Ibovespa", venue: "B3" },
+  ifix: { short: "IFIX", full: "Ifix", venue: "B3 · FIIs" },
+};
+
+const ASSET_CLASS_META: Record<AssetClass, { label: string; pluralLabel: string }> = {
+  stocks: { label: "Ações", pluralLabel: "Ações" },
+  fiis: { label: "FIIs", pluralLabel: "FIIs" },
+  cryptos: { label: "Cripto", pluralLabel: "Cripto" },
+};
 
 interface SearchResult {
   symbol: string;
@@ -83,6 +102,12 @@ export default function AcoesContent() {
   const [overviewError, setOverviewError] = useState<string | null>(null);
   const [newsLoading, setNewsLoading] = useState(true);
   const [newsError, setNewsError] = useState<string | null>(null);
+
+  // Hero index (Ibov vs Ifix) e classe de cada mover (independentes — usuário pediu
+  // "botão no canto de cada"). Default em ações pra manter expectativa atual.
+  const [heroIndex, setHeroIndex] = useState<HeroIndex>("ibov");
+  const [gainersClass, setGainersClass] = useState<AssetClass>("stocks");
+  const [losersClass, setLosersClass] = useState<AssetClass>("stocks");
 
   const loadOverview = useCallback(async () => {
     setOverviewLoading(true);
@@ -157,6 +182,18 @@ export default function AcoesContent() {
     return isFII
       ? `/dashboard/acoes/fiis/${symbol}`
       : `/dashboard/acoes/${symbol}`;
+  }
+
+  function handleMoverClick(cls: AssetClass, symbol: string) {
+    if (cls === "fiis") {
+      router.push(`/dashboard/acoes/fiis/${symbol}`);
+    } else if (cls === "cryptos") {
+      // Página de cripto ainda não existe; redireciona pra busca/page de ações
+      // com fallback amigável. Mantém o app funcional.
+      router.push(`/dashboard/acoes/${symbol}`);
+    } else {
+      router.push(`/dashboard/acoes/${symbol}`);
+    }
   }
 
   function handlePesquisar() {
@@ -333,22 +370,30 @@ export default function AcoesContent() {
           </div>
         ) : (
           <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr 1fr", gap: "14px", marginBottom: "20px" }}>
-            <IbovHeroCard ibov={overview?.ibov ?? null} />
+            <IndexHeroCard
+              value={heroIndex === "ibov" ? overview?.ibov ?? null : overview?.ifix ?? null}
+              activeIndex={heroIndex}
+              onChange={setHeroIndex}
+            />
             <MoversCard
               title="Maiores Altas"
               icon={<TrendingUp size={13} />}
               color="var(--positive)"
               colorBg="var(--positive-bg)"
-              movers={overview?.topGainers ?? []}
-              onClick={(s) => router.push(`/dashboard/acoes/${s}`)}
+              movers={(overview?.movers?.[gainersClass]?.gainers) ?? []}
+              assetClass={gainersClass}
+              onAssetClassChange={setGainersClass}
+              onClick={(s) => handleMoverClick(gainersClass, s)}
             />
             <MoversCard
               title="Maiores Baixas"
               icon={<TrendingDown size={13} />}
               color="var(--negative)"
               colorBg="var(--negative-bg)"
-              movers={overview?.topLosers ?? []}
-              onClick={(s) => router.push(`/dashboard/acoes/${s}`)}
+              movers={(overview?.movers?.[losersClass]?.losers) ?? []}
+              assetClass={losersClass}
+              onAssetClassChange={setLosersClass}
+              onClick={(s) => handleMoverClick(losersClass, s)}
             />
           </div>
         )}
@@ -541,6 +586,17 @@ export default function AcoesContent() {
         :global(.aurum-mover-row:hover) {
           background-color: rgba(201,168,76,0.06);
         }
+        :global(.aurum-segment-btn) {
+          transition: background-color 150ms var(--ease-out), color 150ms var(--ease-out);
+        }
+        :global(.aurum-segment-btn:hover[aria-selected="false"]) {
+          color: var(--text-body) !important;
+          background-color: rgba(201,168,76,0.06) !important;
+        }
+        :global(.aurum-segment-btn:focus-visible) {
+          outline: 2px solid var(--gold);
+          outline-offset: 1px;
+        }
         :global(.aurum-news-card) {
           transition: border-color 200ms var(--ease-out), transform 200ms var(--ease-out);
         }
@@ -575,10 +631,17 @@ export default function AcoesContent() {
 
 // ─── Subcomponents ────────────────────────────────────────────────────────────
 
-function IbovHeroCard({ ibov }: { ibov: OverviewIbov | null }) {
-  const positive = ibov?.changePct !== null && ibov?.changePct !== undefined && ibov.changePct >= 0;
+function IndexHeroCard({
+  value, activeIndex, onChange,
+}: {
+  value: OverviewIbov | null;
+  activeIndex: HeroIndex;
+  onChange: (v: HeroIndex) => void;
+}) {
+  const positive = value?.changePct !== null && value?.changePct !== undefined && value.changePct >= 0;
   const color = positive ? "var(--positive)" : "var(--negative)";
   const colorHex = positive ? "#34d399" : "#f87171";
+  const meta = HERO_INDEX_LABELS[activeIndex];
 
   return (
     <div style={{
@@ -601,21 +664,17 @@ function IbovHeroCard({ ibov }: { ibov: OverviewIbov | null }) {
         background: "linear-gradient(90deg, transparent, rgba(201,168,76,0.35), transparent)",
       }} />
 
-      {/* Header: label + live badge */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          <span style={{
-            fontSize: "11px", fontWeight: 700, color: "var(--gold)",
-            fontFamily: "var(--font-sans)", letterSpacing: "0.12em",
-            textTransform: "uppercase",
-          }}>
-            Ibovespa
-          </span>
+      {/* Header: tabs (IBOV/IFIX) + venue + live badge */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px", flexWrap: "wrap" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0 }}>
+          <IndexTabs value={activeIndex} onChange={onChange} />
           <span style={{
             fontSize: "9px", color: "var(--text-faint)",
-            fontFamily: "var(--font-sans)", letterSpacing: "0.04em",
+            fontFamily: "var(--font-sans)", letterSpacing: "0.06em",
+            textTransform: "uppercase",
+            whiteSpace: "nowrap",
           }}>
-            · B3
+            · {meta.venue}
           </span>
         </div>
         <div style={{
@@ -650,9 +709,9 @@ function IbovHeroCard({ ibov }: { ibov: OverviewIbov | null }) {
           fontFamily: "var(--font-display)", letterSpacing: "-0.02em",
           lineHeight: 1, fontVariantNumeric: "tabular-nums",
         }}>
-          {fmtBr(ibov?.price ?? null)}
+          {fmtBr(value?.price ?? null)}
         </span>
-        {ibov?.changePct !== null && ibov?.changePct !== undefined && (
+        {value?.changePct !== null && value?.changePct !== undefined && (
           <span style={{
             display: "inline-flex", alignItems: "center", gap: "3px",
             fontSize: "13px", fontWeight: 700, color,
@@ -663,14 +722,14 @@ function IbovHeroCard({ ibov }: { ibov: OverviewIbov | null }) {
             borderRadius: "8px",
           }}>
             {positive ? <ArrowUpRight size={13} /> : <ArrowDownRight size={13} />}
-            {positive ? "+" : ""}{ibov.changePct.toFixed(2)}%
+            {positive ? "+" : ""}{value.changePct.toFixed(2)}%
           </span>
         )}
       </div>
 
       {/* Sparkline (full-width) */}
-      {ibov && ibov.spark.length > 1 ? (
-        <HeroSparkline values={ibov.spark} color={colorHex} positive={positive} />
+      {value && value.spark.length > 1 ? (
+        <HeroSparkline values={value.spark} color={colorHex} positive={positive} />
       ) : (
         <div style={{ height: "60px" }} />
       )}
@@ -683,11 +742,122 @@ function IbovHeroCard({ ibov }: { ibov: OverviewIbov | null }) {
         paddingTop: "12px",
         borderTop: "1px solid var(--border-faint)",
       }}>
-        <Stat label="Abertura" value={fmtBr(ibov?.open ?? null)} />
-        <Stat label="Máxima" value={fmtBr(ibov?.dayHigh ?? null)} accent="var(--positive)" />
-        <Stat label="Mínima" value={fmtBr(ibov?.dayLow ?? null)} accent="var(--negative)" />
-        <Stat label="Volume" value={fmtVolume(ibov?.volume ?? null)} />
+        <Stat label="Abertura" value={fmtBr(value?.open ?? null)} />
+        <Stat label="Máxima" value={fmtBr(value?.dayHigh ?? null)} accent="var(--positive)" />
+        <Stat label="Mínima" value={fmtBr(value?.dayLow ?? null)} accent="var(--negative)" />
+        <Stat label="Volume" value={fmtVolume(value?.volume ?? null)} />
       </div>
+    </div>
+  );
+}
+
+function IndexTabs({
+  value, onChange,
+}: {
+  value: HeroIndex;
+  onChange: (v: HeroIndex) => void;
+}) {
+  const opts: { v: HeroIndex; label: string }[] = [
+    { v: "ibov", label: "IBOV" },
+    { v: "ifix", label: "IFIX" },
+  ];
+  return (
+    <div
+      role="tablist"
+      aria-label="Selecionar índice"
+      style={{
+        display: "inline-flex",
+        background: "rgba(201,168,76,0.04)",
+        border: "1px solid var(--border-faint)",
+        borderRadius: "8px",
+        padding: "2px",
+        gap: "1px",
+      }}
+    >
+      {opts.map((o) => {
+        const active = value === o.v;
+        return (
+          <button
+            key={o.v}
+            role="tab"
+            aria-selected={active}
+            onClick={() => onChange(o.v)}
+            className="aurum-segment-btn"
+            style={{
+              padding: "4px 10px",
+              borderRadius: "6px",
+              border: "none",
+              background: active
+                ? "linear-gradient(180deg, rgba(201,168,76,0.22), rgba(201,168,76,0.1))"
+                : "transparent",
+              color: active ? "var(--gold-light)" : "var(--text-muted)",
+              cursor: "pointer",
+              fontSize: "10px", fontWeight: 700,
+              fontFamily: "var(--font-sans)",
+              letterSpacing: "0.08em",
+              boxShadow: active ? "inset 0 1px 0 rgba(255,255,255,0.06)" : "none",
+            }}
+          >
+            {o.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function AssetClassSegmented({
+  value, onChange,
+}: {
+  value: AssetClass;
+  onChange: (v: AssetClass) => void;
+}) {
+  const opts: { v: AssetClass; label: string; Icon: typeof BarChart3 }[] = [
+    { v: "stocks",  label: "Ações",  Icon: BarChart3 },
+    { v: "fiis",    label: "FIIs",   Icon: Building2 },
+    { v: "cryptos", label: "Cripto", Icon: Bitcoin   },
+  ];
+  return (
+    <div
+      role="tablist"
+      aria-label="Selecionar classe de ativo"
+      style={{
+        display: "inline-flex",
+        background: "rgba(201,168,76,0.04)",
+        border: "1px solid var(--border-faint)",
+        borderRadius: "8px",
+        padding: "2px",
+      }}
+    >
+      {opts.map((o) => {
+        const active = value === o.v;
+        const Icon = o.Icon;
+        return (
+          <button
+            key={o.v}
+            role="tab"
+            aria-selected={active}
+            aria-label={o.label}
+            title={o.label}
+            onClick={() => onChange(o.v)}
+            className="aurum-segment-btn"
+            style={{
+              padding: "4px 7px",
+              borderRadius: "6px",
+              border: "none",
+              background: active
+                ? "linear-gradient(180deg, rgba(201,168,76,0.22), rgba(201,168,76,0.1))"
+                : "transparent",
+              color: active ? "var(--gold-light)" : "var(--text-faint)",
+              cursor: "pointer",
+              display: "flex", alignItems: "center",
+              boxShadow: active ? "inset 0 1px 0 rgba(255,255,255,0.06)" : "none",
+            }}
+          >
+            <Icon size={11} />
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -758,6 +928,7 @@ function HeroSparkline({ values, color, positive }: { values: number[]; color: s
 
 function MoversCard({
   title, icon, color, colorBg, movers, onClick,
+  assetClass, onAssetClassChange,
 }: {
   title: string;
   icon: React.ReactNode;
@@ -765,6 +936,8 @@ function MoversCard({
   colorBg: string;
   movers: OverviewMover[];
   onClick: (symbol: string) => void;
+  assetClass: AssetClass;
+  onAssetClassChange: (v: AssetClass) => void;
 }) {
   const maxChange = useMemo(
     () => movers.reduce((m, x) => Math.max(m, Math.abs(x.change ?? 0)), 0) || 1,
@@ -782,29 +955,34 @@ function MoversCard({
       minHeight: "220px",
       overflow: "hidden",
     }}>
-      {/* Header */}
+      {/* Header: title + segmented control */}
       <div style={{
-        display: "flex", alignItems: "center", gap: "8px",
-        marginBottom: "14px",
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        gap: "8px", marginBottom: "14px",
       }}>
-        <div style={{
-          width: "24px", height: "24px", borderRadius: "7px",
-          background: colorBg, color,
-          display: "flex", alignItems: "center", justifyContent: "center",
-        }}>
-          {icon}
+        <div style={{ display: "flex", alignItems: "center", gap: "8px", minWidth: 0 }}>
+          <div style={{
+            width: "24px", height: "24px", borderRadius: "7px",
+            background: colorBg, color,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            flexShrink: 0,
+          }}>
+            {icon}
+          </div>
+          <span style={{
+            fontSize: "12px", fontWeight: 700, color: "var(--text-default)",
+            fontFamily: "var(--font-sans)", letterSpacing: "0.02em",
+            whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+          }}>
+            {title}
+          </span>
         </div>
-        <span style={{
-          fontSize: "12px", fontWeight: 700, color: "var(--text-default)",
-          fontFamily: "var(--font-sans)", letterSpacing: "0.02em",
-        }}>
-          {title}
-        </span>
+        <AssetClassSegmented value={assetClass} onChange={onAssetClassChange} />
       </div>
 
       {movers.length === 0 ? (
         <p style={{ fontSize: "11px", color: "var(--text-faint)", fontFamily: "var(--font-sans)", padding: "8px 0" }}>
-          Carregando...
+          Sem dados disponíveis no momento para {ASSET_CLASS_META[assetClass].pluralLabel}.
         </p>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: "4px", flex: 1 }}>
@@ -825,28 +1003,31 @@ function MoversCard({
                   textAlign: "left",
                 }}
               >
-                {/* Logo (or fallback initial) */}
+                {/* Logo (or fallback initial) — crypto vira círculo s/ fundo branco */}
                 {m.logo ? (
                   /* eslint-disable-next-line @next/next/no-img-element */
                   <img
                     src={m.logo}
                     alt=""
                     style={{
-                      width: "22px", height: "22px", borderRadius: "5px",
-                      objectFit: "contain", background: "#fff",
+                      width: "22px", height: "22px",
+                      borderRadius: assetClass === "cryptos" ? "50%" : "5px",
+                      objectFit: "contain",
+                      background: assetClass === "cryptos" ? "transparent" : "#fff",
                       flexShrink: 0,
                     }}
                     onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
                   />
                 ) : (
                   <div style={{
-                    width: "22px", height: "22px", borderRadius: "5px",
+                    width: "22px", height: "22px",
+                    borderRadius: assetClass === "cryptos" ? "50%" : "5px",
                     background: "rgba(201,168,76,0.1)",
                     display: "flex", alignItems: "center", justifyContent: "center",
                     fontSize: "9px", fontWeight: 700, color: "var(--gold)",
                     fontFamily: "var(--font-sans)",
                   }}>
-                    {m.symbol.slice(0, 2)}
+                    {m.symbol.slice(0, assetClass === "cryptos" ? 1 : 2)}
                   </div>
                 )}
 
