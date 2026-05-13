@@ -18,17 +18,30 @@
  * categoria + título + data).
  */
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Newspaper, Search, RefreshCw, ArrowLeft, Check, ExternalLink,
   Filter, Globe, Languages, Calendar, Hash, Sparkles, Send,
-  AlertCircle, ChevronDown,
+  AlertCircle, ChevronDown, Wand2, Loader2,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorState } from "@/components/ui/error-state";
 import { toast } from "sonner";
+
+// ─── Identidade do autor das notícias ────────────────────────────────────────
+// Posts curados pelo admin aparecem como "Notícias Aurum" — usuário oficial
+// (fictício) que centraliza o canal de notícias. Evita confundir o feed com
+// posts pessoais do admin. Author_avatar fica null pra que o componente Avatar
+// caia no fallback de inicial "N" sobre fundo gold.
+
+const AURUM_NEWS_AUTHOR = {
+  author_name: "Notícias Aurum",
+  author_username: "noticias_aurum",
+  author_email: "noticias@aurum.app",
+  author_avatar: null as string | null,
+};
 
 interface Props {
   userEmail: string;
@@ -101,7 +114,14 @@ function fmtRelative(iso: string | null): string {
   return `${days}d`;
 }
 
+// O componente ainda recebe userEmail/Name/Avatar via Props pra retrocompat com
+// page.tsx, mas agora os posts são publicados como "Notícias Aurum" (autor
+// fictício oficial). Os args ficam não usados intencionalmente — eslint-disable
+// pontual abaixo evita warning.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export default function AdminNoticiasContent({ userEmail, userName, userAvatar }: Props) {
+  // Silencia "noUnusedLocals" do TS estrito sem perder o shape de Props.
+  void userEmail; void userName; void userAvatar;
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
 
@@ -122,6 +142,10 @@ export default function AdminNoticiasContent({ userEmail, userName, userAvatar }
   const [posting, setPosting] = useState(false);
   // Resumo por item selecionado (vai pro content do post). Mapeia id (URL) → resumo
   const [summaries, setSummaries] = useState<Map<string, string>>(new Map());
+  // IDs em fetch de preview (loading state do botão "Sugerir resumo")
+  const [fetchingPreview, setFetchingPreview] = useState<Set<string>>(new Set());
+  // Cache de previews já buscados (URL → description) — evita rebuscar
+  const previewCache = useRef<Map<string, string>>(new Map());
 
   const loadNews = useCallback(async () => {
     setLoading(true);
@@ -169,6 +193,50 @@ export default function AdminNoticiasContent({ userEmail, userName, userAvatar }
 
   useEffect(() => { loadAlreadyPosted(); }, [loadAlreadyPosted]);
 
+  // Busca o resumo OG da página da notícia e popula o textarea. Não sobrescreve
+  // se o admin já digitou algo — só preenche quando o campo está vazio.
+  const fetchPreview = useCallback(async (item: GdeltNewsItem, force = false) => {
+    if (!force) {
+      // Se já tem cache e o draft já foi preenchido, pula
+      if (previewCache.current.has(item.url) && (summaries.get(item.id) ?? "").trim()) return;
+    }
+    setFetchingPreview((prev) => {
+      const next = new Set(prev);
+      next.add(item.id);
+      return next;
+    });
+    try {
+      let description = previewCache.current.get(item.url);
+      if (!description || force) {
+        const res = await fetch(`/api/news-preview?url=${encodeURIComponent(item.url)}`);
+        if (res.ok) {
+          const data = (await res.json()) as { description: string | null };
+          description = data.description ?? "";
+          if (description) previewCache.current.set(item.url, description);
+        }
+      }
+      if (description && description.length > 0) {
+        // Só popula se o campo estiver vazio (não sobrescreve edição do admin)
+        const current = summaries.get(item.id) ?? "";
+        if (!current.trim() || force) {
+          setSummaries((prev) => {
+            const next = new Map(prev);
+            next.set(item.id, description!);
+            return next;
+          });
+        }
+      }
+    } catch (err) {
+      console.warn("[news-preview] falhou", err);
+    } finally {
+      setFetchingPreview((prev) => {
+        const next = new Set(prev);
+        next.delete(item.id);
+        return next;
+      });
+    }
+  }, [summaries]);
+
   function toggleSelect(id: string) {
     const next = new Set(selected);
     if (next.has(id)) {
@@ -179,6 +247,12 @@ export default function AdminNoticiasContent({ userEmail, userName, userAvatar }
       setSummaries(nextSummaries);
     } else {
       next.add(id);
+      // Auto-fetch do preview ao selecionar — popula o textarea em background
+      const item = items.find((i) => i.id === id);
+      if (item) {
+        // Não bloqueia o setSelected; roda async
+        Promise.resolve().then(() => fetchPreview(item));
+      }
     }
     setSelected(next);
   }
@@ -217,9 +291,12 @@ export default function AdminNoticiasContent({ userEmail, userName, userAvatar }
         // Se vazio, deixa null — o card mostra só título + footer.
         const summary = summaries.get(item.id)?.trim() ?? "";
         return {
-          author_name: userName,
-          author_email: userEmail,
-          author_avatar: userAvatar,
+          // Posts aparecem como "Notícias Aurum" — usuário oficial fictício
+          // (centraliza o canal de notícias e separa visualmente do admin pessoal).
+          author_name: AURUM_NEWS_AUTHOR.author_name,
+          author_email: AURUM_NEWS_AUTHOR.author_email,
+          author_username: AURUM_NEWS_AUTHOR.author_username,
+          author_avatar: AURUM_NEWS_AUTHOR.author_avatar,
           post_type: "news",
           content: summary.length > 0 ? summary : null,
           news_title: item.title,
@@ -581,6 +658,8 @@ export default function AdminNoticiasContent({ userEmail, userName, userAvatar }
                 onToggle={() => toggleSelect(item.id)}
                 summary={summaries.get(item.id) ?? ""}
                 onSummaryChange={(v) => updateSummary(item.id, v)}
+                fetchingPreview={fetchingPreview.has(item.id)}
+                onFetchPreview={() => fetchPreview(item, true)}
               />
             ))}
           </div>
@@ -630,6 +709,7 @@ function Selector<T extends string>({
 
 function NewsCard({
   item, selected, disabled, onToggle, summary, onSummaryChange,
+  fetchingPreview, onFetchPreview,
 }: {
   item: GdeltNewsItem;
   selected: boolean;
@@ -637,6 +717,8 @@ function NewsCard({
   onToggle: () => void;
   summary: string;
   onSummaryChange: (value: string) => void;
+  fetchingPreview: boolean;
+  onFetchPreview: () => void;
 }) {
   return (
     <div
@@ -762,26 +844,57 @@ function NewsCard({
           </a>
         </div>
 
-        {/* Resumo opcional — só aparece quando o item está selecionado.
-            Captura cliques pra não desselecionar o card ao digitar. */}
+        {/* Resumo — auto-populado via og:description ao selecionar, editável.
+            Captura cliques pra não desselecionar o card ao digitar/clicar. */}
         {selected && (
           <div
             onClick={(e) => e.stopPropagation()}
             onKeyDown={(e) => e.stopPropagation()}
             style={{ marginTop: "8px", paddingTop: "10px", borderTop: "1px solid var(--border-faint)" }}
           >
-            <label style={{
-              display: "block",
-              fontSize: "9px", fontWeight: 700, color: "var(--gold)",
-              fontFamily: "var(--font-sans)", letterSpacing: "0.12em",
-              textTransform: "uppercase", marginBottom: "5px",
-            }}>
-              Resumo (opcional)
-            </label>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "5px", gap: "8px" }}>
+              <label style={{
+                fontSize: "9px", fontWeight: 700, color: "var(--gold)",
+                fontFamily: "var(--font-sans)", letterSpacing: "0.12em",
+                textTransform: "uppercase",
+                display: "inline-flex", alignItems: "center", gap: "5px",
+              }}>
+                Resumo
+                {fetchingPreview && (
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: "3px", color: "var(--text-faint)", letterSpacing: "0.04em", textTransform: "none", fontWeight: 500 }}>
+                    <Loader2 size={9} className="aurum-spin" />
+                    <span style={{ fontSize: "9px" }}>buscando...</span>
+                  </span>
+                )}
+              </label>
+              <button
+                type="button"
+                onClick={onFetchPreview}
+                disabled={fetchingPreview}
+                title="Buscar resumo da página da notícia"
+                style={{
+                  display: "inline-flex", alignItems: "center", gap: "4px",
+                  fontSize: "9px", fontWeight: 600,
+                  color: "var(--gold)",
+                  background: "rgba(201,168,76,0.08)",
+                  border: "1px solid rgba(201,168,76,0.18)",
+                  borderRadius: "5px",
+                  padding: "3px 8px",
+                  cursor: fetchingPreview ? "wait" : "pointer",
+                  fontFamily: "var(--font-sans)",
+                  letterSpacing: "0.04em",
+                  opacity: fetchingPreview ? 0.6 : 1,
+                  transition: "all 150ms var(--ease-out)",
+                }}
+              >
+                {fetchingPreview ? <Loader2 size={9} className="aurum-spin" /> : <Wand2 size={9} />}
+                Sugerir
+              </button>
+            </div>
             <textarea
               value={summary}
               onChange={(e) => onSummaryChange(e.target.value)}
-              placeholder="Escreva um resumo curto pra contextualizar essa notícia no feed..."
+              placeholder={fetchingPreview ? "Buscando resumo automático..." : "O resumo será preenchido automaticamente — você pode editar."}
               rows={3}
               maxLength={500}
               style={{
