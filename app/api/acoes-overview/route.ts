@@ -139,7 +139,9 @@ export async function GET() {
     selicData, ipcaData,
   ] = await Promise.all([
     safeJson(`${BASE}/quote/%5EBVSP?range=1d&interval=15m`),
-    safeJson(`${BASE}/quote/%5EIFIX?range=1d&interval=15m`),
+    // IFIX no brapi NÃO usa caret (^IFIX retorna 404). Símbolo correto é "IFIX",
+    // que a API normaliza pra "IFIX.SA" no response.
+    safeJson(`${BASE}/quote/IFIX?range=1d&interval=15m`),
     safeJson(`${BASE}/v2/currency?currency=USD-BRL,EUR-BRL,GBP-BRL`),
     safeJson(`${BASE}/v2/crypto?coin=BTC,ETH,SOL&currency=BRL`, 60),
     safeJson(`${BASE}/v2/prime-rate?country=brazil&sortBy=date&sortOrder=desc`, 3600),
