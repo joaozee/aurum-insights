@@ -1926,6 +1926,10 @@ export default function FinancasContent({ userEmail }: Props) {
                 setCalendarDate={setCalendarDate}
                 events={events}
                 transactions={transactions}
+                income={income}
+                expense={expense}
+                projectedExpense={projection.projectedExpense}
+                projectedBalance={projection.projectedBalance}
                 onNewEvent={() => {
                   setEventForm({ title: "", event_type: "vencimento", event_date: now.toISOString().split("T")[0], amount: "", description: "", is_recurring: false, category: "" });
                   setFormError("");

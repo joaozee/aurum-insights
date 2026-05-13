@@ -58,6 +58,16 @@ interface Props {
    *  diferente do atual, os totais ficam ocultos (placeholder) — evita
    *  complexidade de buscar período arbitrário só pra calendário. */
   transactions: FinanceTransaction[];
+  /** Soma de entradas reais do mês corrente — vinda do Painel. */
+  income: number;
+  /** Soma de saídas reais do mês corrente — vinda do Painel. */
+  expense: number;
+  /** Despesa projetada pro fim do mês corrente (extrapolação do ritmo até hoje).
+   *  Vem do Painel — mantém o mesmo cálculo pra consistência entre as abas. */
+  projectedExpense: number;
+  /** Saldo projetado pro fim do mês corrente: income - projectedExpense.
+   *  Usado no card "Saldo projetado" quando o mês visualizado é o mês atual. */
+  projectedBalance: number;
   onNewEvent: () => void;
   onDeleteEvent?: (e: FinancialEvent) => void;
 }
@@ -83,7 +93,9 @@ const fmtShort = (v: number) => {
 
 export default function CalendarioPessoal({
   now, calendarDate, setCalendarDate,
-  events, transactions, onNewEvent, onDeleteEvent,
+  events, transactions,
+  income, expense, projectedExpense, projectedBalance,
+  onNewEvent, onDeleteEvent,
 }: Props) {
   const calYear = calendarDate.getFullYear();
   const calMonth = calendarDate.getMonth();
@@ -126,6 +138,9 @@ export default function CalendarioPessoal({
   }, [txByDate]);
 
   // Sumário do mês (do calendarDate)
+  // — "A pagar" e "A receber" agregam eventos cadastrados (compromissos planejados)
+  // — "Saldo projetado" usa a projeção do Painel quando mês atual (entradas reais
+  //   - gastos projetados). Em outros meses, cai no net dos eventos.
   const monthSummary = useMemo(() => {
     const monthEvents = events.filter((e) => {
       const d = new Date(e.event_date + "T12:00:00");
@@ -143,9 +158,11 @@ export default function CalendarioPessoal({
       eventsCount: monthEvents.length,
       toPay,
       toReceive,
-      net: toReceive - toPay,
+      // Quando mês atual: usa o projectedBalance do Painel (entradas reais - gastos projetados).
+      // Quando outro mês: usa o liquido dos eventos cadastrados (sem dados de transação).
+      net: isCurrentMonth ? projectedBalance : (toReceive - toPay),
     };
-  }, [events, calYear, calMonth]);
+  }, [events, calYear, calMonth, isCurrentMonth, projectedBalance]);
 
   // Agrupamento "Próximos eventos" — usa todos os eventos, não só do mês visualizado
   const upcomingGroups = useMemo(() => {
@@ -268,6 +285,11 @@ export default function CalendarioPessoal({
             value={fmt(monthSummary.net)}
             icon={<Wallet size={13} />}
             tone={monthSummary.net >= 0 ? "gold" : "negative"}
+            suffix={
+              isCurrentMonth
+                ? `Renda ${fmtShort(income)} − projeção ${fmtShort(projectedExpense)}`
+                : "Net dos eventos do mês"
+            }
           />
           <SummaryCard
             label="Eventos no mês"
@@ -539,7 +561,7 @@ function SummaryCard({
           {label}
         </p>
       </div>
-      <div style={{ display: "flex", alignItems: "baseline", gap: "5px", flexWrap: "wrap" }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
         <span style={{
           fontSize: "17px", fontWeight: 700,
           color: toneColor,
@@ -551,7 +573,14 @@ function SummaryCard({
           {value}
         </span>
         {suffix && (
-          <span style={{ fontSize: "10px", color: "var(--text-faint)", fontFamily: "var(--font-sans)" }}>
+          <span style={{
+            fontSize: "10px",
+            color: "var(--text-faint)",
+            fontFamily: "var(--font-sans)",
+            fontVariantNumeric: "tabular-nums",
+            lineHeight: 1.3,
+            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+          }}>
             {suffix}
           </span>
         )}
