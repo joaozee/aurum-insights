@@ -4,7 +4,6 @@ import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import {
   Plus, FileText, TrendingUp, TrendingDown, Wallet,
   Trash2, Target, Calendar, BarChart2, LayoutDashboard,
-  ChevronLeft, ChevronRight,
   Building2, User, ArrowDownLeft, ArrowUpRight, PieChart,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
@@ -36,6 +35,7 @@ import { toast } from "sonner";
 import EmpresaFinancas from "./empresa/EmpresaFinancas";
 import ReportsExtra from "./reports-extra/ReportsExtra";
 import PlanejarPessoal from "./planejar/PlanejarPessoal";
+import CalendarioPessoal from "./calendario/CalendarioPessoal";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -1920,134 +1920,20 @@ export default function FinancasContent({ userEmail }: Props) {
 
             {/* ══════════════════ CALENDÁRIO ══════════════════ */}
             {tab === "calendario" && (
-              <>
-                <div style={{ background: "#130f09", border: "1px solid rgba(201,168,76,0.08)", borderRadius: "12px", padding: "24px", marginBottom: "20px" }}>
-                  {/* Calendar nav */}
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
-                    <p style={{ fontSize: "16px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-display)" }}>
-                      {MONTHS_PT[calMonth]} {calYear}
-                    </p>
-                    <div style={{ display: "flex", gap: "6px" }}>
-                      <button onClick={() => setCalendarDate(new Date(calYear, calMonth - 1, 1))} style={{ background: "rgba(201,168,76,0.08)", border: "1px solid rgba(201,168,76,0.15)", borderRadius: "6px", padding: "6px 10px", cursor: "pointer", color: "#C9A84C" }}>
-                        <ChevronLeft size={14} />
-                      </button>
-                      <button onClick={() => setCalendarDate(new Date(calYear, calMonth + 1, 1))} style={{ background: "rgba(201,168,76,0.08)", border: "1px solid rgba(201,168,76,0.15)", borderRadius: "6px", padding: "6px 10px", cursor: "pointer", color: "#C9A84C" }}>
-                        <ChevronRight size={14} />
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Day headers */}
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: "2px", marginBottom: "4px" }}>
-                    {["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"].map(d => (
-                      <div key={d} style={{ textAlign: "center", fontSize: "10px", color: "#857560", fontFamily: "var(--font-sans)", fontWeight: 600, padding: "4px 0", letterSpacing: "0.06em" }}>{d}</div>
-                    ))}
-                  </div>
-
-                  {/* Calendar grid */}
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: "2px" }}>
-                    {Array.from({ length: firstDayOfWeek }).map((_, i) => (
-                      <div key={`e${i}`} style={{ height: "62px" }} />
-                    ))}
-                    {Array.from({ length: daysInMonth }).map((_, i) => {
-                      const day = i + 1;
-                      const dateKey = `${calYear}-${String(calMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-                      const dayEvts = calEvents[dateKey] ?? [];
-                      const isToday = now.getFullYear() === calYear && now.getMonth() === calMonth && now.getDate() === day;
-                      return (
-                        <div
-                          key={day}
-                          style={{
-                            height: "62px", borderRadius: "6px", padding: "4px 6px",
-                            background: isToday ? "rgba(201,168,76,0.1)" : "rgba(255,255,255,0.01)",
-                            border: `1px solid ${isToday ? "rgba(201,168,76,0.3)" : "rgba(255,255,255,0.03)"}`,
-                          }}
-                        >
-                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                            <span style={{ fontSize: "11px", color: isToday ? "#C9A84C" : "#a09068", fontFamily: "var(--font-sans)", fontWeight: isToday ? 700 : 400 }}>{day}</span>
-                            {dayEvts.length > 0 && (
-                              <div style={{ display: "flex", gap: "2px" }}>
-                                {Array.from(new Set(dayEvts.map(e => e.event_type))).slice(0, 3).map(t => (
-                                  <span
-                                    key={t}
-                                    title={t.charAt(0).toUpperCase() + t.slice(1)}
-                                    style={{ width: "5px", height: "5px", borderRadius: "50%", background: EVENT_TYPE_COLORS[t] ?? "#C9A84C" }}
-                                  />
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                          <div style={{ display: "flex", flexDirection: "column", gap: "2px", marginTop: "3px" }}>
-                            {dayEvts.slice(0, 2).map(e => {
-                              const c = EVENT_TYPE_COLORS[e.event_type] ?? "#C9A84C";
-                              return (
-                                <div
-                                  key={e.id}
-                                  title={`${e.event_type.charAt(0).toUpperCase() + e.event_type.slice(1)} · ${e.title}`}
-                                  style={{
-                                    display: "flex", alignItems: "center", gap: "4px",
-                                    fontSize: "9px",
-                                    color: c,
-                                    background: `${c}1f`,
-                                    borderRadius: "3px",
-                                    padding: "1px 5px",
-                                    overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                                    fontFamily: "var(--font-sans)",
-                                  }}
-                                >
-                                  <span style={{ width: "4px", height: "4px", borderRadius: "50%", background: c, flexShrink: 0 }} />
-                                  {e.title}
-                                </div>
-                              );
-                            })}
-                            {dayEvts.length > 2 && <span style={{ fontSize: "9px", color: "#a09068", fontFamily: "var(--font-sans)" }}>+{dayEvts.length - 2}</span>}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Upcoming events list */}
-                <div style={{ background: "#130f09", border: "1px solid rgba(201,168,76,0.08)", borderRadius: "12px", padding: "24px" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "18px" }}>
-                    <p style={{ fontSize: "14px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-display)" }}>Próximos Eventos</p>
-                    <button
-                      onClick={() => { setEventForm({ title: "", event_type: "vencimento", event_date: now.toISOString().split("T")[0], amount: "", description: "", is_recurring: false, category: "" }); setFormError(""); setModal("event"); }}
-                      style={{ display: "flex", alignItems: "center", gap: "6px", background: "rgba(201,168,76,0.1)", border: "1px solid rgba(201,168,76,0.2)", borderRadius: "8px", padding: "7px 14px", color: "var(--gold)", fontSize: "12px", fontWeight: 600, fontFamily: "var(--font-sans)", cursor: "pointer" }}
-                      className="aurum-hover-bg aurum-hover-transition"
-                    >
-                      <Plus size={12} /> Novo Evento
-                    </button>
-                  </div>
-                  {events.length === 0 ? (
-                    <p style={{ fontSize: "13px", color: "#a09068", fontFamily: "var(--font-sans)", textAlign: "center", padding: "24px 0" }}>Nenhum evento próximo</p>
-                  ) : (
-                    <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                      {events.map(e => (
-                        <div key={e.id} style={{ display: "flex", alignItems: "center", gap: "14px", padding: "12px 16px", background: "rgba(255,255,255,0.02)", borderRadius: "8px", border: "1px solid rgba(255,255,255,0.03)" }}>
-                          <div style={{ width: "40px", height: "40px", borderRadius: "8px", background: `${EVENT_TYPE_COLORS[e.event_type] ?? "#C9A84C"}20`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                            <span style={{ fontSize: "12px", fontWeight: 700, color: EVENT_TYPE_COLORS[e.event_type] ?? "#C9A84C", fontFamily: "var(--font-sans)" }}>
-                              {new Date(e.event_date + "T12:00:00").getDate()}
-                            </span>
-                          </div>
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <p style={{ fontSize: "13px", fontWeight: 500, color: "#e8dcc0", fontFamily: "var(--font-sans)", marginBottom: "2px" }}>{e.title}</p>
-                            <p style={{ fontSize: "11px", color: "#857560", fontFamily: "var(--font-sans)" }}>
-                              {new Date(e.event_date + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })} · {e.event_type}
-                              {e.is_recurring && " · recorrente"}
-                            </p>
-                          </div>
-                          {e.amount != null && (
-                            <span style={{ fontSize: "13px", fontWeight: 700, color: "#C9A84C", fontFamily: "var(--font-sans)", flexShrink: 0 }}>{fmt(Number(e.amount))}</span>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </>
+              <CalendarioPessoal
+                now={now}
+                calendarDate={calendarDate}
+                setCalendarDate={setCalendarDate}
+                events={events}
+                transactions={transactions}
+                onNewEvent={() => {
+                  setEventForm({ title: "", event_type: "vencimento", event_date: now.toISOString().split("T")[0], amount: "", description: "", is_recurring: false, category: "" });
+                  setFormError("");
+                  setModal("event");
+                }}
+              />
             )}
+
           </>
         )}
         </>
