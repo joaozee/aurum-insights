@@ -7,7 +7,7 @@
 // IMPORTANTE: comparação é case-insensitive — Supabase pode normalizar emails.
 
 const ADMIN_EMAILS = new Set([
-  "gameplaysprimos755@gmail.com",
+  "joaomalaquias05@hotmail.com",
 ]);
 
 export function isAdmin(email: string | null | undefined): boolean {
