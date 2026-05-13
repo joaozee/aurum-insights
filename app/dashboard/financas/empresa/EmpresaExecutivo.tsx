@@ -25,7 +25,11 @@ interface Props {
   transactionsLastMonth: FinanceTxRow[];
   transactionsLast12m: FinanceTxRow[];
   apar: ApAr[];
-  cashBalance: number; // saldo de caixa atual (vem de balance_entry, fallback 0)
+  cashBalance: number;
+  /** Origem do saldo de caixa exibido — afeta o hint no card pra deixar claro
+   *  se o valor veio do Balanço cadastrado manualmente ou do acumulado de
+   *  transações lançadas. */
+  cashSource?: "balance" | "transactions" | "empty";
 }
 
 export default function EmpresaExecutivo({
@@ -34,6 +38,7 @@ export default function EmpresaExecutivo({
   transactionsLast12m,
   apar,
   cashBalance,
+  cashSource = "empty",
 }: Props) {
   const dreNow = useMemo(() => computeDre(transactionsThisMonth), [transactionsThisMonth]);
   const drePrev = useMemo(() => computeDre(transactionsLastMonth), [transactionsLastMonth]);
@@ -199,7 +204,13 @@ export default function EmpresaExecutivo({
         <EKpi
           label="Saldo de caixa"
           value={fmtBRL(cashBalance)}
-          sub="hoje"
+          sub={
+            cashSource === "balance"
+              ? "Balanço · hoje"
+              : cashSource === "transactions"
+                ? "Calculado das transações"
+                : "Sem dados — lance transações"
+          }
           tone="gold"
           icon={<Wallet size={14} />}
         />

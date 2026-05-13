@@ -80,6 +80,9 @@ export default function EmpresaFinancas({ userEmail, onOpenTxModal }: Props) {
   const [txCurrent, setTxCurrent] = useState<FinanceTxRow[]>([]);
   const [txPrev, setTxPrev] = useState<FinanceTxRow[]>([]);
   const [tx12m, setTx12m] = useState<FinanceTxRow[]>([]);
+  // Saldo acumulado histórico (todas as transações da empresa, sem corte de período).
+  // Usado como fallback quando o Balanço ainda não foi cadastrado manualmente.
+  const [txCashAccum, setTxCashAccum] = useState<number>(0);
 
   // Export menu
   const [exportOpen, setExportOpen] = useState(false);
@@ -116,6 +119,7 @@ export default function EmpresaFinancas({ userEmail, onOpenTxModal }: Props) {
       setTxCurrent([]);
       setTxPrev([]);
       setTx12m([]);
+      setTxCashAccum(0);
       return;
     }
 
@@ -139,6 +143,7 @@ export default function EmpresaFinancas({ userEmail, onOpenTxModal }: Props) {
       txCurRes,
       txPrevRes,
       tx12mRes,
+      txAllRes,
     ] = await Promise.all([
       supabase.from("cost_center").select("*").eq("company_id", companyId),
       supabase.from("ap_ar").select("*").eq("company_id", companyId),
@@ -167,6 +172,15 @@ export default function EmpresaFinancas({ userEmail, onOpenTxModal }: Props) {
         .or(`company_id.eq.${companyId},company_id.is.null`)
         .gte("transaction_date", start12m)
         .lte("transaction_date", end12m),
+      // Saldo de caixa fallback: soma TODAS as transações da empresa (sem corte
+      // de período) pra calcular o acumulado histórico. Selecionamos só type+amount
+      // pra reduzir payload.
+      supabase
+        .from("finance_transaction")
+        .select("type, amount")
+        .eq("user_email", userEmail)
+        .eq("account_type", "empresa")
+        .or(`company_id.eq.${companyId},company_id.is.null`),
     ]);
 
     setCostCenters((ccRes.data ?? []) as CostCenter[]);
@@ -175,14 +189,25 @@ export default function EmpresaFinancas({ userEmail, onOpenTxModal }: Props) {
     setTxCurrent((txCurRes.data ?? []) as FinanceTxRow[]);
     setTxPrev((txPrevRes.data ?? []) as FinanceTxRow[]);
     setTx12m((tx12mRes.data ?? []) as FinanceTxRow[]);
+
+    // Acumulado histórico = Σentradas − Σsaídas
+    const allTx = (txAllRes.data ?? []) as Pick<FinanceTxRow, "type" | "amount">[];
+    const accum = allTx.reduce(
+      (s, t) => s + (t.type === "entrada" ? Number(t.amount) : -Number(t.amount)),
+      0,
+    );
+    setTxCashAccum(accum);
   }, [supabase, companyId, userEmail, period]);
 
   useEffect(() => {
     loadCompanyData();
   }, [loadCompanyData]);
 
-  // Saldo de caixa: pega das entradas do balanco com label contendo "caixa"/"banco"
-  const cashBalance = useMemo(() => {
+  // Saldo de caixa: 1ª preferência é o Balanço cadastrado manualmente (mais preciso
+  // porque pode incluir ativos pré-existentes ao sistema). Se o usuário ainda não
+  // cadastrou caixa/banco no Balanço, cai pro acumulado calculado a partir das
+  // transações lançadas (Σentradas − Σsaídas).
+  const cashFromBalance = useMemo(() => {
     return balanceEntries
       .filter(
         (e) =>
@@ -191,6 +216,12 @@ export default function EmpresaFinancas({ userEmail, onOpenTxModal }: Props) {
       )
       .reduce((s, e) => s + Number(e.amount), 0);
   }, [balanceEntries]);
+
+  const cashBalance = cashFromBalance > 0 ? cashFromBalance : txCashAccum;
+  // Fonte do saldo — usada nos labels dos cards downstream pra deixar claro
+  // se está vindo do Balanço manual ou do somatório de transações.
+  const cashSource: "balance" | "transactions" | "empty" =
+    cashFromBalance > 0 ? "balance" : txCashAccum !== 0 ? "transactions" : "empty";
 
   // Sem empresa cadastrada: prompt para criar
   if (companies.length === 0) {
@@ -508,6 +539,7 @@ export default function EmpresaFinancas({ userEmail, onOpenTxModal }: Props) {
           transactionsLast12m={tx12m}
           apar={apar}
           cashBalance={cashBalance}
+          cashSource={cashSource}
         />
       )}
       {tab === "planejar" && companyId && (
@@ -518,6 +550,7 @@ export default function EmpresaFinancas({ userEmail, onOpenTxModal }: Props) {
           transactionsLast12m={tx12m}
           costCenters={costCenters}
           cashBalance={cashBalance}
+          cashSource={cashSource}
           onReload={loadCompanyData}
         />
       )}

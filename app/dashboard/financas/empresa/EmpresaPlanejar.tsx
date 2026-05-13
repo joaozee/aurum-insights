@@ -36,6 +36,9 @@ interface Props {
   transactionsLast12m: FinanceTxRow[];
   costCenters: CostCenter[];
   cashBalance: number;
+  /** Origem do saldo de caixa — balance_entry manual, somatório de transações,
+   *  ou sem dados. Usado pra exibir o hint correto nos cards. */
+  cashSource?: "balance" | "transactions" | "empty";
   onReload: () => void;
 }
 
@@ -60,7 +63,7 @@ const lsKey = (companyId: string | null, suffix: string) =>
 
 export default function EmpresaPlanejar({
   companyId, transactionsCurrent, transactionsPrev, transactionsLast12m,
-  costCenters, cashBalance, onReload,
+  costCenters, cashBalance, cashSource = "empty", onReload,
 }: Props) {
   // ── Agregados do mês corrente ─────────────────────────────────────────────
   const revenueCurrent = useMemo(
@@ -186,6 +189,7 @@ export default function EmpresaPlanejar({
         margin={margin}
         growthMoM={growthMoM}
         cashBalance={cashBalance}
+        cashSource={cashSource}
         avgOpExMonthly={avgOpExMonthly}
       />
 
@@ -202,6 +206,7 @@ export default function EmpresaPlanejar({
         />
         <WorkingCapitalCard
           cash={cashBalance}
+          cashSource={cashSource}
           avgOpEx={avgOpExMonthly}
         />
       </div>
@@ -231,7 +236,7 @@ export default function EmpresaPlanejar({
 // ─── 1) Business Hero ─────────────────────────────────────────────────────────
 
 function BusinessHero({
-  score, band, revenueCurrent, profit, margin, growthMoM, cashBalance, avgOpExMonthly,
+  score, band, revenueCurrent, profit, margin, growthMoM, cashBalance, cashSource, avgOpExMonthly,
 }: {
   score: number;
   band: { label: string; color: string; desc: string };
@@ -240,9 +245,16 @@ function BusinessHero({
   margin: number;
   growthMoM: number;
   cashBalance: number;
+  cashSource: "balance" | "transactions" | "empty";
   avgOpExMonthly: number;
 }) {
   const monthsCash = avgOpExMonthly > 0 ? cashBalance / avgOpExMonthly : 0;
+  const cashHint =
+    cashSource === "balance"
+      ? "Balanço cadastrado"
+      : cashSource === "transactions"
+        ? "Calculado das transações"
+        : "Sem dados ainda";
   return (
     <div style={{
       position: "relative",
@@ -297,7 +309,7 @@ function BusinessHero({
           <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "12px", marginTop: "18px" }}>
             <MetricBlock label="Receita do mês" value={fmtShort(revenueCurrent)} hint={`${fmtPct(growthMoM)} vs mês anterior`} hintColor={growthMoM >= 0 ? E.green : E.red} />
             <MetricBlock label="Margem líquida" value={`${margin.toFixed(1)}%`} hint={`Lucro: ${fmtShort(profit)}`} hintColor={profit >= 0 ? E.green : E.red} />
-            <MetricBlock label="Caixa atual" value={fmtShort(cashBalance)} hint="Reservas + bancos" />
+            <MetricBlock label="Caixa atual" value={fmtShort(cashBalance)} hint={cashHint} />
             <MetricBlock label="Runway" value={`${monthsCash.toFixed(1)} ${monthsCash === 1 ? "mês" : "meses"}`} hint="Sustenta OpEx médio" hintColor={monthsCash >= 3 ? E.green : monthsCash >= 1 ? E.amber : E.red} />
           </div>
         </div>
@@ -476,7 +488,13 @@ function RevenueTargetCard({
 
 // ─── 3) Capital de Giro ───────────────────────────────────────────────────────
 
-function WorkingCapitalCard({ cash, avgOpEx }: { cash: number; avgOpEx: number }) {
+function WorkingCapitalCard({
+  cash, avgOpEx, cashSource,
+}: {
+  cash: number;
+  avgOpEx: number;
+  cashSource: "balance" | "transactions" | "empty";
+}) {
   const coverage = avgOpEx > 0 ? cash / avgOpEx : 0;
   const recommended = avgOpEx * 3;
   const gap = recommended - cash;
@@ -517,6 +535,11 @@ function WorkingCapitalCard({ cash, avgOpEx }: { cash: number; avgOpEx: number }
           </span>
           <span style={{ fontSize: "11px", color: E.textMuted, fontFamily: "var(--font-sans)" }}>
             Caixa: {fmtShort(cash)}
+            {cashSource === "transactions" && (
+              <span style={{ fontSize: "9px", color: E.textFaint, marginLeft: "6px" }}>
+                · via transações
+              </span>
+            )}
           </span>
         </div>
 
