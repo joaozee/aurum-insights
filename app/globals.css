@@ -308,6 +308,62 @@ p, li, span, h1, h2, h3, h4, h5, h6 {
   }
 }
 
+/* ────────────────────────────────────────────────────────────────────────────
+   Print styles — usado quando o usuário clica "Exportar PDF" na aba
+   Finanças → Relatórios. O JS adiciona .aurum-printing ao <html> antes
+   de chamar window.print(); o CSS abaixo deixa apenas o conteúdo do
+   relatório visível, em fundo claro pra economizar tinta.
+   ──────────────────────────────────────────────────────────────────────────── */
+@media print {
+  html.aurum-printing,
+  html.aurum-printing body {
+    background: #fff !important;
+    color: #1a1410 !important;
+  }
+  /* Esconde navbar, sidebar, footer e qualquer chrome do dashboard */
+  html.aurum-printing nav,
+  html.aurum-printing aside,
+  html.aurum-printing footer,
+  html.aurum-printing header[role="banner"],
+  html.aurum-printing .aurum-export-btn,
+  html.aurum-printing [aria-label="Menu do usuário"] {
+    display: none !important;
+  }
+  /* Cards com fundo claro pra leitura */
+  html.aurum-printing [style*="background: #130f09"],
+  html.aurum-printing [style*="background: var(--bg-card)"] {
+    background: #fafaf7 !important;
+    border-color: #d4cfc5 !important;
+    box-shadow: none !important;
+  }
+  /* Texto escuro pra contraste em papel */
+  html.aurum-printing [style*="color: #e8dcc0"],
+  html.aurum-printing [style*="color: #c8b89a"],
+  html.aurum-printing [style*="color: var(--text-default)"],
+  html.aurum-printing [style*="color: var(--text-strong)"],
+  html.aurum-printing [style*="color: var(--text-body)"] {
+    color: #1a1410 !important;
+  }
+  html.aurum-printing [style*="color: #a09068"],
+  html.aurum-printing [style*="color: #857560"],
+  html.aurum-printing [style*="color: var(--text-muted)"],
+  html.aurum-printing [style*="color: var(--text-faint)"] {
+    color: #5a5550 !important;
+  }
+  /* Evita quebrar cards no meio da página */
+  html.aurum-printing .aurum-reports-extra > * {
+    page-break-inside: avoid;
+  }
+  /* Tabela com bordas visíveis no PDF */
+  html.aurum-printing table {
+    border-collapse: collapse;
+  }
+  html.aurum-printing td,
+  html.aurum-printing th {
+    border-bottom: 1px solid #d4cfc5 !important;
+  }
+}
+
 /* ≤480px — telas muito pequenas (iPhone SE, similares) */
 @media (max-width: 480px) {
   /* Padding ainda mais apertado em sections com padding generoso */

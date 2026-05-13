@@ -34,6 +34,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import EmpresaFinancas from "./empresa/EmpresaFinancas";
+import ReportsExtra from "./reports-extra/ReportsExtra";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -1844,6 +1845,14 @@ export default function FinancasContent({ userEmail }: Props) {
                   <p style={{ fontSize: "11px", color: "#a09068", fontFamily: "var(--font-sans)", marginBottom: "20px" }}>% de cada categoria nas despesas — {reportPeriodLabel}</p>
                   <DonutChartSVG data={reportByCategory} total={reportExpense} />
                 </div>
+
+                {/* Heatmap + Fixos/Variáveis + Análise & Insights + Exportação */}
+                <ReportsExtra
+                  reportTx={reportTx}
+                  reportTrend={reportTrend}
+                  reportPeriodLabel={reportPeriodLabel}
+                  selectedCategory={selectedCategory}
+                />
 
                 {/* All transactions table */}
                 <div style={{ background: "#130f09", border: "1px solid rgba(201,168,76,0.08)", borderRadius: "12px", padding: "20px 24px" }}>
