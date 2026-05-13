@@ -9,9 +9,9 @@ import {
   Bookmark as BookmarkIcon, Users as UsersIcon, Settings2,
   MessageSquare, X, ExternalLink, Send,
   Mic, Video, Square, Headphones, Film,
-  ShieldCheck,
+  ShieldCheck, BadgeCheck,
 } from "lucide-react";
-import { isAdmin } from "@/lib/admin";
+import { isAdmin, isOfficialAccount } from "@/lib/admin";
 import { createClient } from "@/lib/supabase/client";
 import {
   type CommunityPost, type PostComment, type PostType,
@@ -1254,10 +1254,18 @@ function PostCard({
 
       {/* Header */}
       <div style={{ display: "flex", alignItems: "flex-start", gap: "10px", marginBottom: "10px" }}>
-        <Avatar initial={initial} size={34} url={mainAvatar} />
+        <Avatar initial={initial} size={34} url={mainAvatar} verified={isOfficialAccount(main.author_email, main.author_username)} />
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
             <AuthorLink username={main.author_username} name={main.author_name} />
+            {isOfficialAccount(main.author_email, main.author_username) && (
+              <BadgeCheck
+                size={14}
+                strokeWidth={2.5}
+                aria-label="Conta verificada"
+                style={{ color: "var(--gold)", fill: "rgba(201,168,76,0.15)", flexShrink: 0 }}
+              />
+            )}
           </div>
           <p style={{ fontSize: "11px", color: "#9a8a6a", fontFamily: "var(--font-sans)" }}>
             {formatRelativeTime(main.created_at)}
@@ -1692,11 +1700,11 @@ function NewsRichCard({
           <p style={{
             fontSize: "12.5px", color: "var(--text-body)",
             fontFamily: "var(--font-sans)",
-            lineHeight: 1.55,
+            lineHeight: 1.6,
             marginBottom: "10px",
             whiteSpace: "pre-wrap", wordBreak: "break-word",
-            // Limita a 4 linhas — admin pode escrever um socinho mais longo
-            display: "-webkit-box", WebkitLineClamp: 4, WebkitBoxOrient: "vertical",
+            // Limite generoso (7 linhas) pra mostrar o resumo elaborado.
+            display: "-webkit-box", WebkitLineClamp: 7, WebkitBoxOrient: "vertical",
             overflow: "hidden",
           }}>
             {summary}
@@ -2157,7 +2165,9 @@ function resolveAvatar(
   return fallback ?? null;
 }
 
-function Avatar({ initial, size, url }: { initial: string; size: number; url?: string | null }) {
+function Avatar({
+  initial, size, url, verified,
+}: { initial: string; size: number; url?: string | null; verified?: boolean }) {
   return (
     <div style={{
       width: `${size}px`, height: `${size}px`, borderRadius: "50%",
@@ -2168,6 +2178,10 @@ function Avatar({ initial, size, url }: { initial: string; size: number; url?: s
       color: "#0d0b07", fontSize: `${Math.round(size * 0.4)}px`, fontWeight: 700,
       fontFamily: "var(--font-sans)", flexShrink: 0,
       overflow: "hidden",
+      // Anel dourado fino destacando contas oficiais
+      boxShadow: verified
+        ? "0 0 0 2px var(--bg-card), 0 0 0 3.5px var(--gold)"
+        : "none",
     }}>
       {!url && initial}
     </div>

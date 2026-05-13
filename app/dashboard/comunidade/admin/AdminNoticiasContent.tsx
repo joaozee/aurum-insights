@@ -895,8 +895,8 @@ function NewsCard({
               value={summary}
               onChange={(e) => onSummaryChange(e.target.value)}
               placeholder={fetchingPreview ? "Buscando resumo automático..." : "O resumo será preenchido automaticamente — você pode editar."}
-              rows={3}
-              maxLength={500}
+              rows={5}
+              maxLength={1000}
               style={{
                 width: "100%",
                 background: "var(--bg-input)",
@@ -908,11 +908,11 @@ function NewsCard({
                 outline: "none", resize: "vertical",
                 lineHeight: 1.5,
                 boxSizing: "border-box",
-                minHeight: "70px",
+                minHeight: "100px",
               }}
             />
             <p style={{ fontSize: "9px", color: "var(--text-faint)", fontFamily: "var(--font-sans)", marginTop: "4px", fontVariantNumeric: "tabular-nums" }}>
-              {summary.length}/500
+              {summary.length}/1000
             </p>
           </div>
         )}

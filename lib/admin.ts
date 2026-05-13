@@ -14,3 +14,23 @@ export function isAdmin(email: string | null | undefined): boolean {
   if (!email) return false;
   return ADMIN_EMAILS.has(email.toLowerCase());
 }
+
+// ─── Contas oficiais (mostram selo de verificado) ────────────────────────────
+// Lista de emails/usernames que pertencem ao próprio app (canais oficiais).
+// Esses posts ganham o ícone BadgeCheck ao lado do nome no feed.
+
+const OFFICIAL_EMAILS = new Set<string>([
+  "noticias@aurum.app",
+]);
+const OFFICIAL_USERNAMES = new Set<string>([
+  "noticias_aurum",
+]);
+
+export function isOfficialAccount(
+  email: string | null | undefined,
+  username?: string | null,
+): boolean {
+  if (email && OFFICIAL_EMAILS.has(email.toLowerCase())) return true;
+  if (username && OFFICIAL_USERNAMES.has(username.toLowerCase())) return true;
+  return false;
+}
