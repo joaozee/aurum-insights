@@ -14,6 +14,9 @@ import {
   Users,
   Plus,
   ArrowRight,
+  Newspaper,
+  ExternalLink,
+  Hash,
 } from "lucide-react";
 import type { MarketItem } from "@/app/api/market/route";
 import { createClient } from "@/lib/supabase/client";
@@ -37,6 +40,16 @@ interface HomePost {
   likes_count: number;
   comments_count: number;
   reposts_count: number;
+}
+
+interface HomeNewsPost {
+  id: string;
+  content: string | null;
+  news_title: string | null;
+  news_url: string | null;
+  news_thumbnail: string | null;
+  tags: string[] | null;
+  created_at: string;
 }
 
 export interface AssetBreakdown {
@@ -147,6 +160,12 @@ export default function HomeContent({
   const [postsError, setPostsError] = useState<string | null>(null);
   const [loadAttempt, setLoadAttempt] = useState(0);
 
+  // Notícias curadas pela comunidade — posts post_type=news inseridos pelo admin
+  // via /dashboard/comunidade/admin. Filtramos por post_type pra garantir que só
+  // entram notícias (e não posts comuns que mencionam #noticia).
+  const [newsPosts, setNewsPosts] = useState<HomeNewsPost[]>([]);
+  const [loadingNews, setLoadingNews] = useState(true);
+
   const reloadPosts = useCallback(() => setLoadAttempt((n) => n + 1), []);
 
   useEffect(() => {
@@ -161,8 +180,9 @@ export default function HomeContent({
         const [postsRes, weekCountRes] = await Promise.all([
           supabase
             .from("community_post")
-            .select("id, author_name, author_avatar, author_username, author_email, content, created_at, likes_count, comments_count, reposts_count, moderation_status, repost_of_id")
+            .select("id, author_name, author_avatar, author_username, author_email, content, created_at, likes_count, comments_count, reposts_count, moderation_status, repost_of_id, post_type")
             .neq("moderation_status", "rejeitado")
+            .neq("post_type", "news")  // notícias têm seção dedicada — não duplica aqui
             .not("content", "is", null)
             .is("repost_of_id", null)
             .order("created_at", { ascending: false })
@@ -208,6 +228,30 @@ export default function HomeContent({
     return () => {
       active = false;
     };
+  }, [supabase, loadAttempt]);
+
+  // Carregar últimas 4 notícias curadas pelo admin (post_type=news)
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      setLoadingNews(true);
+      const { data, error } = await supabase
+        .from("community_post")
+        .select("id, content, news_title, news_url, news_thumbnail, tags, created_at")
+        .eq("post_type", "news")
+        .neq("moderation_status", "rejeitado")
+        .order("created_at", { ascending: false })
+        .limit(4);
+      if (!active) return;
+      if (error) {
+        console.error("[home/news]", error);
+        setNewsPosts([]);
+      } else {
+        setNewsPosts((data ?? []) as HomeNewsPost[]);
+      }
+      setLoadingNews(false);
+    })();
+    return () => { active = false; };
   }, [supabase, loadAttempt]);
 
   const statement = buildStatement(stats, marketData);
@@ -303,6 +347,31 @@ export default function HomeContent({
             onClick={() => router.push("/dashboard/comunidade")}
           />
         </section>
+
+        {/* ─── Notícias da Comunidade ─────────────────────────────────── */}
+        {(loadingNews || newsPosts.length > 0) && (
+          <section className="mb-14">
+            <SectionHeader
+              label="Notícias da comunidade"
+              cta="Ver feed"
+              onClick={() => router.push("/dashboard/comunidade")}
+            />
+            {loadingNews ? (
+              <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <NewsCardSkeleton />
+                <NewsCardSkeleton />
+                <NewsCardSkeleton />
+                <NewsCardSkeleton />
+              </div>
+            ) : (
+              <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                {newsPosts.map((n) => (
+                  <NewsPreview key={n.id} post={n} onOpen={() => router.push("/dashboard/comunidade")} />
+                ))}
+              </div>
+            )}
+          </section>
+        )}
 
         {/* ─── Comunidade em destaque ─────────────────────────────────── */}
         <section className="mb-14">
@@ -715,6 +784,72 @@ function Stat({ icon, count }: { icon: React.ReactNode; count: number }) {
       {icon}
       {count ?? 0}
     </span>
+  );
+}
+
+// ─── NewsPreview ─────────────────────────────────────────────────────────────
+// Card de notícia da Home (compacto). Mostra thumb, hashtag detectada e título.
+// Clicar leva à comunidade — a Home não é o lugar pra abrir a fonte externa
+// direto, já que a curadoria fica no feed.
+
+function NewsPreview({ post, onOpen }: { post: HomeNewsPost; onOpen: () => void }) {
+  // Extrai a primeira tag relevante (que não seja "noticia" — essa é o padrão)
+  const primaryTag =
+    (post.tags ?? []).find((t) => t.toLowerCase() !== "noticia") ?? null;
+  return (
+    <button
+      onClick={onOpen}
+      className="group flex flex-col overflow-hidden rounded-[10px] border border-[var(--border-faint)] bg-card text-left transition-all hover:-translate-y-0.5 hover:border-[var(--border-soft)] hover:shadow-[0_6px_20px_rgba(201,168,76,0.08)]"
+    >
+      <div className="relative h-[130px] overflow-hidden">
+        {post.news_thumbnail ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={post.news_thumbnail}
+            alt=""
+            loading="lazy"
+            className="size-full object-cover transition-transform duration-300 group-hover:scale-[1.04]"
+          />
+        ) : (
+          <div className="flex size-full items-center justify-center bg-gradient-to-br from-[#1a1410] to-[#2a1f12]">
+            <Newspaper className="size-7 text-[var(--text-faint)]" />
+          </div>
+        )}
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-[rgba(10,8,6,0.55)]" />
+        {primaryTag && (
+          <div className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-md border border-[rgba(201,168,76,0.3)] bg-[rgba(10,8,6,0.7)] px-2 py-[3px] backdrop-blur-sm">
+            <Hash className="size-[9px] text-[var(--gold-light)]" strokeWidth={2.5} />
+            <span className="text-[9px] font-bold uppercase tracking-[0.06em] text-[var(--gold-light)]">
+              {primaryTag}
+            </span>
+          </div>
+        )}
+      </div>
+      <div className="flex flex-1 flex-col justify-between gap-2 p-3.5">
+        <p className="line-clamp-3 text-[12.5px] font-semibold leading-[1.4] text-[var(--text-default)]">
+          {post.news_title ?? post.content ?? "Sem título"}
+        </p>
+        <div className="flex items-center justify-between gap-2 text-[10px] text-[var(--text-faint)]">
+          <span>{formatRelativeTime(post.created_at)}</span>
+          <span className="inline-flex items-center gap-1 text-[var(--gold)] transition-colors group-hover:text-[var(--gold-light)]">
+            Abrir <ExternalLink className="size-[9px]" />
+          </span>
+        </div>
+      </div>
+    </button>
+  );
+}
+
+function NewsCardSkeleton() {
+  return (
+    <div className="overflow-hidden rounded-[10px] border border-[var(--border-faint)] bg-card">
+      <Skeleton className="h-[130px] w-full rounded-none" />
+      <div className="space-y-2 p-3.5">
+        <Skeleton className="h-3 w-full" />
+        <Skeleton className="h-3 w-[70%]" />
+        <Skeleton className="h-2.5 w-16" />
+      </div>
+    </div>
   );
 }
 

@@ -9,7 +9,9 @@ import {
   Bookmark as BookmarkIcon, Users as UsersIcon, Settings2,
   MessageSquare, X, ExternalLink, Send,
   Mic, Video, Square, Headphones, Film,
+  ShieldCheck,
 } from "lucide-react";
+import { isAdmin } from "@/lib/admin";
 import { createClient } from "@/lib/supabase/client";
 import {
   type CommunityPost, type PostComment, type PostType,
@@ -781,6 +783,14 @@ export default function ComunidadeContent({ userEmail, userName, userAvatar }: P
             <SidebarItem icon={<UsersIcon size={13} />} label="Grupos" onClick={() => {}} />
             <SidebarItem icon={<MessageSquare size={13} />} label="Mensagens" onClick={() => router.push("/dashboard/comunidade/mensagens")} />
             <SidebarItem icon={<Settings2 size={13} />} label="Personalizar feed" onClick={() => setShowFeedModal(true)} />
+            {isAdmin(userEmail) && (
+              <SidebarItem
+                icon={<ShieldCheck size={13} />}
+                label="Curar notícias"
+                onClick={() => router.push("/dashboard/comunidade/admin")}
+                accent
+              />
+            )}
           </div>
         </aside>
 
@@ -2004,16 +2014,19 @@ function Avatar({ initial, size, url }: { initial: string; size: number; url?: s
   );
 }
 
-function SidebarItem({ icon, label, onClick }: { icon: React.ReactNode; label: string; onClick: () => void }) {
+function SidebarItem({ icon, label, onClick, accent }: { icon: React.ReactNode; label: string; onClick: () => void; accent?: boolean }) {
   return (
     <button
       onClick={onClick}
       style={{
         width: "100%", display: "flex", alignItems: "center", gap: "10px",
         padding: "8px 10px", borderRadius: "6px",
-        background: "transparent", border: "none",
-        cursor: "pointer", color: "#9a8a6a",
-        fontSize: "12px", fontFamily: "var(--font-sans)",
+        background: accent ? "rgba(201,168,76,0.06)" : "transparent",
+        border: accent ? "1px solid rgba(201,168,76,0.18)" : "none",
+        cursor: "pointer",
+        color: accent ? "var(--gold)" : "#9a8a6a",
+        fontSize: "12px", fontWeight: accent ? 600 : 400,
+        fontFamily: "var(--font-sans)",
         textAlign: "left", transition: "all 0.15s",
       }}
       className="aurum-hover-gold aurum-hover-bg aurum-hover-transition"
