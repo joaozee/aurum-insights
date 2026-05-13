@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import {
   Plus, FileText, TrendingUp, TrendingDown, Wallet,
   Trash2, Target, Calendar, BarChart2, LayoutDashboard,
-  ChevronLeft, ChevronRight, AlertCircle, Check,
+  ChevronLeft, ChevronRight,
   Building2, User, ArrowDownLeft, ArrowUpRight, PieChart,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
@@ -35,6 +35,7 @@ import {
 import { toast } from "sonner";
 import EmpresaFinancas from "./empresa/EmpresaFinancas";
 import ReportsExtra from "./reports-extra/ReportsExtra";
+import PlanejarPessoal from "./planejar/PlanejarPessoal";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -1903,141 +1904,19 @@ export default function FinancasContent({ userEmail }: Props) {
 
             {/* ══════════════════ PLANEJAR ══════════════════ */}
             {tab === "planejar" && (
-              <>
-                {/* Budgets section */}
-                <section style={{ marginBottom: "32px" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
-                    <div>
-                      <p style={{ fontSize: "14px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-display)", marginBottom: "2px" }}>Orçamentos do Mês</p>
-                      <p style={{ fontSize: "11px", color: "#a09068", fontFamily: "var(--font-sans)" }}>Limites por categoria — {MONTHS_PT[now.getMonth()]}</p>
-                    </div>
-                    <button
-                      onClick={() => { setBudgetForm({ category: "", monthly_limit: "", alert_threshold: "80" }); setFormError(""); setModal("budget"); }}
-                      style={{ display: "flex", alignItems: "center", gap: "6px", background: "rgba(201,168,76,0.1)", border: "1px solid rgba(201,168,76,0.2)", borderRadius: "8px", padding: "7px 14px", color: "#C9A84C", fontSize: "12px", fontWeight: 600, fontFamily: "var(--font-sans)", cursor: "pointer" }}
-                    >
-                      <Plus size={12} /> Novo Orçamento
-                    </button>
-                  </div>
-
-                  {budgets.length === 0 ? (
-                    <EmptyState
-                      icon={Target}
-                      title="Nenhum orçamento por categoria ainda"
-                      description="Defina um limite mensal por categoria (ex: R$ 800 em Alimentação). Conforme você lança despesas, mostramos o quanto já foi usado e alertamos antes de estourar."
-                      action={{
-                        label: "Criar primeiro orçamento",
-                        onClick: () => { setBudgetForm({ category: "", monthly_limit: "", alert_threshold: "80" }); setFormError(""); setModal("budget"); },
-                      }}
-                    />
-                  ) : (
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-                      {budgets.map(b => {
-                        const spent = byCategory.find(([cat]) => cat === b.category)?.[1] ?? 0;
-                        const pct = Math.min((spent / b.monthly_limit) * 100, 100);
-                        const over  = spent > b.monthly_limit;
-                        const alert = pct >= b.alert_threshold && !over;
-                        const barColor = over ? "#f87171" : alert ? "#C58A3D" : "#34d399";
-                        return (
-                          <div key={b.id} style={{ background: "#130f09", border: `1px solid ${over ? "rgba(248,113,113,0.2)" : "rgba(201,168,76,0.08)"}`, borderRadius: "10px", padding: "18px 20px" }}>
-                            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "10px" }}>
-                              <span style={{ fontSize: "14px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-display)" }}>{b.category}</span>
-                              <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
-                                {over && <AlertCircle size={13} style={{ color: "#f87171" }} />}
-                                <button
-                                  onClick={() => setPendingDelete({ kind: "budget", budget: b })}
-                                  aria-label="Remover orçamento"
-                                  style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", padding: 0 }}
-                                  className="aurum-hover-gold aurum-hover-transition"
-                                >
-                                  <Trash2 size={12} />
-                                </button>
-                              </div>
-                            </div>
-                            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
-                              <span style={{ fontSize: "12px", color: barColor, fontFamily: "var(--font-sans)", fontWeight: 600 }}>{fmt(spent)}</span>
-                              <span style={{ fontSize: "12px", color: "#a09068", fontFamily: "var(--font-sans)" }}>de {fmt(b.monthly_limit)}</span>
-                            </div>
-                            <div style={{ height: "6px", background: "rgba(255,255,255,0.05)", borderRadius: "3px", overflow: "hidden" }}>
-                              <div style={{ height: "100%", width: `${pct}%`, background: barColor, borderRadius: "3px" }} />
-                            </div>
-                            <p style={{ fontSize: "11px", color: "#a09068", fontFamily: "var(--font-sans)", marginTop: "6px" }}>{pct.toFixed(0)}% utilizado</p>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </section>
-
-                {/* Goals section */}
-                <section>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
-                    <div>
-                      <p style={{ fontSize: "14px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-display)", marginBottom: "2px" }}>Metas Financeiras</p>
-                      <p style={{ fontSize: "11px", color: "#a09068", fontFamily: "var(--font-sans)" }}>Objetivos de médio e longo prazo</p>
-                    </div>
-                    <button
-                      onClick={() => { setGoalForm({ title: "", category: "", target_amount: "", current_amount: "0", target_date: "", monthly_contribution: "", description: "" }); setFormError(""); setModal("goal"); }}
-                      style={{ display: "flex", alignItems: "center", gap: "6px", background: "rgba(201,168,76,0.1)", border: "1px solid rgba(201,168,76,0.2)", borderRadius: "8px", padding: "7px 14px", color: "var(--gold)", fontSize: "12px", fontWeight: 600, fontFamily: "var(--font-sans)", cursor: "pointer" }}
-                      className="aurum-hover-bg aurum-hover-transition"
-                    >
-                      <Plus size={12} /> Nova Meta
-                    </button>
-                  </div>
-
-                  {goals.length === 0 ? (
-                    <EmptyState
-                      icon={Target}
-                      title="Sem metas ainda"
-                      description="Aposentadoria, fundo de emergência, viagem, imóvel — defina o valor alvo e a data, e contribua mensalmente. Patrimônio se constrói com paciência."
-                      action={{
-                        label: "Criar primeira meta",
-                        onClick: () => { setGoalForm({ title: "", category: "", target_amount: "", current_amount: "0", target_date: "", monthly_contribution: "", description: "" }); setFormError(""); setModal("goal"); },
-                      }}
-                    />
-                  ) : (
-                    <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                      {goals.map(g => {
-                        const pct = g.target_amount > 0 ? Math.min((Number(g.current_amount) / Number(g.target_amount)) * 100, 100) : 0;
-                        const daysLeft = Math.ceil((new Date(g.target_date).getTime() - Date.now()) / 86400000);
-                        return (
-                          <div key={g.id} style={{ background: "#130f09", border: "1px solid rgba(139,84,112,0.18)", borderRadius: "12px", padding: "20px 24px" }}>
-                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "12px" }}>
-                              <div>
-                                <p style={{ fontSize: "15px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-display)", marginBottom: "3px" }}>{g.title}</p>
-                                <p style={{ fontSize: "11px", color: "#a09068", fontFamily: "var(--font-sans)" }}>
-                                  {g.category} · {daysLeft > 0 ? `${daysLeft} dias restantes` : "Prazo encerrado"}
-                                </p>
-                              </div>
-                              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                                {pct >= 100 && <Check size={14} style={{ color: "#34d399" }} />}
-                                <button
-                                  onClick={() => setPendingDelete({ kind: "goal", goal: g })}
-                                  aria-label="Apagar meta"
-                                  style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-faint)", padding: "2px" }}
-                                  className="aurum-hover-gold aurum-hover-transition"
-                                >
-                                  <Trash2 size={13} />
-                                </button>
-                              </div>
-                            </div>
-                            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
-                              <span style={{ fontSize: "12px", color: CHART_PALETTE[4], fontFamily: "var(--font-sans)", fontWeight: 600 }}>{fmt(Number(g.current_amount))}</span>
-                              <span style={{ fontSize: "12px", color: "#a09068", fontFamily: "var(--font-sans)" }}>meta: {fmt(Number(g.target_amount))}</span>
-                            </div>
-                            <div style={{ height: "6px", background: "rgba(255,255,255,0.05)", borderRadius: "3px", overflow: "hidden" }}>
-                              <div style={{ height: "100%", width: `${pct}%`, background: `linear-gradient(90deg, ${CHART_PALETTE[4]}, ${CHART_PALETTE[5]})`, borderRadius: "3px" }} />
-                            </div>
-                            <p style={{ fontSize: "11px", color: "#a09068", fontFamily: "var(--font-sans)", marginTop: "6px" }}>
-                              {pct.toFixed(1)}% concluído{Number(g.monthly_contribution) > 0 && ` · ${fmt(Number(g.monthly_contribution))}/mês`}
-                            </p>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </section>
-              </>
+              <PlanejarPessoal
+                transactions={transactions}
+                monthlyTrend={monthlyTrend}
+                budgets={budgets}
+                goals={goals}
+                byCategory={byCategory}
+                onNewBudget={() => { setBudgetForm({ category: "", monthly_limit: "", alert_threshold: "80" }); setFormError(""); setModal("budget"); }}
+                onNewGoal={() => { setGoalForm({ title: "", category: "", target_amount: "", current_amount: "0", target_date: "", monthly_contribution: "", description: "" }); setFormError(""); setModal("goal"); }}
+                onDeleteBudget={(b) => setPendingDelete({ kind: "budget", budget: b })}
+                onDeleteGoal={(g) => setPendingDelete({ kind: "goal", goal: g })}
+              />
             )}
+
 
             {/* ══════════════════ CALENDÁRIO ══════════════════ */}
             {tab === "calendario" && (

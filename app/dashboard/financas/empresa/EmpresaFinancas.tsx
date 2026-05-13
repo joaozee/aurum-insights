@@ -16,6 +16,7 @@ import {
   FileSpreadsheet,
   FileCode,
   ChevronDown,
+  Target,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
@@ -36,6 +37,7 @@ import EmpresaFluxo from "./EmpresaFluxo";
 import EmpresaBalanco from "./EmpresaBalanco";
 import EmpresaContas from "./EmpresaContas";
 import EmpresaCentros from "./EmpresaCentros";
+import EmpresaPlanejar from "./EmpresaPlanejar";
 import {
   exportApArCsv,
   exportDrePdf,
@@ -48,10 +50,11 @@ interface Props {
   onOpenTxModal: () => void; // reusa o modal existente da pagina pessoal (com account_type=empresa)
 }
 
-type Tab = "executivo" | "dre" | "fluxo" | "balanco" | "contas" | "centros";
+type Tab = "executivo" | "planejar" | "dre" | "fluxo" | "balanco" | "contas" | "centros";
 
 const TABS: { id: Tab; label: string; Icon: typeof LayoutDashboard }[] = [
   { id: "executivo", label: "Executivo", Icon: LayoutDashboard },
+  { id: "planejar",  label: "Planejar",  Icon: Target },
   { id: "dre", label: "DRE", Icon: FileBarChart },
   { id: "fluxo", label: "Fluxo", Icon: Wallet },
   { id: "balanco", label: "Balanço", Icon: Scale },
@@ -505,6 +508,17 @@ export default function EmpresaFinancas({ userEmail, onOpenTxModal }: Props) {
           transactionsLast12m={tx12m}
           apar={apar}
           cashBalance={cashBalance}
+        />
+      )}
+      {tab === "planejar" && companyId && (
+        <EmpresaPlanejar
+          companyId={companyId}
+          transactionsCurrent={txCurrent}
+          transactionsPrev={txPrev}
+          transactionsLast12m={tx12m}
+          costCenters={costCenters}
+          cashBalance={cashBalance}
+          onReload={loadCompanyData}
         />
       )}
       {tab === "dre" && companyId && (
