@@ -1276,37 +1276,19 @@ function PostCard({
         )}
       </div>
 
-      {/* News block */}
+      {/* News block — card rico com imagem hero, hashtag chip, título, resumo e footer */}
       {isNews && main.news_title && (
-        <div style={{
-          background: "#0d0b07",
-          border: "1px solid var(--border-soft)",
-          borderRadius: "10px", padding: "12px 14px", marginBottom: "10px",
-        }}>
-          <p style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-default)", fontFamily: "var(--font-sans)", marginBottom: "4px", lineHeight: 1.4 }}>
-            {main.news_title}
-          </p>
-          {main.news_url && (
-            <a
-              href={main.news_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                display: "inline-flex", alignItems: "center", gap: "4px",
-                fontSize: "11px", color: "var(--gold)",
-                fontFamily: "var(--font-sans)", textDecoration: "none",
-                marginTop: "6px",
-              }}
-              className="aurum-hover-gold aurum-hover-transition"
-            >
-              Ver fonte <ExternalLink size={10} />
-            </a>
-          )}
-        </div>
+        <NewsRichCard
+          title={main.news_title}
+          url={main.news_url}
+          thumbnail={main.news_thumbnail}
+          summary={main.content}
+          tags={main.tags}
+        />
       )}
 
-      {/* Content */}
-      {main.content && (
+      {/* Content — apenas pra posts NÃO-notícia (notícia já mostra o content como summary dentro do card) */}
+      {!isNews && main.content && (
         <p style={{
           fontSize: "13px", color: "#c8b89a",
           fontFamily: "var(--font-sans)", lineHeight: 1.6,
@@ -1317,12 +1299,12 @@ function PostCard({
         </p>
       )}
 
-      {/* Media (image / audio / video) */}
-      <PostMedia post={main} variant="main" />
+      {/* Media (image / audio / video) — ocultar pra news (já tem thumb no card) */}
+      {!isNews && <PostMedia post={main} variant="main" />}
 
 
-      {/* Tags */}
-      {main.tags && main.tags.length > 0 && (
+      {/* Tags — secundárias (categorias adicionais além da hashtag já mostrada no card) */}
+      {!isNews && main.tags && main.tags.length > 0 && (
         <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginBottom: "12px" }}>
           {main.tags.map((tag) => (
             <span key={tag} style={{
@@ -1569,6 +1551,184 @@ function EmbeddedOriginal({ post, avatarByEmail }: { post: CommunityPost; avatar
       )}
       <PostMedia post={post} variant="embed" />
     </div>
+  );
+}
+
+// ─── NewsRichCard ────────────────────────────────────────────────────────────
+// Card de noticia para post_type=news. Mostra imagem hero (news_thumbnail),
+// hashtag principal flutuante sobre a thumb, titulo grande, resumo opcional
+// (vem do content do post) e footer com fonte + link.
+
+function NewsRichCard({
+  title, url, thumbnail, summary, tags,
+}: {
+  title: string;
+  url: string | null;
+  thumbnail: string | null;
+  summary: string | null;
+  tags: string[] | null;
+}) {
+  // Hashtag visivel — primeira tag que nao seja a generica "noticia"
+  const primaryTag = (tags ?? []).find((t) => t.toLowerCase() !== "noticia") ?? null;
+
+  // Extrai o domain da URL pra mostrar a fonte ("g1.globo.com" etc.)
+  let sourceDomain: string | null = null;
+  if (url) {
+    try {
+      const u = new URL(url);
+      sourceDomain = u.hostname.replace(/^www\./, "");
+    } catch {
+      sourceDomain = null;
+    }
+  }
+
+  return (
+    <a
+      href={url ?? "#"}
+      target={url ? "_blank" : undefined}
+      rel={url ? "noopener noreferrer" : undefined}
+      style={{
+        display: "block",
+        background: "#0d0b07",
+        border: "1px solid var(--border-soft)",
+        borderRadius: "12px",
+        overflow: "hidden",
+        marginBottom: "12px",
+        textDecoration: "none",
+        transition: "border-color 200ms var(--ease-out), transform 200ms var(--ease-out)",
+      }}
+      className="aurum-news-rich"
+    >
+      {/* Hero image */}
+      {thumbnail ? (
+        <div style={{ position: "relative", aspectRatio: "1.91 / 1", overflow: "hidden", background: "#000" }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={thumbnail}
+            alt=""
+            loading="lazy"
+            style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+            className="aurum-news-rich-img"
+            onError={(e) => {
+              // Se a thumb falhar, esconde o container — fallback simples
+              const wrap = (e.currentTarget.parentElement as HTMLDivElement | null);
+              if (wrap) wrap.style.display = "none";
+            }}
+          />
+          {/* gradient overlay pra legibilidade dos chips */}
+          <div style={{
+            position: "absolute", inset: 0,
+            background: "linear-gradient(180deg, rgba(10,8,6,0.55) 0%, transparent 35%, transparent 65%, rgba(10,8,6,0.7) 100%)",
+            pointerEvents: "none",
+          }} />
+          {/* hashtag chip */}
+          {primaryTag && (
+            <span style={{
+              position: "absolute", top: "12px", left: "12px",
+              fontSize: "10px", fontWeight: 700, color: "var(--gold-light)",
+              background: "rgba(10,8,6,0.75)",
+              backdropFilter: "blur(6px)",
+              border: "1px solid rgba(201,168,76,0.35)",
+              padding: "4px 9px", borderRadius: "5px",
+              letterSpacing: "0.08em",
+              fontFamily: "var(--font-sans)",
+              textTransform: "uppercase",
+              display: "inline-flex", alignItems: "center", gap: "3px",
+            }}>
+              #{primaryTag}
+            </span>
+          )}
+          {/* source chip */}
+          {sourceDomain && (
+            <span style={{
+              position: "absolute", bottom: "12px", left: "12px",
+              fontSize: "10px", fontWeight: 600, color: "#e8dcc0",
+              background: "rgba(10,8,6,0.75)",
+              backdropFilter: "blur(6px)",
+              border: "1px solid rgba(255,255,255,0.1)",
+              padding: "3px 8px", borderRadius: "5px",
+              fontFamily: "var(--font-sans)",
+              maxWidth: "calc(100% - 24px)",
+              overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+            }}>
+              {sourceDomain}
+            </span>
+          )}
+        </div>
+      ) : null}
+
+      {/* Body */}
+      <div style={{ padding: "14px 16px 16px" }}>
+        {/* Se nao tem thumb, mostra hashtag aqui em cima */}
+        {!thumbnail && primaryTag && (
+          <span style={{
+            display: "inline-block",
+            fontSize: "10px", fontWeight: 700, color: "var(--gold)",
+            background: "rgba(201,168,76,0.1)",
+            border: "1px solid rgba(201,168,76,0.25)",
+            padding: "3px 8px", borderRadius: "5px",
+            letterSpacing: "0.08em",
+            fontFamily: "var(--font-sans)",
+            textTransform: "uppercase",
+            marginBottom: "8px",
+          }}>
+            #{primaryTag}
+          </span>
+        )}
+
+        <h3 style={{
+          fontSize: "15px", fontWeight: 700, color: "var(--text-strong)",
+          fontFamily: "var(--font-display)",
+          lineHeight: 1.35, letterSpacing: "-0.01em",
+          marginBottom: summary ? "8px" : "10px",
+          // Limita o titulo a 3 linhas pra nao bagunçar o card
+          display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical",
+          overflow: "hidden",
+        }}>
+          {title}
+        </h3>
+
+        {summary && (
+          <p style={{
+            fontSize: "12.5px", color: "var(--text-body)",
+            fontFamily: "var(--font-sans)",
+            lineHeight: 1.55,
+            marginBottom: "10px",
+            whiteSpace: "pre-wrap", wordBreak: "break-word",
+            // Limita a 4 linhas — admin pode escrever um socinho mais longo
+            display: "-webkit-box", WebkitLineClamp: 4, WebkitBoxOrient: "vertical",
+            overflow: "hidden",
+          }}>
+            {summary}
+          </p>
+        )}
+
+        {url && (
+          <div style={{
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+            paddingTop: "8px", borderTop: "1px solid var(--border-faint)",
+            gap: "8px",
+          }}>
+            <span style={{
+              fontSize: "10px", color: "var(--text-faint)",
+              fontFamily: "var(--font-sans)",
+              letterSpacing: "0.04em",
+              overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+            }}>
+              {sourceDomain ?? "Fonte"}
+            </span>
+            <span style={{
+              display: "inline-flex", alignItems: "center", gap: "4px",
+              fontSize: "11px", fontWeight: 600, color: "var(--gold)",
+              fontFamily: "var(--font-sans)",
+              letterSpacing: "0.02em",
+            }}>
+              Ler matéria <ExternalLink size={11} />
+            </span>
+          </div>
+        )}
+      </div>
+    </a>
   );
 }
 

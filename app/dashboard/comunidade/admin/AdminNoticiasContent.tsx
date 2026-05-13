@@ -120,6 +120,8 @@ export default function AdminNoticiasContent({ userEmail, userName, userAvatar }
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [alreadyPosted, setAlreadyPosted] = useState<Set<string>>(new Set());
   const [posting, setPosting] = useState(false);
+  // Resumo por item selecionado (vai pro content do post). Mapeia id (URL) → resumo
+  const [summaries, setSummaries] = useState<Map<string, string>>(new Map());
 
   const loadNews = useCallback(async () => {
     setLoading(true);
@@ -169,7 +171,15 @@ export default function AdminNoticiasContent({ userEmail, userName, userAvatar }
 
   function toggleSelect(id: string) {
     const next = new Set(selected);
-    if (next.has(id)) next.delete(id); else next.add(id);
+    if (next.has(id)) {
+      next.delete(id);
+      // Limpa resumo associado quando desseleciona — evita acumular drafts órfãos
+      const nextSummaries = new Map(summaries);
+      nextSummaries.delete(id);
+      setSummaries(nextSummaries);
+    } else {
+      next.add(id);
+    }
     setSelected(next);
   }
 
@@ -183,6 +193,14 @@ export default function AdminNoticiasContent({ userEmail, userName, userAvatar }
 
   function clearSelection() {
     setSelected(new Set());
+    setSummaries(new Map());
+  }
+
+  function updateSummary(id: string, value: string) {
+    const next = new Map(summaries);
+    if (value.trim()) next.set(id, value);
+    else next.delete(id);
+    setSummaries(next);
   }
 
   async function publishSelected() {
@@ -194,19 +212,24 @@ export default function AdminNoticiasContent({ userEmail, userName, userAvatar }
 
     const rows = items
       .filter((i) => selected.has(i.id))
-      .map((item) => ({
-        author_name: userName,
-        author_email: userEmail,
-        author_avatar: userAvatar,
-        post_type: "news",
-        content: `#${tag} ${item.title}`,
-        news_title: item.title,
-        news_url: item.url,
-        news_thumbnail: item.thumb,
-        tags: tagsArray,
-        moderation_status: "aprovado",
-        images: [],
-      }));
+      .map((item) => {
+        // content = resumo escrito pelo admin (vai virar o corpo do card no feed).
+        // Se vazio, deixa null — o card mostra só título + footer.
+        const summary = summaries.get(item.id)?.trim() ?? "";
+        return {
+          author_name: userName,
+          author_email: userEmail,
+          author_avatar: userAvatar,
+          post_type: "news",
+          content: summary.length > 0 ? summary : null,
+          news_title: item.title,
+          news_url: item.url,
+          news_thumbnail: item.thumb,
+          tags: tagsArray,
+          moderation_status: "aprovado",
+          images: [],
+        };
+      });
 
     const { error } = await supabase.from("community_post").insert(rows);
     setPosting(false);
@@ -221,6 +244,7 @@ export default function AdminNoticiasContent({ userEmail, userName, userAvatar }
     for (const r of rows) if (r.news_url) newPosted.add(r.news_url);
     setAlreadyPosted(newPosted);
     setSelected(new Set());
+    setSummaries(new Map());
   }
 
   const selectableCount = items.filter((i) => !alreadyPosted.has(i.url)).length;
@@ -555,6 +579,8 @@ export default function AdminNoticiasContent({ userEmail, userName, userAvatar }
                 selected={selected.has(item.id)}
                 disabled={alreadyPosted.has(item.url)}
                 onToggle={() => toggleSelect(item.id)}
+                summary={summaries.get(item.id) ?? ""}
+                onSummaryChange={(v) => updateSummary(item.id, v)}
               />
             ))}
           </div>
@@ -603,12 +629,14 @@ function Selector<T extends string>({
 }
 
 function NewsCard({
-  item, selected, disabled, onToggle,
+  item, selected, disabled, onToggle, summary, onSummaryChange,
 }: {
   item: GdeltNewsItem;
   selected: boolean;
   disabled: boolean;
   onToggle: () => void;
+  summary: string;
+  onSummaryChange: (value: string) => void;
 }) {
   return (
     <div
@@ -733,6 +761,48 @@ function NewsCard({
             Abrir fonte <ExternalLink size={9} />
           </a>
         </div>
+
+        {/* Resumo opcional — só aparece quando o item está selecionado.
+            Captura cliques pra não desselecionar o card ao digitar. */}
+        {selected && (
+          <div
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.stopPropagation()}
+            style={{ marginTop: "8px", paddingTop: "10px", borderTop: "1px solid var(--border-faint)" }}
+          >
+            <label style={{
+              display: "block",
+              fontSize: "9px", fontWeight: 700, color: "var(--gold)",
+              fontFamily: "var(--font-sans)", letterSpacing: "0.12em",
+              textTransform: "uppercase", marginBottom: "5px",
+            }}>
+              Resumo (opcional)
+            </label>
+            <textarea
+              value={summary}
+              onChange={(e) => onSummaryChange(e.target.value)}
+              placeholder="Escreva um resumo curto pra contextualizar essa notícia no feed..."
+              rows={3}
+              maxLength={500}
+              style={{
+                width: "100%",
+                background: "var(--bg-input)",
+                border: "1px solid var(--border-soft)",
+                borderRadius: "6px",
+                padding: "8px 10px",
+                color: "var(--text-default)", fontSize: "12px",
+                fontFamily: "var(--font-sans)",
+                outline: "none", resize: "vertical",
+                lineHeight: 1.5,
+                boxSizing: "border-box",
+                minHeight: "70px",
+              }}
+            />
+            <p style={{ fontSize: "9px", color: "var(--text-faint)", fontFamily: "var(--font-sans)", marginTop: "4px", fontVariantNumeric: "tabular-nums" }}>
+              {summary.length}/500
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );

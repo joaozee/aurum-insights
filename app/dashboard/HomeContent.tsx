@@ -826,9 +826,16 @@ function NewsPreview({ post, onOpen }: { post: HomeNewsPost; onOpen: () => void 
         )}
       </div>
       <div className="flex flex-1 flex-col justify-between gap-2 p-3.5">
-        <p className="line-clamp-3 text-[12.5px] font-semibold leading-[1.4] text-[var(--text-default)]">
-          {post.news_title ?? post.content ?? "Sem título"}
-        </p>
+        <div className="space-y-1.5">
+          <p className="line-clamp-2 text-[12.5px] font-semibold leading-[1.4] text-[var(--text-default)]">
+            {post.news_title ?? "Sem título"}
+          </p>
+          {post.content && (
+            <p className="line-clamp-2 text-[11px] leading-[1.5] text-[var(--text-body)]">
+              {post.content}
+            </p>
+          )}
+        </div>
         <div className="flex items-center justify-between gap-2 text-[10px] text-[var(--text-faint)]">
           <span>{formatRelativeTime(post.created_at)}</span>
           <span className="inline-flex items-center gap-1 text-[var(--gold)] transition-colors group-hover:text-[var(--gold-light)]">
