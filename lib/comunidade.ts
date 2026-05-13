@@ -1,6 +1,6 @@
 // ─── Tipos das tabelas (refletem o schema do Supabase) ──────────────────────
 
-export type PostType = "text" | "image" | "news" | "article";
+export type PostType = "text" | "image" | "audio" | "video" | "news" | "article";
 export type ReactionType = "like" | "foguete" | "alvo" | "coracao" | "pensativo";
 export type FeedAlgorithm = "chronological" | "relevance" | "engagement";
 export type ExperienceLevel = "iniciante" | "intermediario" | "avancado" | "especialista";
@@ -14,6 +14,8 @@ export interface CommunityPost {
   author_avatar: string | null;
   post_type: PostType;
   images: string[] | null;
+  audio_url: string | null;
+  video_url: string | null;
   tags: string[] | null;
   news_url: string | null;
   news_title: string | null;

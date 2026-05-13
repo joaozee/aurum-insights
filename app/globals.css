@@ -115,6 +115,18 @@
   .aurum-spin { animation: none; }
 }
 
+/* Bolinha pulsante de gravação ao vivo (Comunidade composer) */
+@keyframes aurum-rec-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.35; transform: scale(0.85); }
+}
+.aurum-rec-dot {
+  animation: aurum-rec-pulse 1s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .aurum-rec-dot { animation: none; }
+}
+
 @keyframes shimmer {
   0%   { background-position: 200% 0; }
   100% { background-position: -200% 0; }

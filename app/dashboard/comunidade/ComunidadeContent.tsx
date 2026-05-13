@@ -4,14 +4,16 @@ import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
-  Search, Image as ImageIcon, Sparkles, RefreshCw, Heart,
+  Search, Image as ImageIcon, RefreshCw, Heart,
   MessageCircle, Repeat2, Bookmark, Newspaper, TrendingUp,
   Bookmark as BookmarkIcon, Users as UsersIcon, Settings2,
   MessageSquare, X, ExternalLink, Send,
+  Mic, Video, Square, Headphones, Film,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import {
-  type CommunityPost, type PostComment, formatRelativeTime, initialFromName,
+  type CommunityPost, type PostComment, type PostType,
+  formatRelativeTime, initialFromName,
   TOPICOS_INTERESSE, FEED_ALGORITHMS, type FeedAlgorithm,
 } from "@/lib/comunidade";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -32,7 +34,6 @@ export default function ComunidadeContent({ userEmail, userName, userAvatar }: P
   const [loading, setLoading] = useState(true);
   const [feedError, setFeedError] = useState<string | null>(null);
   const [composerText, setComposerText] = useState("");
-  const [isPremium, setIsPremium] = useState(false);
   const [posting, setPosting] = useState(false);
   const [busca, setBusca] = useState("");
   const [followingCount, setFollowingCount] = useState(0);
@@ -55,47 +56,195 @@ export default function ComunidadeContent({ userEmail, userName, userAvatar }: P
   const [topMovers, setTopMovers] = useState<{ symbol: string; name: string; change: number | null }[]>([]);
   const [topInvestors, setTopInvestors] = useState<{ name: string; points: number; rank: number }[]>([]);
 
-  // Upload de imagem do composer
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const [pendingImage, setPendingImage] = useState<File | null>(null);
-  const [pendingImagePreview, setPendingImagePreview] = useState<string | null>(null);
+  // ─── Composer media (image / audio / video) ─────────────────────────────
+  // Cada slot é mutuamente exclusivo — um post tem 1 mídia. Trocar de tipo
+  // descarta o anterior. `pendingMedia` carrega tudo num único state pra
+  // simplificar lifecycle.
+
+  type MediaKind = "image" | "audio" | "video";
+  type PendingMedia = {
+    kind: MediaKind;
+    file: File;
+    /** Object URL pra preview. Revogado quando o slot é limpo. */
+    previewUrl: string;
+    /** Marca se veio de uma gravação ao vivo (vs upload de arquivo). */
+    recorded?: boolean;
+  };
+
+  const imageInputRef = useRef<HTMLInputElement | null>(null);
+  const audioInputRef = useRef<HTMLInputElement | null>(null);
+  const videoInputRef = useRef<HTMLInputElement | null>(null);
+  const [pendingMedia, setPendingMedia] = useState<PendingMedia | null>(null);
   const [uploading, setUploading] = useState(false);
+
+  // Gravação ao vivo
+  type RecState = { kind: "audio" | "video"; stream: MediaStream; recorder: MediaRecorder; chunks: Blob[]; startedAt: number };
+  const [recording, setRecording] = useState<{ kind: "audio" | "video"; elapsed: number } | null>(null);
+  const recRef = useRef<RecState | null>(null);
+  const recTickRef = useRef<number | null>(null);
+  // Preview ao vivo da câmera durante gravação de vídeo
+  const liveVideoRef = useRef<HTMLVideoElement | null>(null);
 
   const userInitial = initialFromName(userName);
 
-  function handlePickImage() {
-    fileInputRef.current?.click();
+  function clearPendingMedia() {
+    if (pendingMedia?.previewUrl) {
+      URL.revokeObjectURL(pendingMedia.previewUrl);
+    }
+    setPendingMedia(null);
   }
 
-  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    e.target.value = "";
-    if (!file) return;
-    if (!file.type.startsWith("image/")) return;
-    if (file.size > 5 * 1024 * 1024) return; // 5MB
-    setPendingImage(file);
-    const reader = new FileReader();
-    reader.onload = () => setPendingImagePreview(reader.result as string);
-    reader.readAsDataURL(file);
+  function acceptFile(kind: MediaKind, file: File) {
+    // Limites por tipo — equilibram custo de storage e usabilidade
+    const limits: Record<MediaKind, number> = {
+      image: 5 * 1024 * 1024,   //  5 MB
+      audio: 20 * 1024 * 1024,  // 20 MB
+      video: 50 * 1024 * 1024,  // 50 MB
+    };
+    if (file.size > limits[kind]) {
+      const mb = (limits[kind] / 1024 / 1024).toFixed(0);
+      alert(`Arquivo muito grande. Máximo: ${mb} MB.`);
+      return;
+    }
+    const expectedPrefix = kind + "/";
+    if (!file.type.startsWith(expectedPrefix)) {
+      alert(`Esse arquivo não parece ser ${kind === "image" ? "uma imagem" : kind === "audio" ? "um áudio" : "um vídeo"}.`);
+      return;
+    }
+    if (pendingMedia?.previewUrl) URL.revokeObjectURL(pendingMedia.previewUrl);
+    setPendingMedia({ kind, file, previewUrl: URL.createObjectURL(file) });
   }
 
-  function clearPendingImage() {
-    setPendingImage(null);
-    setPendingImagePreview(null);
+  function handleFileChange(kind: MediaKind) {
+    return (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      e.target.value = "";
+      if (file) acceptFile(kind, file);
+    };
   }
 
-  async function uploadPendingImage(): Promise<string | null> {
-    if (!pendingImage) return null;
+  // ─── Gravação ao vivo (MediaRecorder API) ──────────────────────────────
+  async function startRecording(kind: "audio" | "video") {
+    if (recording) return;
+    if (typeof window === "undefined" || !navigator.mediaDevices?.getUserMedia) {
+      alert("Seu navegador não suporta captura de mídia.");
+      return;
+    }
+    try {
+      const constraints: MediaStreamConstraints =
+        kind === "video"
+          ? { video: { facingMode: "user" }, audio: true }
+          : { audio: true };
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+
+      // Escolher o melhor mime suportado pelo navegador
+      const candidates =
+        kind === "video"
+          ? ["video/webm;codecs=vp9,opus", "video/webm;codecs=vp8,opus", "video/webm", "video/mp4"]
+          : ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg"];
+      const mimeType = candidates.find((m) => MediaRecorder.isTypeSupported(m)) ?? "";
+
+      const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
+      const chunks: Blob[] = [];
+      recorder.ondataavailable = (ev) => {
+        if (ev.data && ev.data.size > 0) chunks.push(ev.data);
+      };
+      recorder.onstop = () => {
+        const type = recorder.mimeType || (kind === "video" ? "video/webm" : "audio/webm");
+        const ext = type.includes("mp4") ? (kind === "video" ? "mp4" : "m4a")
+                  : type.includes("ogg") ? "ogg"
+                  : kind === "video" ? "webm" : "webm";
+        const blob = new Blob(chunks, { type });
+        const file = new File([blob], `${kind}-${Date.now()}.${ext}`, { type });
+        if (pendingMedia?.previewUrl) URL.revokeObjectURL(pendingMedia.previewUrl);
+        setPendingMedia({ kind, file, previewUrl: URL.createObjectURL(blob), recorded: true });
+        // libera câmera/microfone
+        stream.getTracks().forEach((t) => t.stop());
+      };
+
+      recRef.current = { kind, stream, recorder, chunks, startedAt: Date.now() };
+
+      // Anexa o stream ao <video> de preview ao vivo, se for gravação de vídeo
+      if (kind === "video") {
+        // O elemento ainda pode não estar montado — setRecording dispara render
+        requestAnimationFrame(() => {
+          if (liveVideoRef.current) {
+            liveVideoRef.current.srcObject = stream;
+            liveVideoRef.current.play().catch(() => { /* autoplay pode falhar; user-gesture já feito */ });
+          }
+        });
+      }
+
+      recorder.start();
+      setRecording({ kind, elapsed: 0 });
+      // Tick a cada segundo pra atualizar o timer
+      recTickRef.current = window.setInterval(() => {
+        if (recRef.current) {
+          setRecording({ kind, elapsed: Math.floor((Date.now() - recRef.current.startedAt) / 1000) });
+        }
+      }, 500);
+    } catch (err) {
+      console.error("[recording] getUserMedia falhou:", err);
+      alert("Não consegui acessar microfone/câmera. Verifique as permissões do navegador.");
+    }
+  }
+
+  function stopRecording() {
+    if (!recRef.current) return;
+    try { recRef.current.recorder.stop(); } catch { /* já parado */ }
+    if (recTickRef.current !== null) {
+      clearInterval(recTickRef.current);
+      recTickRef.current = null;
+    }
+    recRef.current = null;
+    setRecording(null);
+  }
+
+  function cancelRecording() {
+    if (!recRef.current) return;
+    // Detach do handler de stop pra não criar pendingMedia descartado
+    recRef.current.recorder.ondataavailable = null;
+    recRef.current.recorder.onstop = null;
+    try { recRef.current.recorder.stop(); } catch { /* já parado */ }
+    recRef.current.stream.getTracks().forEach((t) => t.stop());
+    if (recTickRef.current !== null) {
+      clearInterval(recTickRef.current);
+      recTickRef.current = null;
+    }
+    recRef.current = null;
+    setRecording(null);
+  }
+
+  // Cleanup quando o componente desmonta — evita vazamento de stream e timer
+  useEffect(() => {
+    return () => {
+      if (recRef.current) {
+        recRef.current.stream.getTracks().forEach((t) => t.stop());
+      }
+      if (recTickRef.current !== null) clearInterval(recTickRef.current);
+      if (pendingMedia?.previewUrl) URL.revokeObjectURL(pendingMedia.previewUrl);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function uploadPendingMedia(): Promise<{ url: string; kind: MediaKind } | null> {
+    if (!pendingMedia) return null;
     setUploading(true);
     try {
-      const ext = pendingImage.name.split(".").pop() || "jpg";
-      const path = `${userEmail}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+      const { kind, file } = pendingMedia;
+      const ext = file.name.split(".").pop()?.toLowerCase() || (kind === "image" ? "jpg" : kind === "audio" ? "webm" : "webm");
+      // Subpasta por tipo deixa o bucket mais navegável; mantém o prefixo por
+      // user pra facilitar policies por owner (já existentes pra imagens).
+      const path = `${userEmail}/${kind}s/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
       const { error } = await supabase.storage
         .from("community-uploads")
-        .upload(path, pendingImage, { upsert: false, contentType: pendingImage.type });
-      if (error) return null;
+        .upload(path, file, { upsert: false, contentType: file.type });
+      if (error) {
+        console.error("[upload] falha", error);
+        return null;
+      }
       const { data: pub } = supabase.storage.from("community-uploads").getPublicUrl(path);
-      return pub.publicUrl;
+      return { url: pub.publicUrl, kind };
     } finally {
       setUploading(false);
     }
@@ -277,28 +426,48 @@ export default function ComunidadeContent({ userEmail, userName, userAvatar }: P
   }, [loadPosts, loadConnections, loadReactions, loadPreferences, loadMyReposts, loadSidebarData, loadFollowing]);
 
   async function handlePost() {
-    if ((!composerText.trim() && !pendingImage) || posting) return;
+    if ((!composerText.trim() && !pendingMedia) || posting) return;
     setPosting(true);
-    let imageUrl: string | null = null;
-    if (pendingImage) {
-      imageUrl = await uploadPendingImage();
+    let mediaUrl: string | null = null;
+    let mediaKind: MediaKind | null = null;
+    if (pendingMedia) {
+      const res = await uploadPendingMedia();
+      if (res) {
+        mediaUrl = res.url;
+        mediaKind = res.kind;
+      } else {
+        setPosting(false);
+        alert("Não consegui subir a mídia. Tenta de novo em um instante.");
+        return;
+      }
     }
+
+    // post_type segue a mídia anexa; sem mídia, é texto puro.
+    const postType: PostType =
+      mediaKind === "image" ? "image" :
+      mediaKind === "audio" ? "audio" :
+      mediaKind === "video" ? "video" :
+      "text";
+
     const { error } = await supabase.from("community_post").insert({
       content: composerText.trim() || null,
       author_name: userName,
       author_email: userEmail,
       author_avatar: userAvatar,
-      post_type: "text",
-      is_premium_only: isPremium,
+      post_type: postType,
       moderation_status: "aprovado",
-      images: imageUrl ? [imageUrl] : [],
+      images: mediaKind === "image" && mediaUrl ? [mediaUrl] : [],
+      audio_url: mediaKind === "audio" ? mediaUrl : null,
+      video_url: mediaKind === "video" ? mediaUrl : null,
     });
     setPosting(false);
     if (!error) {
       setComposerText("");
-      setIsPremium(false);
-      clearPendingImage();
+      clearPendingMedia();
       loadPosts();
+    } else {
+      console.error("[handlePost]", error);
+      alert("Erro ao postar. Tenta de novo.");
     }
   }
 
@@ -623,13 +792,10 @@ export default function ComunidadeContent({ userEmail, userName, userAvatar }: P
             border: "1px solid rgba(201,168,76,0.1)",
             borderRadius: "12px", padding: "16px",
           }}>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              onChange={handleFileChange}
-              style={{ display: "none" }}
-            />
+            <input ref={imageInputRef} type="file" accept="image/*" onChange={handleFileChange("image")} style={{ display: "none" }} />
+            <input ref={audioInputRef} type="file" accept="audio/*" onChange={handleFileChange("audio")} style={{ display: "none" }} />
+            <input ref={videoInputRef} type="file" accept="video/*" onChange={handleFileChange("video")} style={{ display: "none" }} />
+
             <div style={{ display: "flex", gap: "10px", marginBottom: "12px" }}>
               <Avatar initial={userInitial} size={36} url={userAvatar} />
               <textarea
@@ -647,72 +813,216 @@ export default function ComunidadeContent({ userEmail, userName, userAvatar }: P
                 }}
               />
             </div>
-            {pendingImagePreview && (
+
+            {/* Recording overlay — mostra preview da câmera + timer durante captura */}
+            {recording && (
+              <div style={{
+                position: "relative", marginBottom: "12px",
+                borderRadius: "10px", overflow: "hidden",
+                border: "1px solid rgba(248,113,113,0.3)",
+                background: "rgba(248,113,113,0.04)",
+                padding: recording.kind === "audio" ? "20px" : "0",
+              }}>
+                {recording.kind === "video" ? (
+                  <video
+                    ref={liveVideoRef}
+                    autoPlay
+                    muted
+                    playsInline
+                    style={{ width: "100%", maxHeight: "320px", display: "block", background: "#000" }}
+                  />
+                ) : (
+                  <div style={{ display: "flex", alignItems: "center", gap: "14px", padding: "12px 4px" }}>
+                    <div style={{
+                      width: "44px", height: "44px", borderRadius: "50%",
+                      background: "rgba(248,113,113,0.18)",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      color: "#f87171",
+                    }}>
+                      <Mic size={20} />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <p style={{ fontSize: "13px", fontWeight: 700, color: "#e8dcc0", fontFamily: "var(--font-display)", marginBottom: "2px" }}>
+                        Gravando áudio…
+                      </p>
+                      <p style={{ fontSize: "11px", color: "#a09068", fontFamily: "var(--font-sans)" }}>
+                        Toque em Parar quando terminar.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Timer + controles, sobrepostos no canto inferior */}
+                <div style={{
+                  position: recording.kind === "video" ? "absolute" : "static",
+                  left: 0, right: 0, bottom: 0,
+                  display: "flex", justifyContent: "space-between", alignItems: "center",
+                  padding: "10px 12px",
+                  background: recording.kind === "video"
+                    ? "linear-gradient(180deg, transparent, rgba(0,0,0,0.65))"
+                    : "transparent",
+                  gap: "10px",
+                }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <span
+                      className="aurum-rec-dot"
+                      style={{
+                        width: "10px", height: "10px", borderRadius: "50%",
+                        background: "#f87171",
+                        boxShadow: "0 0 8px #f87171",
+                      }}
+                    />
+                    <span style={{ fontSize: "12px", fontWeight: 700, color: "#fff", fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", letterSpacing: "0.04em" }}>
+                      REC · {formatElapsed(recording.elapsed)}
+                    </span>
+                  </div>
+                  <div style={{ display: "flex", gap: "6px" }}>
+                    <button
+                      onClick={cancelRecording}
+                      style={{
+                        background: "rgba(0,0,0,0.45)", border: "1px solid rgba(255,255,255,0.15)",
+                        borderRadius: "6px", padding: "5px 10px", cursor: "pointer",
+                        color: "#fff", fontSize: "11px", fontWeight: 600, fontFamily: "var(--font-sans)",
+                        display: "inline-flex", alignItems: "center", gap: "4px",
+                      }}
+                    >
+                      <X size={11} /> Cancelar
+                    </button>
+                    <button
+                      onClick={stopRecording}
+                      style={{
+                        background: "linear-gradient(135deg, #f87171, #c54848)",
+                        border: "none",
+                        borderRadius: "6px", padding: "5px 12px", cursor: "pointer",
+                        color: "#fff", fontSize: "11px", fontWeight: 700, fontFamily: "var(--font-sans)",
+                        display: "inline-flex", alignItems: "center", gap: "4px",
+                        boxShadow: "0 2px 12px rgba(248,113,113,0.4)",
+                      }}
+                    >
+                      <Square size={10} fill="#fff" /> Parar
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Preview da mídia anexa */}
+            {pendingMedia && !recording && (
               <div style={{
                 position: "relative", marginBottom: "12px",
                 borderRadius: "10px", overflow: "hidden",
                 border: "1px solid rgba(201,168,76,0.1)",
-                maxHeight: "300px",
               }}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={pendingImagePreview} alt="" style={{ width: "100%", display: "block", maxHeight: "300px", objectFit: "cover" }} />
+                {pendingMedia.kind === "image" && (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img src={pendingMedia.previewUrl} alt="" style={{ width: "100%", display: "block", maxHeight: "320px", objectFit: "cover" }} />
+                )}
+                {pendingMedia.kind === "video" && (
+                  <video
+                    src={pendingMedia.previewUrl}
+                    controls
+                    playsInline
+                    style={{ width: "100%", display: "block", maxHeight: "360px", background: "#000" }}
+                  />
+                )}
+                {pendingMedia.kind === "audio" && (
+                  <div style={{ padding: "14px 16px", background: "#0d0a06", display: "flex", alignItems: "center", gap: "12px" }}>
+                    <div style={{
+                      width: "40px", height: "40px", borderRadius: "10px",
+                      background: "rgba(201,168,76,0.12)", color: "#C9A84C",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      flexShrink: 0,
+                    }}>
+                      <Headphones size={18} />
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ fontSize: "12px", fontWeight: 600, color: "#e8dcc0", fontFamily: "var(--font-sans)", marginBottom: "6px" }}>
+                        {pendingMedia.recorded ? "Áudio gravado" : pendingMedia.file.name}
+                      </p>
+                      <audio src={pendingMedia.previewUrl} controls style={{ width: "100%", height: "32px" }} />
+                    </div>
+                  </div>
+                )}
                 <button
-                  onClick={clearPendingImage}
-                  aria-label="Remover imagem"
+                  onClick={clearPendingMedia}
+                  aria-label="Remover mídia"
                   style={{
                     position: "absolute", top: "8px", right: "8px",
-                    width: "28px", height: "28px", borderRadius: "50%",
-                    background: "rgba(0,0,0,0.7)", border: "none", cursor: "pointer",
+                    width: "30px", height: "30px", borderRadius: "50%",
+                    background: "rgba(0,0,0,0.75)", border: "1px solid rgba(255,255,255,0.1)", cursor: "pointer",
                     color: "#fff", display: "flex", alignItems: "center", justifyContent: "center",
+                    zIndex: 2,
                   }}
                 >
                   <X size={14} />
                 </button>
               </div>
             )}
+
             <div style={{
               display: "flex", justifyContent: "space-between", alignItems: "center",
               paddingTop: "10px", borderTop: "1px solid rgba(201,168,76,0.06)",
+              gap: "8px", flexWrap: "wrap",
             }}>
-              <div style={{ display: "flex", gap: "6px" }}>
-                <ComposerIconBtn icon={<ImageIcon size={14} />} label="Imagem" onClick={handlePickImage} />
-                <button
-                  onClick={() => setIsPremium((v) => !v)}
-                  style={{
-                    display: "flex", alignItems: "center", gap: "5px",
-                    padding: "5px 10px",
-                    borderRadius: "6px",
-                    border: "1px solid",
-                    borderColor: isPremium ? "rgba(201,168,76,0.4)" : "rgba(201,168,76,0.1)",
-                    background: isPremium ? "rgba(201,168,76,0.08)" : "transparent",
-                    color: isPremium ? "#C9A84C" : "#a09068",
-                    fontSize: "11px", fontWeight: 500,
-                    fontFamily: "var(--font-sans)", cursor: "pointer",
-                    transition: "all 0.15s",
-                  }}
-                >
-                  <Sparkles size={11} fill={isPremium ? "#C9A84C" : "none"} /> Premium
-                </button>
+              <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+                <ComposerIconBtn
+                  icon={<ImageIcon size={14} />}
+                  label="Imagem"
+                  active={pendingMedia?.kind === "image"}
+                  disabled={!!recording}
+                  onClick={() => imageInputRef.current?.click()}
+                />
+                <ComposerIconBtn
+                  icon={<Film size={14} />}
+                  label="Vídeo"
+                  active={pendingMedia?.kind === "video"}
+                  disabled={!!recording}
+                  onClick={() => videoInputRef.current?.click()}
+                />
+                <ComposerIconBtn
+                  icon={<Headphones size={14} />}
+                  label="Áudio"
+                  active={pendingMedia?.kind === "audio"}
+                  disabled={!!recording}
+                  onClick={() => audioInputRef.current?.click()}
+                />
+                <span style={{ width: "1px", background: "rgba(201,168,76,0.1)", margin: "2px 4px" }} />
+                <ComposerIconBtn
+                  icon={<Mic size={14} />}
+                  label="Gravar áudio"
+                  active={recording?.kind === "audio"}
+                  disabled={!!recording && recording.kind !== "audio"}
+                  onClick={() => startRecording("audio")}
+                  tone={recording?.kind === "audio" ? "danger" : undefined}
+                />
+                <ComposerIconBtn
+                  icon={<Video size={14} />}
+                  label="Gravar vídeo"
+                  active={recording?.kind === "video"}
+                  disabled={!!recording && recording.kind !== "video"}
+                  onClick={() => startRecording("video")}
+                  tone={recording?.kind === "video" ? "danger" : undefined}
+                />
               </div>
               <button
                 onClick={handlePost}
-                disabled={(!composerText.trim() && !pendingImage) || posting || uploading}
+                disabled={(!composerText.trim() && !pendingMedia) || posting || uploading || !!recording}
                 style={{
-                  background: (composerText.trim() || pendingImage) && !posting && !uploading
+                  background: (composerText.trim() || pendingMedia) && !posting && !uploading && !recording
                     ? "linear-gradient(135deg, var(--gold-light), var(--gold), var(--gold-dim))"
                     : "rgba(201,168,76,0.2)",
                   border: "none", borderRadius: "8px",
                   padding: "8px 18px",
-                  color: (composerText.trim() || pendingImage) && !posting && !uploading ? "#0d0b07" : "var(--text-faint)",
+                  color: (composerText.trim() || pendingMedia) && !posting && !uploading && !recording ? "#0d0b07" : "var(--text-faint)",
                   fontSize: "12px", fontWeight: 700,
                   fontFamily: "var(--font-sans)",
-                  cursor: (composerText.trim() || pendingImage) && !posting && !uploading ? "pointer" : "not-allowed",
+                  cursor: (composerText.trim() || pendingMedia) && !posting && !uploading && !recording ? "pointer" : "not-allowed",
                   letterSpacing: "0.04em",
-                  boxShadow: (composerText.trim() || pendingImage) && !posting && !uploading ? "0 2px 12px rgba(201,168,76,0.3)" : "none",
+                  boxShadow: (composerText.trim() || pendingMedia) && !posting && !uploading && !recording ? "0 2px 12px rgba(201,168,76,0.3)" : "none",
                   transition: "box-shadow 0.15s",
                 }}
               >
-                {posting || uploading ? "..." : "Postar"}
+                {uploading ? "Subindo..." : posting ? "Postando..." : "Postar"}
               </button>
             </div>
           </div>
@@ -938,9 +1248,6 @@ function PostCard({
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
             <AuthorLink username={main.author_username} name={main.author_name} />
-            {main.is_premium_only && (
-              <Sparkles size={10} style={{ color: "#C9A84C" }} fill="#C9A84C" />
-            )}
           </div>
           <p style={{ fontSize: "11px", color: "#9a8a6a", fontFamily: "var(--font-sans)" }}>
             {formatRelativeTime(main.created_at)}
@@ -1000,16 +1307,9 @@ function PostCard({
         </p>
       )}
 
-      {/* Image */}
-      {main.images && main.images.length > 0 && (
-        <div style={{
-          marginBottom: "12px",
-          borderRadius: "10px", overflow: "hidden",
-          border: "1px solid rgba(201,168,76,0.08)",
-        }}>
-          <img src={main.images[0]} alt="" style={{ width: "100%", display: "block" }} />
-        </div>
-      )}
+      {/* Media (image / audio / video) */}
+      <PostMedia post={main} variant="main" />
+
 
       {/* Tags */}
       {main.tags && main.tags.length > 0 && (
@@ -1257,14 +1557,68 @@ function EmbeddedOriginal({ post, avatarByEmail }: { post: CommunityPost; avatar
           {post.content}
         </p>
       )}
-      {post.images && post.images.length > 0 && (
+      <PostMedia post={post} variant="embed" />
+    </div>
+  );
+}
+
+// ─── PostMedia ───────────────────────────────────────────────────────────────
+// Renderiza a midia do post (imagem, audio ou video) de forma consistente,
+// tanto no card principal quanto no embed de repost. Quando o post nao tem
+// midia, renderiza nada.
+
+function PostMedia({ post, variant }: { post: CommunityPost; variant: "main" | "embed" }) {
+  const hasImage = post.images && post.images.length > 0;
+  const hasVideo = !!post.video_url;
+  const hasAudio = !!post.audio_url;
+  if (!hasImage && !hasVideo && !hasAudio) return null;
+
+  const isMain = variant === "main";
+  const wrap: React.CSSProperties = {
+    marginTop: isMain ? 0 : "8px",
+    marginBottom: isMain ? "12px" : 0,
+    borderRadius: isMain ? "10px" : "8px",
+    overflow: "hidden",
+    border: "1px solid rgba(201,168,76,0.08)",
+  };
+
+  if (hasVideo) {
+    return (
+      <div style={{ ...wrap, background: "#000" }}>
+        <video
+          src={post.video_url ?? undefined}
+          controls
+          playsInline
+          preload="metadata"
+          style={{ width: "100%", display: "block", maxHeight: isMain ? "560px" : "320px" }}
+        />
+      </div>
+    );
+  }
+  if (hasAudio) {
+    return (
+      <div style={{ ...wrap, padding: "12px 14px", background: "#0d0a06", display: "flex", alignItems: "center", gap: "10px" }}>
         <div style={{
-          marginTop: "8px", borderRadius: "8px", overflow: "hidden",
-          border: "1px solid rgba(201,168,76,0.08)",
+          width: "34px", height: "34px", borderRadius: "9px",
+          background: "rgba(201,168,76,0.12)", color: "#C9A84C",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          flexShrink: 0,
         }}>
-          <img src={post.images[0]} alt="" style={{ width: "100%", display: "block" }} />
+          <Headphones size={15} />
         </div>
-      )}
+        <audio
+          src={post.audio_url ?? undefined}
+          controls
+          preload="metadata"
+          style={{ flex: 1, height: "32px" }}
+        />
+      </div>
+    );
+  }
+  return (
+    <div style={wrap}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={(post.images as string[])[0]} alt="" style={{ width: "100%", display: "block" }} />
     </div>
   );
 }
@@ -1669,24 +2023,51 @@ function SidebarItem({ icon, label, onClick }: { icon: React.ReactNode; label: s
   );
 }
 
-function ComposerIconBtn({ icon, label, onClick }: { icon: React.ReactNode; label: string; onClick?: () => void }) {
+function ComposerIconBtn({
+  icon, label, onClick, active, disabled, tone,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  onClick?: () => void;
+  active?: boolean;
+  disabled?: boolean;
+  tone?: "danger";
+}) {
+  // tone="danger" sinaliza estados destrutivos/críticos (ex: gravação em curso)
+  const dangerActive = tone === "danger" && active;
   return (
     <button
       aria-label={label}
+      title={label}
       onClick={onClick}
-      className="aurum-hover-gold aurum-hover-border aurum-hover-transition"
+      disabled={disabled}
+      className={!active && !disabled ? "aurum-hover-gold aurum-hover-border aurum-hover-transition" : undefined}
       style={{
         display: "flex", alignItems: "center", gap: "5px",
         padding: "5px 10px", borderRadius: "6px",
-        background: "transparent",
-        border: "1px solid var(--border-soft)",
-        color: "var(--text-muted)", fontSize: "11px", fontWeight: 500,
-        fontFamily: "var(--font-sans)", cursor: "pointer",
+        background: dangerActive
+          ? "rgba(248,113,113,0.12)"
+          : active
+            ? "rgba(201,168,76,0.12)"
+            : "transparent",
+        border: `1px solid ${dangerActive ? "rgba(248,113,113,0.4)" : active ? "rgba(201,168,76,0.4)" : "var(--border-soft)"}`,
+        color: dangerActive ? "#f87171" : active ? "var(--gold)" : "var(--text-muted)",
+        fontSize: "11px", fontWeight: active ? 600 : 500,
+        fontFamily: "var(--font-sans)",
+        cursor: disabled ? "not-allowed" : "pointer",
+        opacity: disabled ? 0.5 : 1,
+        transition: "all 0.15s",
       }}
     >
       {icon} {label}
     </button>
   );
+}
+
+function formatElapsed(seconds: number): string {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
 function ActionBtn({
