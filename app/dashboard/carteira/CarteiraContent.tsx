@@ -132,6 +132,23 @@ const ASSET_GROUP_LABELS: Record<string, string> = {
 };
 const ASSET_GROUP_ORDER: string[] = ["acoes", "fiis", "renda_fixa", "cripto", "fundos"];
 
+// Heurística de tipo a partir do ticker — usada quando o user registra uma
+// transação de um ativo que ainda não está na carteira (não tem `type`
+// explícito no form). Convenções da B3:
+//  - Tickers terminando em 11 são FIIs (MXRF11, BTLG11, HGLG11…).
+//    Exceção: units como SAPR11/TAEE11/BIDI11 não são FII, mas ficam como
+//    "acoes" sem regra adicional — assumimos FII por ser o caso comum.
+//    O usuário pode corrigir editando o asset depois.
+//  - 3–5 letras + 3 ou 4 (PETR4, ITUB4, ABEV3) são ações.
+//  - Símbolos puros (BTC, ETH, SOL) ou com hífen são cripto.
+function inferAssetType(ticker: string): AssetType {
+  const t = ticker.toUpperCase().trim();
+  if (/^[A-Z]{4}11$/.test(t)) return "fiis";
+  if (/^[A-Z]{4}[3-8]$/.test(t)) return "acoes";
+  if (/^[A-Z]{2,6}$/.test(t) && t.length <= 5) return "cripto";
+  return "acoes";
+}
+
 const RF_INDEXERS = ["CDI", "Prefixado", "IPCA+", "Selic"] as const;
 type RfIndexer = typeof RF_INDEXERS[number];
 function fmtRfRate(indexer: RfIndexer, rate: string): string {
@@ -1226,11 +1243,40 @@ export default function CarteiraContent({ userEmail }: Props) {
     const price = parseFloat(txForm.price.replace(",", "."));
     if (!(qty > 0))   { setFormError("Quantidade deve ser maior que zero.");  return; }
     if (!(price > 0)) { setFormError("Preço deve ser maior que zero.");       return; }
+    const ticker = txForm.ticker.toUpperCase().trim();
+
+    // ─── Espelhamento na tabela `asset` ────────────────────────────────────
+    // Toda transação aqui deve refletir na carteira (KPIs, distribuição,
+    // gráficos). Caso contrário, o histórico vira fonte de dado órfã.
+    //  - compra: cria o asset se não existir, ou soma qty + recalcula o preço
+    //    médio ponderado.
+    //  - venda: reduz qty; se zerar, remove o asset; bloqueia se exceder o
+    //    saldo (não dá pra vender o que não se tem).
+    const existing = assets.find(
+      (a) => a.name.toUpperCase() === ticker && a.type !== "renda_fixa"
+    );
+
+    if (txForm.type === "venda") {
+      if (!existing) {
+        setFormError(`Você não tem ${ticker} na carteira pra vender.`);
+        return;
+      }
+      const remaining = Number(existing.quantity) - qty;
+      // Tolerância pequena pra arredondamento de float
+      if (remaining < -0.0000001) {
+        const have = Number(existing.quantity);
+        setFormError(`Saldo insuficiente: você tem ${have} cotas de ${ticker}.`);
+        return;
+      }
+    }
+
     setSaving(true);
     const supabase = createClient();
-    const { error } = await supabase.from("transaction").insert({
+
+    // 1) Insere a transação (fonte de verdade do histórico)
+    const { error: txErr } = await supabase.from("transaction").insert({
       user_email: userEmail,
-      ticker: txForm.ticker.toUpperCase().trim(),
+      ticker,
       type: txForm.type,
       quantity: qty,
       price,
@@ -1238,8 +1284,70 @@ export default function CarteiraContent({ userEmail }: Props) {
       transaction_date: txForm.transaction_date,
       notes: txForm.notes,
     });
-    if (error) { setFormError("Erro ao salvar transação."); setSaving(false); return; }
-    setModal(null); setSaving(false); fetchData();
+    if (txErr) {
+      console.error("[saveTx/transaction]", txErr);
+      setFormError("Erro ao salvar transação.");
+      setSaving(false);
+      return;
+    }
+
+    // 2) Sincroniza o asset
+    if (txForm.type === "compra") {
+      if (existing) {
+        // Preço médio ponderado: (qty_antiga * preço_antigo + qty_nova * preço_novo) / (qty_antiga + qty_nova)
+        const oldQty = Number(existing.quantity);
+        const oldAvg = Number(existing.purchase_price);
+        const newQty = oldQty + qty;
+        const newAvg = newQty > 0 ? (oldQty * oldAvg + qty * price) / newQty : price;
+        // current_price é mantido (refreshPrices cuida da atualização live)
+        const { error: upErr } = await supabase
+          .from("asset")
+          .update({
+            quantity: newQty,
+            purchase_price: newAvg,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", existing.id);
+        if (upErr) console.error("[saveTx/asset-update]", upErr);
+      } else {
+        // Cria asset novo. Tenta puxar o preço live; cai pro preço da tx
+        // se a brapi não devolver nada (cripto fora da B3, ticker exótico).
+        const livePrice = await fetchLivePrice(ticker);
+        const { error: insErr } = await supabase.from("asset").insert({
+          user_email: userEmail,
+          name: ticker,
+          type: inferAssetType(ticker),
+          quantity: qty,
+          purchase_price: price,
+          current_price: livePrice ?? price,
+        });
+        if (insErr) console.error("[saveTx/asset-insert]", insErr);
+      }
+    } else {
+      // venda: já validamos saldo lá em cima
+      const oldQty = Number(existing!.quantity);
+      const newQty = oldQty - qty;
+      // Zerou? Remove o asset (carteira não carrega posição vazia).
+      // Float compare com tolerância pra evitar 0.0000001 fantasma.
+      if (newQty <= 0.0000001) {
+        const { error: delErr } = await supabase.from("asset").delete().eq("id", existing!.id);
+        if (delErr) console.error("[saveTx/asset-delete]", delErr);
+      } else {
+        const { error: upErr } = await supabase
+          .from("asset")
+          .update({ quantity: newQty, updated_at: new Date().toISOString() })
+          .eq("id", existing!.id);
+        if (upErr) console.error("[saveTx/asset-update-sell]", upErr);
+      }
+    }
+
+    setModal(null);
+    setSaving(false);
+    toast.success(
+      txForm.type === "compra" ? `Compra de ${ticker} registrada.` : `Venda de ${ticker} registrada.`,
+      { description: "Carteira atualizada." },
+    );
+    fetchData();
   }
 
   async function confirmDelete() {
@@ -1808,7 +1916,7 @@ export default function CarteiraContent({ userEmail }: Props) {
                 <EmptyState
                   variant="inline"
                   title="Sem histórico de transações"
-                  description="As compras adicionadas pela tela de ativos aparecem aqui automaticamente. Use Registrar Transação para também lançar vendas."
+                  description="Registre compras e vendas aqui — a carteira é atualizada automaticamente. Ativos adicionados pelo modal também aparecem nessa lista."
                   action={{
                     label: "Registrar transação",
                     onClick: () => { setTxForm({ ticker: "", type: "compra", quantity: "", price: "", transaction_date: now.toISOString().split("T")[0], notes: "" }); setFormError(""); setModal("tx"); },
