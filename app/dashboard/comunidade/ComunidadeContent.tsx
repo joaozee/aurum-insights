@@ -21,6 +21,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorState } from "@/components/ui/error-state";
 import { EmptyState } from "@/components/ui/empty-state";
+import { toast } from "sonner";
 
 interface Props {
   userEmail: string;
@@ -103,14 +104,20 @@ export default function ComunidadeContent({ userEmail, userName, userAvatar }: P
       audio: 20 * 1024 * 1024,  // 20 MB
       video: 50 * 1024 * 1024,  // 50 MB
     };
+    if (file.size === 0) {
+      toast.error("Arquivo vazio.", { description: "Tenta selecionar outro arquivo." });
+      return;
+    }
     if (file.size > limits[kind]) {
       const mb = (limits[kind] / 1024 / 1024).toFixed(0);
-      alert(`Arquivo muito grande. Máximo: ${mb} MB.`);
+      toast.error("Arquivo muito grande.", { description: `Máximo: ${mb} MB.` });
       return;
     }
     const expectedPrefix = kind + "/";
     if (!file.type.startsWith(expectedPrefix)) {
-      alert(`Esse arquivo não parece ser ${kind === "image" ? "uma imagem" : kind === "audio" ? "um áudio" : "um vídeo"}.`);
+      toast.error(
+        `Esse arquivo não parece ser ${kind === "image" ? "uma imagem" : kind === "audio" ? "um áudio" : "um vídeo"}.`,
+      );
       return;
     }
     if (pendingMedia?.previewUrl) URL.revokeObjectURL(pendingMedia.previewUrl);
@@ -129,7 +136,7 @@ export default function ComunidadeContent({ userEmail, userName, userAvatar }: P
   async function startRecording(kind: "audio" | "video") {
     if (recording) return;
     if (typeof window === "undefined" || !navigator.mediaDevices?.getUserMedia) {
-      alert("Seu navegador não suporta captura de mídia.");
+      toast.error("Seu navegador não suporta captura de mídia.");
       return;
     }
     try {
@@ -152,16 +159,37 @@ export default function ComunidadeContent({ userEmail, userName, userAvatar }: P
         if (ev.data && ev.data.size > 0) chunks.push(ev.data);
       };
       recorder.onstop = () => {
-        const type = recorder.mimeType || (kind === "video" ? "video/webm" : "audio/webm");
-        const ext = type.includes("mp4") ? (kind === "video" ? "mp4" : "m4a")
-                  : type.includes("ogg") ? "ogg"
+        // Libera câmera/microfone imediatamente — não depende da validação abaixo
+        stream.getTracks().forEach((t) => t.stop());
+
+        const fullType = recorder.mimeType || (kind === "video" ? "video/webm" : "audio/webm");
+        // MIME "limpo" (sem `;codecs=…`) — Supabase Storage rejeita o sufixo de
+        // codec quando o bucket tem allowed_mime_types configurado. Usado tanto
+        // como contentType do blob quanto na hora de subir.
+        const cleanType = fullType.split(";")[0].trim();
+        const ext = cleanType.includes("mp4") ? (kind === "video" ? "mp4" : "m4a")
+                  : cleanType.includes("ogg") ? "ogg"
                   : kind === "video" ? "webm" : "webm";
-        const blob = new Blob(chunks, { type });
-        const file = new File([blob], `${kind}-${Date.now()}.${ext}`, { type });
+        const blob = new Blob(chunks, { type: cleanType });
+
+        // Gravação curta demais ou vazia — evita upload de blob 0-byte que
+        // depois quebra o post (ou cria mídia inválida).
+        if (blob.size < 1024) {
+          toast.error("Gravação muito curta.", {
+            description: "Tenta gravar por mais alguns segundos.",
+          });
+          return;
+        }
+
+        const file = new File([blob], `${kind}-${Date.now()}.${ext}`, { type: cleanType });
         if (pendingMedia?.previewUrl) URL.revokeObjectURL(pendingMedia.previewUrl);
         setPendingMedia({ kind, file, previewUrl: URL.createObjectURL(blob), recorded: true });
-        // libera câmera/microfone
-        stream.getTracks().forEach((t) => t.stop());
+      };
+      recorder.onerror = (ev: Event) => {
+        console.error("[recording] MediaRecorder error", ev);
+        toast.error("Falha durante a gravação.", {
+          description: "Tenta gravar de novo.",
+        });
       };
 
       recRef.current = { kind, stream, recorder, chunks, startedAt: Date.now() };
@@ -187,7 +215,18 @@ export default function ComunidadeContent({ userEmail, userName, userAvatar }: P
       }, 500);
     } catch (err) {
       console.error("[recording] getUserMedia falhou:", err);
-      alert("Não consegui acessar microfone/câmera. Verifique as permissões do navegador.");
+      const isPermission =
+        err instanceof DOMException && (err.name === "NotAllowedError" || err.name === "SecurityError");
+      toast.error(
+        isPermission
+          ? "Permissão negada."
+          : "Não consegui acessar microfone/câmera.",
+        {
+          description: isPermission
+            ? "Libera o acesso ao microfone nas configurações do navegador e tenta de novo."
+            : "Confere se outro app não está usando o microfone.",
+        },
+      );
     }
   }
 
@@ -229,21 +268,32 @@ export default function ComunidadeContent({ userEmail, userName, userAvatar }: P
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function uploadPendingMedia(): Promise<{ url: string; kind: MediaKind } | null> {
-    if (!pendingMedia) return null;
+  async function uploadPendingMedia(): Promise<
+    | { url: string; kind: MediaKind }
+    | { error: string }
+  > {
+    if (!pendingMedia) return { error: "Nenhuma mídia selecionada." };
     setUploading(true);
     try {
       const { kind, file } = pendingMedia;
-      const ext = file.name.split(".").pop()?.toLowerCase() || (kind === "image" ? "jpg" : kind === "audio" ? "webm" : "webm");
+      // contentType "limpo" (sem `;codecs=…`) — buckets com allowed_mime_types
+      // costumam rejeitar variantes com codec. Cai num default razoável quando
+      // o arquivo veio sem MIME (alguns navegadores).
+      const cleanType =
+        (file.type || "").split(";")[0].trim() ||
+        (kind === "image" ? "image/jpeg" : kind === "audio" ? "audio/webm" : "video/webm");
+      const ext =
+        file.name.split(".").pop()?.toLowerCase() ||
+        (kind === "image" ? "jpg" : kind === "audio" ? "webm" : "webm");
       // Subpasta por tipo deixa o bucket mais navegável; mantém o prefixo por
       // user pra facilitar policies por owner (já existentes pra imagens).
       const path = `${userEmail}/${kind}s/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
       const { error } = await supabase.storage
         .from("community-uploads")
-        .upload(path, file, { upsert: false, contentType: file.type });
+        .upload(path, file, { upsert: false, contentType: cleanType });
       if (error) {
         console.error("[upload] falha", error);
-        return null;
+        return { error: error.message || "Falha no upload da mídia." };
       }
       const { data: pub } = supabase.storage.from("community-uploads").getPublicUrl(path);
       return { url: pub.publicUrl, kind };
@@ -434,14 +484,13 @@ export default function ComunidadeContent({ userEmail, userName, userAvatar }: P
     let mediaKind: MediaKind | null = null;
     if (pendingMedia) {
       const res = await uploadPendingMedia();
-      if (res) {
-        mediaUrl = res.url;
-        mediaKind = res.kind;
-      } else {
+      if ("error" in res) {
         setPosting(false);
-        alert("Não consegui subir a mídia. Tenta de novo em um instante.");
+        toast.error("Não consegui subir a mídia.", { description: res.error });
         return;
       }
+      mediaUrl = res.url;
+      mediaKind = res.kind;
     }
 
     // post_type segue a mídia anexa; sem mídia, é texto puro.
@@ -466,10 +515,21 @@ export default function ComunidadeContent({ userEmail, userName, userAvatar }: P
     if (!error) {
       setComposerText("");
       clearPendingMedia();
+      toast.success(
+        mediaKind === "audio"
+          ? "Áudio publicado."
+          : mediaKind === "video"
+          ? "Vídeo publicado."
+          : mediaKind === "image"
+          ? "Imagem publicada."
+          : "Post publicado.",
+      );
       loadPosts();
     } else {
       console.error("[handlePost]", error);
-      alert("Erro ao postar. Tenta de novo.");
+      toast.error("Erro ao postar.", {
+        description: error.message || "Tenta de novo em um instante.",
+      });
     }
   }
 
