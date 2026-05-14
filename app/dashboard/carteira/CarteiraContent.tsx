@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import {
   Plus, Download, RefreshCw, Upload, TrendingUp, TrendingDown,
-  Wallet, MoreVertical, Sparkles, Brain,
+  Wallet, MoreVertical,
   DollarSign, Percent, CalendarClock, Zap, BarChart3, Layers, PieChart, Coins,
   type LucideIcon,
 } from "lucide-react";
@@ -58,17 +58,6 @@ interface Transaction {
   total_value: number;
   transaction_date: string;
   notes: string;
-}
-
-interface PortfolioInsight {
-  id: string;
-  insight_type: string;
-  title: string;
-  description: string;
-  confidence_score: number;
-  predicted_impact: string;
-  time_horizon: string;
-  related_assets: string[];
 }
 
 interface StockInfo {
@@ -733,7 +722,6 @@ export default function CarteiraContent({ userEmail }: Props) {
 
   const [assets, setAssets] = useState<Asset[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [insights, setInsights] = useState<PortfolioInsight[]>([]);
   const [stockMap, setStockMap] = useState<Record<string, StockInfo>>({});
   const [brapiData, setBrapiData] = useState<Record<string, BrapiQuote>>({});
   const [fiiIndicators, setFiiIndicators] = useState<Record<string, BrapiFIIIndicator>>({});
@@ -767,17 +755,15 @@ export default function CarteiraContent({ userEmail }: Props) {
     setLoading(true);
     const supabase = createClient();
 
-    const [{ data: aData }, { data: tData }, { data: iData }] = await Promise.all([
+    const [{ data: aData }, { data: tData }] = await Promise.all([
       supabase.from("asset").select("*").eq("user_email", userEmail).order("created_at", { ascending: false }),
       supabase.from("transaction").select("*").eq("user_email", userEmail).order("transaction_date", { ascending: false }),
-      supabase.from("portfolio_insight").select("*").eq("user_email", userEmail).order("generated_at", { ascending: false }).limit(5),
     ]);
 
     const assetList = (aData ?? []) as Asset[];
     const txList = (tData ?? []) as Transaction[];
     setAssets(assetList);
     setTransactions(txList);
-    setInsights((iData ?? []) as PortfolioInsight[]);
 
     // Fetch stock_data (Supabase) and brapi in parallel
     // Include both asset tickers and transaction tickers so logos render
@@ -1945,62 +1931,6 @@ export default function CarteiraContent({ userEmail }: Props) {
               )}
             </div>
 
-            {/* ── Otimização IA ── */}
-            <div id="ia" style={{ ...card, scrollMarginTop: "120px" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                  <div style={{ width: "32px", height: "32px", borderRadius: "8px", background: "rgba(201,168,76,0.12)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                    <Brain size={16} style={{ color: "var(--gold)" }} />
-                  </div>
-                  <div>
-                    <p style={{ fontSize: "15px", fontWeight: 600, color: "var(--text-default)", fontFamily: "var(--font-display)", marginBottom: "2px" }}>Otimização IA</p>
-                    <p style={{ fontSize: "11px", color: "var(--text-muted)", fontFamily: "var(--font-sans)" }}>Recomendações personalizadas para sua carteira</p>
-                  </div>
-                </div>
-                <div style={{ display: "flex", gap: "8px" }}>
-                  <button style={{ background: "transparent", border: "1px solid var(--border-soft)", borderRadius: "8px", padding: "7px 14px", color: "var(--text-muted)", fontSize: "12px", fontFamily: "var(--font-sans)", cursor: "pointer" }} className="aurum-hover-border aurum-hover-transition">
-                    Perfil de Risco
-                  </button>
-                  <button style={{ background: "linear-gradient(135deg, var(--gold-light), var(--gold), var(--gold-dim))", border: "none", borderRadius: "8px", padding: "7px 16px", color: "#0d0b07", fontSize: "12px", fontWeight: 700, fontFamily: "var(--font-sans)", cursor: "pointer" }}>
-                    Analisar
-                  </button>
-                </div>
-              </div>
-
-              {insights.length === 0 ? (
-                <div style={{ textAlign: "center", padding: "40px 0" }}>
-                  <Sparkles size={32} style={{ color: "var(--gold)", opacity: 0.4, display: "block", margin: "0 auto 16px" }} />
-                  <p style={{ fontSize: "13px", color: "var(--text-muted)", fontFamily: "var(--font-sans)", marginBottom: "6px" }}>
-                    Clique em &apos;Analisar&apos; para receber recomendações personalizadas
-                  </p>
-                  <p style={{ fontSize: "11px", color: "var(--text-faint)", fontFamily: "var(--font-sans)" }}>
-                    Perfil de risco · <span style={{ color: "var(--text-muted)" }}>longo prazo</span>
-                  </p>
-                </div>
-              ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                  {insights.map(insight => (
-                    <div key={insight.id} style={{ background: "rgba(201,168,76,0.04)", border: "1px solid var(--border-soft)", borderRadius: "10px", padding: "16px 20px" }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "8px" }}>
-                        <p style={{ fontSize: "14px", fontWeight: 600, color: "var(--text-default)", fontFamily: "var(--font-display)" }}>{insight.title}</p>
-                        {insight.confidence_score && (
-                          <span style={{ fontSize: "10px", color: "var(--gold)", fontFamily: "var(--font-sans)", background: "rgba(201,168,76,0.1)", padding: "2px 8px", borderRadius: "4px" }}>
-                            {(Number(insight.confidence_score) * 100).toFixed(0)}% confiança
-                          </span>
-                        )}
-                      </div>
-                      <p style={{ fontSize: "12px", color: "var(--text-muted)", fontFamily: "var(--font-sans)", lineHeight: 1.65, marginBottom: "8px" }}>{insight.description}</p>
-                      {insight.predicted_impact && (
-                        <p style={{ fontSize: "11px", color: "var(--gold)", fontFamily: "var(--font-sans)" }}>
-                          Impacto estimado: {insight.predicted_impact}
-                          {insight.time_horizon && ` · ${insight.time_horizon}`}
-                        </p>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
           </>
         )}
       </div>
@@ -2283,7 +2213,6 @@ function CarteiraStickyNav() {
     { id: "kpis",         label: "KPIs" },
     { id: "distribuicao", label: "Distribuição" },
     { id: "ativos",       label: "Ativos" },
-    { id: "ia",           label: "IA" },
   ];
   return (
     <nav
