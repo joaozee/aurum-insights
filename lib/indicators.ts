@@ -62,6 +62,41 @@ export const INDICATOR_HELP: Record<string, IndicatorHelpEntry> = {
     formula: "Enterprise Value ÷ EBIT",
     benchmark: "Abaixo de 8 é atrativo.",
   },
+  evToRevenue: {
+    title: "EV/Receita",
+    description:
+      "Quantas vezes a receita anual representa o valor total da empresa (equity + dívida). Útil para comparar empresas com ou sem lucro.",
+    formula: "Enterprise Value ÷ Receita Líquida",
+    benchmark: "Varia muito por setor. Tech: 5–10×. Indústria: 1–2×. Commodities: <2×.",
+  },
+  priceToFcf: {
+    title: "P/FCF (Preço/Fluxo de Caixa Livre)",
+    description:
+      "Quantos anos do caixa livre atual representariam o valor de mercado da empresa. Versão 'em caixa' do P/L — mais difícil de manipular contabilmente.",
+    formula: "Market Cap ÷ Free Cash Flow",
+    benchmark: "Abaixo de 20 é confortável. Acima de 30 já é caro pelo caixa que gera.",
+  },
+  earningsYield: {
+    title: "Earnings Yield",
+    description:
+      "Rendimento implícito do lucro em relação ao preço da ação. É o inverso do P/L — útil para comparar com a taxa básica de juros.",
+    formula: "1 ÷ (P/L) × 100",
+    benchmark: "Comparar com a Selic e o CDI. Yield acima do juro básico costuma chamar atenção.",
+  },
+  fcfYield: {
+    title: "FCF Yield (Rendimento do Caixa Livre)",
+    description:
+      "Quanto a empresa gera de caixa livre por ano em relação ao seu valor de mercado. Mostra o 'rendimento real' que o caixa da operação representa.",
+    formula: "Free Cash Flow ÷ Market Cap × 100",
+    benchmark: "Acima de 5% costuma ser interessante. Comparar sempre com a Selic e o CDI.",
+  },
+  grahamNumber: {
+    title: "Número de Graham",
+    description:
+      "Preço de referência clássico de Benjamin Graham, considerando lucro e patrimônio por ação. Costuma ser comparado ao preço atual da ação.",
+    formula: "√(22,5 × LPA × VPA)",
+    benchmark: "Compare com o preço atual: preço abaixo do Graham costuma indicar desconto sobre os fundamentos.",
+  },
 
   // ─── Por ação ───────────────────────────────────────────────────────────
   lpa: {

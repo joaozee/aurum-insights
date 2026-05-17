@@ -1296,6 +1296,11 @@ interface Metrics {
   dy: number | null;
   payout: number | null;
   evEbit: number | null;
+  evToRevenue: number | null;
+  priceToFcf: number | null;
+  earningsYield: number | null;  // decimal (0.085 → 8,5%)
+  fcfYield: number | null;       // decimal (0.027 → 2,7%)
+  grahamNumber: number | null;   // R$ por ação
   netDebt: number | null;
   netDebtToEquity: number | null;
   netDebtToEbitda: number | null;
@@ -1322,6 +1327,8 @@ function isFinanceSector(q: BrapiQuoteFull | null): boolean {
 function calculateMetrics(q: BrapiQuoteFull | null): Metrics {
   if (!q) return {
     pl: null, pvp: null, dy: null, payout: null, evEbit: null,
+    evToRevenue: null, priceToFcf: null, earningsYield: null,
+    fcfYield: null, grahamNumber: null,
     netDebt: null, netDebtToEquity: null, netDebtToEbitda: null,
     liabilitiesToAssets: null, netIncome: null, equity: null,
     sharesOutstanding: null,
@@ -1421,8 +1428,35 @@ function calculateMetrics(q: BrapiQuoteFull | null): Metrics {
     ?? q.defaultKeyStatistics?.revenuePerShare
     ?? (totalRevenue && sharesOutstanding ? totalRevenue / sharesOutstanding : null);
 
+  // EV/Receita — múltiplo neutro a estrutura de capital, útil para empresas com lucro
+  // baixo ou negativo onde P/L e EV/EBITDA podem distorcer.
+  const evToRevenue = ev !== null && totalRevenue !== null && totalRevenue > 0
+    ? ev / totalRevenue
+    : null;
+
+  // P/FCF e FCF Yield — usam Market Cap (não EV) por convenção: refletem o
+  // retorno em caixa "para o acionista", não para todos os fornecedores de capital.
+  const fcf = q.financialData?.freeCashflow ?? null;
+  const mktCap = q.marketCap ?? null;
+  const priceToFcf = mktCap !== null && fcf !== null && fcf > 0
+    ? mktCap / fcf
+    : null;
+  const fcfYield = mktCap !== null && fcf !== null && mktCap > 0
+    ? fcf / mktCap
+    : null;
+
+  // Earnings Yield = 1/P/L. Em decimal pra padronizar com fcfYield e permitir fmtPctDecimal.
+  const earningsYield = pl !== null && pl > 0 ? 1 / pl : null;
+
+  // Número de Graham = √(22,5 × LPA × VPA). Só faz sentido com LPA > 0 e VPA > 0.
+  const bookValue = q.defaultKeyStatistics?.bookValue ?? null;
+  const grahamNumber = lpa !== null && lpa > 0 && bookValue !== null && bookValue > 0
+    ? Math.sqrt(22.5 * lpa * bookValue)
+    : null;
+
   return {
     pl, pvp, dy, payout, evEbit,
+    evToRevenue, priceToFcf, earningsYield, fcfYield, grahamNumber,
     netDebt, netDebtToEquity, netDebtToEbitda,
     liabilitiesToAssets, netIncome, equity: finalEquity,
     sharesOutstanding,
@@ -2782,34 +2816,100 @@ function SectorBadge({ label }: { label: string }) {
 }
 
 function DefaultIndicators({ metrics, quote }: { metrics: Metrics; quote: BrapiQuoteFull }) {
+  // ─── Marcadores de atenção (descritivos, não recomendação) ───────────────
+  // Cada flag aponta um valor fora da faixa de referência documentada em
+  // INDICATOR_HELP. O usuário pode abrir o "?" pra ler a descrição factual.
+  const currentRatio = quote.financialData?.currentRatio ?? null;
+  const earningsGrowth = quote.financialData?.earningsGrowth ?? null;
+  const att = {
+    payout: metrics.payout !== null && metrics.payout > 100,
+    netDebtToEbitda: metrics.netDebtToEbitda !== null && metrics.netDebtToEbitda > 3,
+    currentRatio: currentRatio !== null && currentRatio < 1,
+    earnGrowth: earningsGrowth !== null && earningsGrowth < -0.2,
+    priceToFcf: metrics.priceToFcf !== null && metrics.priceToFcf > 30,
+  };
+
   return (
     <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "10px" }}>
+      {/* Valuation clássica */}
       <Indicator helpKey="pl" label="P/L" value={fmtNum(metrics.pl, 2)} />
       <Indicator helpKey="pvp" label="P/VP" value={fmtNum(metrics.pvp, 2)} />
-      <Indicator helpKey="dy" label="Dividend Yield" value={metrics.dy !== null ? `${metrics.dy.toFixed(2)}%` : "—"} />
-      <Indicator helpKey="payout" label="Payout" value={metrics.payout !== null ? `${metrics.payout.toFixed(2)}%` : "—"} />
       <Indicator helpKey="evEbitda" label="EV/EBITDA" value={fmtNum(quote.defaultKeyStatistics?.enterpriseToEbitda, 2)} />
       <Indicator helpKey="evEbit" label="EV/EBIT" value={fmtNum(metrics.evEbit, 2)} />
+
+      {/* Valuation complementar (NOVOS) */}
+      <Indicator helpKey="evToRevenue" label="EV/Receita" value={fmtNum(metrics.evToRevenue, 2)} />
+      <Indicator
+        helpKey="priceToFcf"
+        label="P/FCF"
+        value={fmtNum(metrics.priceToFcf, 2)}
+        attention={att.priceToFcf}
+      />
+      <Indicator helpKey="earningsYield" label="Earnings Yield" value={fmtPctDecimal(metrics.earningsYield)} />
+      <Indicator helpKey="fcfYield" label="FCF Yield" value={fmtPctDecimal(metrics.fcfYield)} />
+
+      {/* Por ação */}
       <Indicator helpKey="lpa" label="LPA" value={quote.earningsPerShare !== null && quote.earningsPerShare !== undefined ? `R$ ${quote.earningsPerShare.toFixed(2).replace(".", ",")}` : "—"} />
       <Indicator helpKey="vpa" label="VPA" value={quote.defaultKeyStatistics?.bookValue !== undefined ? `R$ ${quote.defaultKeyStatistics.bookValue.toFixed(2).replace(".", ",")}` : "—"} />
+      <Indicator
+        helpKey="grahamNumber"
+        label="Número de Graham"
+        value={metrics.grahamNumber !== null ? `R$ ${metrics.grahamNumber.toFixed(2).replace(".", ",")}` : "—"}
+      />
+      <Indicator
+        helpKey="dy"
+        label="Dividend Yield"
+        value={metrics.dy !== null ? `${metrics.dy.toFixed(2)}%` : "—"}
+      />
+
+      {/* Renda */}
+      <Indicator
+        helpKey="payout"
+        label="Payout"
+        value={metrics.payout !== null ? `${metrics.payout.toFixed(2)}%` : "—"}
+        attention={att.payout}
+      />
+      <Indicator helpKey="fcf" label="Free Cash Flow" value={fmtMoney(quote.financialData?.freeCashflow)} />
+      <Indicator helpKey="beta" label="Beta" value={fmtNum(quote.defaultKeyStatistics?.beta, 2)} />
+      <Indicator
+        helpKey="currentRatio"
+        label="Liquidez Corrente"
+        value={fmtNum(quote.financialData?.currentRatio, 2)}
+        attention={att.currentRatio}
+      />
+
+      {/* Endividamento */}
       <Indicator helpKey="netDebt" label="Dívida Líquida" value={fmtMoney(metrics.netDebt)} />
       <Indicator helpKey="netDebtToEquity" label="Dív. Líq./PL" value={fmtNum(metrics.netDebtToEquity, 2)} />
-      <Indicator helpKey="netDebtToEbitda" label="Dív. Líq./EBITDA" value={fmtNum(metrics.netDebtToEbitda, 2)} />
+      <Indicator
+        helpKey="netDebtToEbitda"
+        label="Dív. Líq./EBITDA"
+        value={fmtNum(metrics.netDebtToEbitda, 2)}
+        attention={att.netDebtToEbitda}
+      />
       <Indicator helpKey="liabToAssets" label="Passivos/Ativos" value={fmtPct(metrics.liabilitiesToAssets)} />
-      <Indicator helpKey="currentRatio" label="Liquidez Corrente" value={fmtNum(quote.financialData?.currentRatio, 2)} />
+
+      {/* Margens */}
       <Indicator helpKey="grossMargin" label="Margem Bruta" value={fmtPct(quote.financialData?.grossMargins)} />
       <Indicator helpKey="netMargin" label="Margem Líquida" value={fmtPct(quote.financialData?.profitMargins)} />
       <Indicator helpKey="ebitdaMargin" label="Margem EBITDA" value={fmtPct(quote.financialData?.ebitdaMargins)} />
       <Indicator helpKey="operatingMargin" label="Margem Operacional" value={fmtPct(quote.financialData?.operatingMargins)} />
+
+      {/* Rentabilidade + Crescimento */}
       <Indicator helpKey="roe" label="ROE" value={fmtPct(quote.financialData?.returnOnEquity)} />
       <Indicator helpKey="roa" label="ROA" value={fmtPct(quote.financialData?.returnOnAssets)} />
       <Indicator helpKey="cagrRevenue" label="CAGR Receita 5A" value={fmtPct(quote.financialData?.revenueGrowth)} />
-      <Indicator helpKey="cagrEarnings" label="CAGR Lucro 5A" value={fmtPct(quote.financialData?.earningsGrowth)} />
+      <Indicator
+        helpKey="cagrEarnings"
+        label="CAGR Lucro 5A"
+        value={fmtPct(quote.financialData?.earningsGrowth)}
+        attention={att.earnGrowth}
+      />
+
+      {/* Tamanho */}
       <Indicator helpKey="revenue" label="Receita Líquida" value={fmtMoney(quote.financialData?.totalRevenue)} />
       <Indicator helpKey="ebitda" label="EBITDA" value={fmtMoney(quote.financialData?.ebitda)} />
       <Indicator helpKey="netIncome" label="Lucro Líquido" value={fmtMoney(metrics.netIncome)} />
-      <Indicator helpKey="fcf" label="Free Cash Flow" value={fmtMoney(quote.financialData?.freeCashflow)} />
-      <Indicator helpKey="beta" label="Beta" value={fmtNum(quote.defaultKeyStatistics?.beta, 2)} />
     </div>
   );
 }
@@ -3257,15 +3357,49 @@ function MiniStat({ label, value, color }: { label: string; value: string; color
   );
 }
 
-function Indicator({ label, value, helpKey }: { label: string; value: string; helpKey?: string }) {
+/**
+ * Card de indicador fundamentalista.
+ *
+ * `attention` é um marcador puramente descritivo: quando true, o card recebe
+ * um acento dourado discreto na lateral esquerda indicando que o valor está
+ * fora da faixa típica documentada nos benchmarks (sem juízo de "bom/ruim").
+ * O usuário pode abrir o help (?) para ler a descrição factual da faixa.
+ */
+function Indicator({
+  label,
+  value,
+  helpKey,
+  attention = false,
+}: {
+  label: string;
+  value: string;
+  helpKey?: string;
+  attention?: boolean;
+}) {
   return (
     <div style={{
       background: "#0d0b07",
-      border: "1px solid rgba(201,168,76,0.06)",
+      border: attention
+        ? "1px solid rgba(201,168,76,0.22)"
+        : "1px solid rgba(201,168,76,0.06)",
       borderRadius: "8px",
       padding: "10px 12px",
       position: "relative",
+      overflow: "hidden",
     }}>
+      {attention && (
+        <span
+          aria-hidden="true"
+          style={{
+            position: "absolute",
+            left: 0,
+            top: 0,
+            bottom: 0,
+            width: "2px",
+            background: "linear-gradient(180deg, rgba(201,168,76,0.7), rgba(201,168,76,0.25))",
+          }}
+        />
+      )}
       <div style={{
         display: "flex",
         alignItems: "flex-start",
