@@ -147,7 +147,46 @@ export default function AdminNoticiasContent({ userEmail, userName, userAvatar }
   // Cache de previews já buscados (URL → description) — evita rebuscar
   const previewCache = useRef<Map<string, string>>(new Map());
 
+  // Traduz códigos de erro técnicos do backend pra mensagem amigável ao admin.
+  // Mantém intencionalmente factual — não promete nada que não está sob controle.
+  const friendlyError = useCallback(
+    (code: string, retryAfterSec: number | null): string => {
+      switch (code) {
+        case "rate_limit": {
+          const wait = retryAfterSec && retryAfterSec > 0
+            ? ` Tente novamente em ~${retryAfterSec}s.`
+            : " Aguarde alguns segundos e tente de novo.";
+          return `O GDELT está limitando o número de buscas no momento.${wait}`;
+        }
+        case "gdelt_unavailable":
+          return "O GDELT está temporariamente fora do ar. Tente em alguns minutos.";
+        case "empty_response":
+          return "Nenhum artigo retornado para essa combinação de filtros — tente abrir o tema ou janela de tempo.";
+        case "parse_error":
+          return "Resposta inesperada do GDELT. Tentar de novo costuma resolver.";
+        case "network_error":
+          return "Não foi possível alcançar o GDELT. Verifique a conexão e tente novamente.";
+        default:
+          if (code.startsWith("http_")) {
+            return `O GDELT respondeu com erro (${code.replace("http_", "")}). Tente novamente em instantes.`;
+          }
+          return "Não consegui carregar as notícias do GDELT.";
+      }
+    },
+    [],
+  );
+
+  // AbortController pra cancelar requests em voo quando os filtros mudam.
+  // Sem isso, mudanças rápidas em sequência (clicar 3 temas seguidos) disparam
+  // 3 chamadas paralelas — algumas resolvem fora de ordem e o GDELT castiga.
+  const inFlightRef = useRef<AbortController | null>(null);
+
   const loadNews = useCallback(async () => {
+    // Cancela qualquer request anterior em voo
+    inFlightRef.current?.abort();
+    const ac = new AbortController();
+    inFlightRef.current = ac;
+
     setLoading(true);
     setError(null);
     try {
@@ -162,21 +201,36 @@ export default function AdminNoticiasContent({ userEmail, userName, userAvatar }
       params.set("timespan", timespan);
       params.set("max", "50");
 
-      const res = await fetch(`/api/gdelt-news?${params.toString()}`);
+      const res = await fetch(`/api/gdelt-news?${params.toString()}`, { signal: ac.signal });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = (await res.json()) as { items?: GdeltNewsItem[]; error?: string };
+      const data = (await res.json()) as {
+        items?: GdeltNewsItem[];
+        error?: string;
+        retryAfterSeconds?: number | null;
+      };
+      // Se a request foi cancelada entre o fetch e o setState, sai sem mexer
+      if (ac.signal.aborted) return;
       setItems(data.items ?? []);
-      if (data.error) setError(`Aviso: ${data.error}`);
+      if (data.error) {
+        setError(friendlyError(data.error, data.retryAfterSeconds ?? null));
+      }
     } catch (err) {
+      // AbortError é esperado quando filtros mudam — não é erro real
+      if ((err as Error)?.name === "AbortError") return;
       console.error("[admin-noticias/loadNews]", err);
       setError("Não consegui carregar as notícias do GDELT.");
     } finally {
-      setLoading(false);
+      if (!ac.signal.aborted) setLoading(false);
     }
-  }, [customQuery, activeTheme, lang, country, timespan]);
+  }, [customQuery, activeTheme, lang, country, timespan, friendlyError]);
 
-  // Refaz a busca quando os filtros mudam
-  useEffect(() => { loadNews(); }, [loadNews]);
+  // Refaz a busca quando os filtros mudam — com debounce de 350ms.
+  // Mudanças rápidas (clicar 3 temas em sequência, digitar na busca) viram
+  // uma única chamada ao GDELT, reduzindo risco de 429.
+  useEffect(() => {
+    const t = setTimeout(() => { loadNews(); }, 350);
+    return () => clearTimeout(t);
+  }, [loadNews]);
 
   // Carrega os URLs já postados como notícia pra desabilitar duplicatas
   const loadAlreadyPosted = useCallback(async () => {

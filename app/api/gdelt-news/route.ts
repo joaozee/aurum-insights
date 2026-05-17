@@ -70,6 +70,98 @@ function parseSeenDate(raw?: string): string | null {
   return Number.isFinite(t) ? new Date(t).toISOString() : null;
 }
 
+// ─── Helpers de cache e retry ───────────────────────────────────────────────
+
+// Cache em memória do processo. Só guarda respostas DE SUCESSO (com items).
+// Failures (429, timeouts, XML, etc.) nunca são cacheadas — assim o usuário
+// clicar em "Tentar de novo" realmente refaz a chamada.
+//
+// Em serverless (Vercel), cada warm container reutiliza este Map; cold starts
+// começam vazio. TTL de 10min é seguro pra news que rotacionam de hora em hora.
+type CacheEntry = { items: GdeltNewsItem[]; expiresAt: number };
+const CACHE_TTL_MS = 10 * 60 * 1000; // 10 min
+const memCache = new Map<string, CacheEntry>();
+
+// Backoff para retry em 429. Honra Retry-After se vier no header.
+function pickRetryDelayMs(res: Response, attempt: number): number {
+  const retryAfter = res.headers.get("retry-after");
+  if (retryAfter) {
+    // Pode ser segundos OU data HTTP. GDELT costuma mandar segundos.
+    const asSeconds = parseInt(retryAfter, 10);
+    if (Number.isFinite(asSeconds) && asSeconds > 0) {
+      // Cap em 5s pra não bloquear demais a request inteira
+      return Math.min(asSeconds * 1000, 5000);
+    }
+    const asDate = Date.parse(retryAfter);
+    if (Number.isFinite(asDate)) {
+      const ms = asDate - Date.now();
+      if (ms > 0) return Math.min(ms, 5000);
+    }
+  }
+  // Backoff exponencial: 800ms → 2s → 4s (cap)
+  return Math.min(800 * Math.pow(2, attempt), 4000);
+}
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * Faz fetch no GDELT com retry em 429. Até 2 retries (3 tentativas no total).
+ * Retorna { ok, status, body } — nunca lança. `body` é null se não pôde ler.
+ */
+async function fetchGdeltWithRetry(gdeltUrl: string): Promise<{
+  ok: boolean;
+  status: number;
+  body: string | null;
+  retryAfterMs?: number;
+}> {
+  const MAX_ATTEMPTS = 3;
+  let lastStatus = 0;
+  let lastRetryAfterMs: number | undefined;
+  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+    try {
+      const res = await fetch(gdeltUrl, {
+        // IMPORTANTE: cache no-store. O cache de sucesso é feito por nós
+        // em memCache; falhas não devem ficar grudadas no fetch cache.
+        cache: "no-store",
+        headers: { "User-Agent": "AurumApp/1.0 (https://github.com/joaozee/aurum-insights)" },
+      });
+      lastStatus = res.status;
+      if (res.ok) {
+        const body = await res.text();
+        return { ok: true, status: res.status, body };
+      }
+      // 429 ou 5xx → tenta de novo se ainda tem fôlego
+      if ((res.status === 429 || res.status >= 500) && attempt < MAX_ATTEMPTS - 1) {
+        const delay = pickRetryDelayMs(res, attempt);
+        lastRetryAfterMs = delay;
+        await sleep(delay);
+        continue;
+      }
+      // Falha final — captura Retry-After se houver pra propagar
+      const finalRetry = res.headers.get("retry-after");
+      if (finalRetry) {
+        const asSec = parseInt(finalRetry, 10);
+        if (Number.isFinite(asSec)) lastRetryAfterMs = asSec * 1000;
+      }
+      return { ok: false, status: res.status, body: null, retryAfterMs: lastRetryAfterMs };
+    } catch (err) {
+      // erro de rede → também vale retry
+      console.error(`[gdelt-news] tentativa ${attempt + 1} falhou:`, err);
+      if (attempt < MAX_ATTEMPTS - 1) {
+        await sleep(Math.min(800 * Math.pow(2, attempt), 4000));
+        continue;
+      }
+      return { ok: false, status: lastStatus || 0, body: null };
+    }
+  }
+  return { ok: false, status: lastStatus, body: null, retryAfterMs: lastRetryAfterMs };
+}
+
+// Headers padrão pra não deixar resposta de erro grudada em CDN/cache do browser.
+const NO_STORE_HEADERS = {
+  "Cache-Control": "no-store, max-age=0, must-revalidate",
+} as const;
+
 export async function GET(req: NextRequest) {
   const sp = req.nextUrl.searchParams;
   const userQuery = sp.get("q")?.trim();
@@ -92,44 +184,88 @@ export async function GET(req: NextRequest) {
   url.searchParams.set("sort", "datedesc");
   url.searchParams.set("timespan", timespan);
 
-  try {
-    // Cache de 10min — notícias são "frescas o bastante"
-    const res = await fetch(url.toString(), {
-      next: { revalidate: 600 },
-      headers: { "User-Agent": "AurumApp/1.0 (https://github.com/joaozee/aurum-insights)" },
-    });
-    if (!res.ok) {
-      return NextResponse.json({ items: [], error: `HTTP ${res.status}` }, { status: 200 });
-    }
-    // GDELT às vezes retorna texto vazio ou XML quando a query é inválida
-    const text = await res.text();
-    if (!text || !text.trim().startsWith("{")) {
-      return NextResponse.json({ items: [] }, { status: 200 });
-    }
-    const data = JSON.parse(text) as { articles?: GdeltArticle[] };
-    const articles = data.articles ?? [];
+  const cacheKey = url.toString();
 
-    // Dedupe por URL + filtra artigos sem título
-    const seen = new Set<string>();
-    const items: GdeltNewsItem[] = [];
-    for (const a of articles) {
-      if (!a.url || !a.title || seen.has(a.url)) continue;
-      seen.add(a.url);
-      items.push({
-        id: a.url,
-        title: a.title.trim(),
-        url: a.url,
-        source: a.domain ?? "",
-        pubDate: parseSeenDate(a.seendate),
-        thumb: a.socialimage && a.socialimage !== "" ? a.socialimage : null,
-        language: a.language ?? "",
-        country: a.sourcecountry ?? "",
-      });
-    }
-
-    return NextResponse.json({ items, total: items.length }, { status: 200 });
-  } catch (err) {
-    console.error("[gdelt-news]", err);
-    return NextResponse.json({ items: [], error: "fetch_failed" }, { status: 200 });
+  // 1) Tenta servir do cache em memória se ainda fresco
+  const cached = memCache.get(cacheKey);
+  if (cached && cached.expiresAt > Date.now()) {
+    return NextResponse.json(
+      { items: cached.items, total: cached.items.length, cached: true },
+      { status: 200, headers: { "Cache-Control": "private, max-age=60" } },
+    );
   }
+
+  // 2) Vai pro GDELT com retry
+  const result = await fetchGdeltWithRetry(cacheKey);
+
+  if (!result.ok) {
+    const retrySec = result.retryAfterMs ? Math.ceil(result.retryAfterMs / 1000) : undefined;
+    const errorCode =
+      result.status === 429
+        ? "rate_limit"
+        : result.status >= 500
+          ? "gdelt_unavailable"
+          : result.status > 0
+            ? `http_${result.status}`
+            : "network_error";
+    return NextResponse.json(
+      {
+        items: [],
+        error: errorCode,
+        status: result.status || null,
+        retryAfterSeconds: retrySec ?? null,
+      },
+      { status: 200, headers: NO_STORE_HEADERS },
+    );
+  }
+
+  // 3) Parse — GDELT às vezes retorna texto vazio ou XML em queries inválidas
+  const text = result.body ?? "";
+  if (!text || !text.trim().startsWith("{")) {
+    return NextResponse.json(
+      { items: [], error: "empty_response" },
+      { status: 200, headers: NO_STORE_HEADERS },
+    );
+  }
+
+  let data: { articles?: GdeltArticle[] };
+  try {
+    data = JSON.parse(text) as { articles?: GdeltArticle[] };
+  } catch (err) {
+    console.error("[gdelt-news] JSON parse:", err);
+    return NextResponse.json(
+      { items: [], error: "parse_error" },
+      { status: 200, headers: NO_STORE_HEADERS },
+    );
+  }
+  const articles = data.articles ?? [];
+
+  // Dedupe por URL + filtra artigos sem título
+  const seen = new Set<string>();
+  const items: GdeltNewsItem[] = [];
+  for (const a of articles) {
+    if (!a.url || !a.title || seen.has(a.url)) continue;
+    seen.add(a.url);
+    items.push({
+      id: a.url,
+      title: a.title.trim(),
+      url: a.url,
+      source: a.domain ?? "",
+      pubDate: parseSeenDate(a.seendate),
+      thumb: a.socialimage && a.socialimage !== "" ? a.socialimage : null,
+      language: a.language ?? "",
+      country: a.sourcecountry ?? "",
+    });
+  }
+
+  // 4) Só cacheia se DEU CERTO (items.length > 0 protege contra fluke de
+  // resposta vazia que ainda assim chegou como 200)
+  if (items.length > 0) {
+    memCache.set(cacheKey, { items, expiresAt: Date.now() + CACHE_TTL_MS });
+  }
+
+  return NextResponse.json(
+    { items, total: items.length },
+    { status: 200, headers: { "Cache-Control": "private, max-age=60" } },
+  );
 }
